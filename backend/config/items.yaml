@@ -1,0 +1,18 @@
+items:
+  starter_weapon:
+    name: "Basic Weapon"
+    weight: 3.5
+    rarity: common
+    description: "A simple weapon adapted to the character's fighting style."
+
+  starter_supplies:
+    name: "Supplies"
+    weight: 0.5
+    rarity: common
+    description: "A starter travel kit with basic survival items."
+
+  starter_backpack:
+    name: "Backpack"
+    weight: 1.0
+    rarity: common
+    description: "A simple backpack for carrying gear."

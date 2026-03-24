@@ -1,0 +1,402 @@
+﻿# travel.yaml - Aerus RPG travel and encounter system
+# Extracted from the canonical world and regional maps.
+# Unit: travel days (baseline = an adult carrying standard gear)
+
+speed:
+  road: 1.0
+  trail: 1.5
+  wilderness: 2.0
+  sea: 0.6
+  mountain: 3.0
+  arctic: 3.5
+  corrupted: 2.5
+
+encounter_chance:
+  road: 0.15
+  trail: 0.30
+  wilderness: 0.40
+  sea: 0.20
+  mountain: 0.35
+  arctic: 0.30
+  corrupted: 0.60
+
+encounter_tables:
+  road:
+    - { roll_min: 1, roll_max: 8, type: "bandits", tier: 1, description: "Bandits or imperial deserters on the road" }
+    - { roll_min: 9, roll_max: 14, type: "merchants", tier: 0, description: "Friendly or neutral caravan with possible information" }
+    - { roll_min: 15, roll_max: 17, type: "creature_t1", tier: 1, description: "A Tier 1 creature emerges from the woods onto the road" }
+    - { roll_min: 18, roll_max: 20, type: "narrative_event", tier: 0, description: "Traveling noble, imperial guard, or urgent messenger" }
+  trail:
+    - { roll_min: 1, roll_max: 6, type: "creature_t1", tier: 1, description: "Thorn-Grays or a Goblin Surge ambush" }
+    - { roll_min: 7, roll_max: 12, type: "shadow_turner", tier: 1, description: "A Shadow-Turner or Keth beast stalks the trail" }
+    - { roll_min: 13, roll_max: 16, type: "creature_t2", tier: 2, description: "Dimensional predator or Herald of Rot" }
+    - { roll_min: 17, roll_max: 18, type: "ruins_discovery", tier: 0, description: "Small ruin with an item or lore fragment" }
+    - { roll_min: 19, roll_max: 20, type: "surprise_ally", tier: 0, description: "An allied NPC or survivor needs help" }
+  wilderness:
+    - { roll_min: 1, roll_max: 5, type: "creature_t1", tier: 1, description: "Tier 1 creature ambush" }
+    - { roll_min: 6, roll_max: 11, type: "creature_t2", tier: 2, description: "Tier 2 creature in untamed territory" }
+    - { roll_min: 12, roll_max: 14, type: "magic_surge", tier: 0, description: "Thread Surge causing a random corruption effect" }
+    - { roll_min: 15, roll_max: 17, type: "camp", tier: 0, description: "Mercenary or refugee camp" }
+    - { roll_min: 18, roll_max: 20, type: "natural_phenomenon", tier: 0, description: "Storm, ravine, or unstable terrain" }
+  sea:
+    - { roll_min: 1, roll_max: 6, type: "lesser_leviathan", tier: 2, description: "Sea monster such as a lesser leviathan or sea serpent" }
+    - { roll_min: 7, roll_max: 11, type: "pirates", tier: 1, description: "Pirate ship or island corsairs" }
+    - { roll_min: 12, roll_max: 15, type: "storm", tier: 0, description: "Storm damages the ship and may push it off course" }
+    - { roll_min: 16, roll_max: 18, type: "ghost_ship", tier: 2, description: "Hungry specter or drifting corrupted vessel" }
+    - { roll_min: 19, roll_max: 20, type: "unknown_island", tier: 0, description: "Unmapped island hiding lore or treasure" }
+  mountain:
+    - { roll_min: 1, roll_max: 5, type: "keth_beast", tier: 1, description: "Keth beast from the ice and stone" }
+    - { roll_min: 6, roll_max: 10, type: "avalanche", tier: 0, description: "Avalanche with damage and possible party separation" }
+    - { roll_min: 11, roll_max: 14, type: "creature_t2", tier: 2, description: "Forged orc or mountain predator" }
+    - { roll_min: 15, roll_max: 17, type: "forgers", tier: 0, description: "Forger patrol, neutral or hostile depending on context" }
+    - { roll_min: 18, roll_max: 20, type: "keth_vein", tier: 0, description: "Exposed Keth vein with stable magic nearby" }
+  arctic:
+    - { roll_min: 1, roll_max: 7, type: "bestia_keth", tier: 2, description: "Deep-ice Keth beast or cave hunter" }
+    - { roll_min: 8, roll_max: 12, type: "ice_storm", tier: 0, description: "Blizzard with near-zero visibility and hypothermia risk" }
+    - { roll_min: 13, roll_max: 15, type: "creature_t2", tier: 2, description: "Tier 2 arctic creature" }
+    - { roll_min: 16, roll_max: 18, type: "keth_outpost", tier: 0, description: "Advanced Forger outpost with possible shelter" }
+    - { roll_min: 19, roll_max: 20, type: "thread_anomaly", tier: 0, description: "A place where the Thread sleeps inside stone and magic stabilizes" }
+  corrupted:
+    - { roll_min: 1, roll_max: 4, type: "ash_golem", tier: 2, description: "Ash Golem or Herald of Rot" }
+    - { roll_min: 5, roll_max: 8, type: "corruption_surge", tier: 0, description: "Corruption surge distorts active magic" }
+    - { roll_min: 9, roll_max: 12, type: "creature_t3", tier: 3, description: "Tier 3 threat such as an Ash Dragon or Corrupted Angel" }
+    - { roll_min: 13, roll_max: 15, type: "echo_of_vorathek", tier: 3, description: "Non-sentient manifestation of Vor'Athek" }
+    - { roll_min: 16, roll_max: 18, type: "aeridian_ruins", tier: 0, description: "Deep Aeridian ruins with lore and possible fragments" }
+    - { roll_min: 19, roll_max: 20, type: "abyss_lord", tier: 4, description: "Abyss Lord encounter where escape is wiser than combat" }
+
+locations:
+  port_myr:
+    name: "Port Myr"
+    continent: "isles_of_myr"
+    terrain_local: "sea"
+    faction: "myr_council"
+    description: "Main port and campaign starting point in the Isles of Myr."
+    map: "Aerus_IslandOfMyr_Map.png"
+  vel_ossian:
+    name: "Vel'Ossian"
+    continent: "isles_of_myr"
+    terrain_local: "sea"
+    faction: "guild_of_threads"
+    description: "Seat of the Guild of Threads and its arcane archive."
+    map: "Aerus_IslandOfMyr_Map.png"
+  sanctum:
+    name: "Sanctum"
+    continent: "isles_of_myr"
+    terrain_local: "sea"
+    faction: "church_pure_flame"
+    description: "Stronghold of the Church of the Pure Flame."
+    map: "Aerus_IslandOfMyr_Map.png"
+  leviathan_cave:
+    name: "Leviathan Myri - Nauta Cave"
+    continent: "isles_of_myr"
+    terrain_local: "sea"
+    faction: null
+    description: "Submerged cavern of the Myr Leviathan. Extremely dangerous."
+    map: "Aerus_IslandOfMyr_Map.png"
+    danger: high
+  auramveld:
+    name: "Auramveld"
+    continent: "valdoria"
+    terrain_local: "road"
+    faction: "empire_valdrek"
+    description: "Capital of the Empire of Valdrek."
+    map: "Areus_Valdoria_Map.png"
+  osthara:
+    name: "Osthara"
+    continent: "valdoria"
+    terrain_local: "road"
+    faction: "neutral"
+    description: "Confederation of seven principalities."
+    map: "Areus_Valdoria_Map.png"
+  calmveth:
+    name: "Calmveth"
+    continent: "valdoria"
+    terrain_local: "road"
+    faction: "neutral"
+    description: "Free port on the western coast of Valdoria."
+    map: "Areus_Valdoria_Map.png"
+  marchado_ferren:
+    name: "Ferren March"
+    continent: "valdoria"
+    terrain_local: "wilderness"
+    faction: "empire_valdrek"
+    description: "Militarized imperial frontier zone."
+    map: "Areus_Valdoria_Map.png"
+  fendas_de_gorath:
+    name: "Gorath Rifts"
+    continent: "valdoria"
+    terrain_local: "corrupted"
+    faction: null
+    description: "Temporal anomalies make travel time unpredictable."
+    map: "Areus_Valdoria_Map.png"
+    danger: high
+  vel_shar:
+    name: "Vel-Shar"
+    continent: "shaleth"
+    terrain_local: "trail"
+    faction: "neutral"
+    description: "Elven capital of Shaleth."
+    map: "Aerus_Shaleth_Map.png"
+  vel_arath:
+    name: "Vel'Arath"
+    continent: "shaleth"
+    terrain_local: "trail"
+    faction: null
+    description: "Ancestral forest where the woods rule, not the elves."
+    map: "Aerus_Shaleth_Map.png"
+  limen_vel_arath:
+    name: "Limen Vel'Arath"
+    continent: "shaleth"
+    terrain_local: "corrupted"
+    faction: null
+    description: "Forbidden forest edge beyond which maps stop being reliable."
+    map: "Aerus_Shaleth_Map.png"
+    danger: extreme
+  kethara:
+    name: "Kethara"
+    continent: "estravar"
+    terrain_local: "mountain"
+    faction: "neutral"
+    description: "Great forge fortress of the Forgers."
+    map: "Aerus_Estravar_Map.png"
+  keth_ara:
+    name: "Keth-Ara"
+    continent: "estravar"
+    terrain_local: "arctic"
+    faction: "neutral"
+    description: "Second forge deep in the frozen reaches."
+    map: "Aerus_Estravar_Map.png"
+  stenvaard:
+    name: "Stenvaard"
+    continent: "estravar"
+    terrain_local: "mountain"
+    faction: "neutral"
+    description: "Northern port theocracy."
+    map: "Aerus_Estravar_Map.png"
+  passagem_ondrek:
+    name: "Ondrek Pass"
+    continent: "estravar"
+    terrain_local: "mountain"
+    faction: null
+    description: "The only viable tunnel through the Pale Belt."
+    map: "Aerus_Estravar_Map.png"
+  khor_ath:
+    name: "Khor-Ath"
+    continent: "khorrath"
+    terrain_local: "wilderness"
+    faction: "neutral"
+    description: "Capital of the Sultanate of Khor."
+    map: "Aerus_Khorrath_Map.png"
+  urbes_ambulantes:
+    name: "Wandering Cities"
+    continent: "khorrath"
+    terrain_local: "wilderness"
+    faction: "neutral"
+    description: "Migrating caravan-cities with shifting positions."
+    map: "Aerus_Khorrath_Map.png"
+  coracao_cinzas:
+    name: "Heart of Ashes"
+    continent: "khorrath"
+    terrain_local: "corrupted"
+    faction: null
+    description: "Epicenter of the Sealing, a crater fit for Tier 4-5 threats."
+    map: "Aerus_Khorrath_Map.png"
+    danger: extreme
+  ordo_cineris:
+    name: "Ordo Cineris"
+    continent: "khorrath"
+    terrain_local: "corrupted"
+    faction: null
+    description: "Forbidden ash order that guards the Heart."
+    map: "Aerus_Khorrath_Map.png"
+    danger: high
+  veth_ara:
+    name: "Veth-Ara"
+    continent: "veth"
+    terrain_local: "trail"
+    faction: "neutral"
+    description: "Council seat of the three main tribes."
+    map: "Aerus_Veth_Map.png"
+  terra_incognita:
+    name: "Terra Incognita"
+    continent: "veth"
+    terrain_local: "corrupted"
+    faction: null
+    description: "Interior Veth, feared even by the Vethani themselves."
+    map: "Aerus_Veth_Map.png"
+    danger: extreme
+
+routes:
+  port_myr->vel_ossian:
+    segments:
+      - { terrain: sea, days: 1, label: "Port Myr -> Vel'Ossian (inter-island ship)" }
+    total_days: 1
+    notes: "Daily trade route with regular boats."
+  port_myr->sanctum:
+    segments:
+      - { terrain: sea, days: 2, label: "Port Myr -> Sanctum (eastern crossing)" }
+    total_days: 2
+  vel_ossian->sanctum:
+    segments:
+      - { terrain: sea, days: 2, label: "Vel'Ossian -> Sanctum" }
+    total_days: 2
+  port_myr->auramveld:
+    segments:
+      - { terrain: sea, days: 4, label: "Port Myr -> eastern Valdoria coast" }
+      - { terrain: road, days: 3, label: "Coast -> Auramveld (imperial road)" }
+    total_days: 7
+    notes: "Main Isles-to-Empire route."
+  port_myr->calmveth:
+    segments:
+      - { terrain: sea, days: 3, label: "Port Myr -> Calmveth" }
+    total_days: 3
+    notes: "Fastest direct route to western Valdoria."
+  port_myr->osthara:
+    segments:
+      - { terrain: sea, days: 4, label: "Port Myr -> Valdoria coast" }
+      - { terrain: road, days: 2, label: "Coast -> Osthara" }
+    total_days: 6
+  port_myr->marchado_ferren:
+    segments:
+      - { terrain: sea, days: 4, label: "Port Myr -> southeastern Valdoria coast" }
+      - { terrain: wilderness, days: 4, label: "Coast -> Ferren March" }
+    total_days: 8
+    notes: "Imperial patrols are common."
+  port_myr->vel_shar:
+    segments:
+      - { terrain: sea, days: 5, label: "Port Myr -> western Shaleth coast" }
+      - { terrain: trail, days: 3, label: "Coast -> Vel-Shar" }
+    total_days: 8
+  port_myr->vel_arath:
+    segments:
+      - { terrain: sea, days: 5, label: "Port Myr -> Shaleth coast" }
+      - { terrain: trail, days: 6, label: "Coast -> depths of Vel'Arath" }
+    total_days: 11
+    notes: "Vel'Arath does not maintain a fixed route."
+  port_myr->stenvaard:
+    segments:
+      - { terrain: sea, days: 7, label: "Port Myr -> Stenvaard (northern sea)" }
+    total_days: 7
+  port_myr->kethara:
+    segments:
+      - { terrain: sea, days: 7, label: "Port Myr -> southern Estravar coast" }
+      - { terrain: mountain, days: 5, label: "Coast -> Kethara" }
+    total_days: 12
+  port_myr->passagem_ondrek:
+    segments:
+      - { terrain: sea, days: 7, label: "Port Myr -> Stenvaard" }
+      - { terrain: mountain, days: 5, label: "Stenvaard -> Ondrek Pass" }
+    total_days: 12
+  port_myr->khor_ath:
+    segments:
+      - { terrain: sea, days: 6, label: "Port Myr -> southern Khorrath coast" }
+      - { terrain: wilderness, days: 2, label: "Coast -> Khor-Ath" }
+    total_days: 8
+  port_myr->coracao_cinzas:
+    segments:
+      - { terrain: sea, days: 6, label: "Port Myr -> Khorrath coast" }
+      - { terrain: wilderness, days: 3, label: "Coast -> Khor-Ath" }
+      - { terrain: corrupted, days: 4, label: "Khor-Ath -> Heart of Ashes" }
+    total_days: 13
+    notes: "Extremely dangerous. Not recommended below level 100."
+  port_myr->veth_ara:
+    segments:
+      - { terrain: sea, days: 10, label: "Port Myr -> Veth" }
+    total_days: 10
+    notes: "Rare route known by very few navigators."
+  auramveld->osthara:
+    segments:
+      - { terrain: road, days: 2 }
+    total_days: 2
+  auramveld->calmveth:
+    segments:
+      - { terrain: road, days: 2, label: "Auramveld -> Osthara" }
+      - { terrain: trail, days: 2, label: "Osthara -> Calmveth" }
+    total_days: 4
+  auramveld->marchado_ferren:
+    segments:
+      - { terrain: road, days: 3 }
+    total_days: 3
+  auramveld->fendas_de_gorath:
+    segments:
+      - { terrain: road, days: 2, label: "Auramveld -> northeastern edge" }
+      - { terrain: corrupted, days: 1, label: "Entrance to the rifts" }
+    total_days: 3
+    notes: "Temporal anomalies may distort perceived travel time."
+  osthara->calmveth:
+    segments:
+      - { terrain: trail, days: 2 }
+    total_days: 2
+  calmveth->marchado_ferren:
+    segments:
+      - { terrain: wilderness, days: 4 }
+    total_days: 4
+  auramveld->stenvaard:
+    segments:
+      - { terrain: road, days: 3, label: "Auramveld -> northern Valdoria" }
+      - { terrain: mountain, days: 4, label: "Border -> Ondrek Pass entrance" }
+      - { terrain: mountain, days: 3, label: "Pass -> Estravar exit" }
+      - { terrain: mountain, days: 2, label: "Exit -> Stenvaard" }
+    total_days: 12
+  auramveld->kethara:
+    segments:
+      - { terrain: road, days: 3, label: "Auramveld -> north" }
+      - { terrain: mountain, days: 7, label: "Ondrek Pass -> Kethara" }
+    total_days: 10
+  vel_shar->vel_arath:
+    segments:
+      - { terrain: trail, days: 4 }
+    total_days: 4
+    notes: "The forest only admits those it chooses."
+  vel_arath->limen_vel_arath:
+    segments:
+      - { terrain: trail, days: 2, label: "Interior -> forbidden edge" }
+      - { terrain: corrupted, days: 1, label: "Edge -> Ultra Hic Nemo Redit" }
+    total_days: 3
+  stenvaard->kethara:
+    segments:
+      - { terrain: mountain, days: 4 }
+    total_days: 4
+  kethara->keth_ara:
+    segments:
+      - { terrain: arctic, days: 5 }
+    total_days: 5
+  keth_ara->passagem_ondrek:
+    segments:
+      - { terrain: mountain, days: 3 }
+    total_days: 3
+  stenvaard->passagem_ondrek:
+    segments:
+      - { terrain: mountain, days: 5 }
+    total_days: 5
+  khor_ath->urbes_ambulantes:
+    segments:
+      - { terrain: wilderness, days: 3, label: "Desert -> wandering caravans" }
+    total_days: 3
+    notes: "Caravan-city positions may shift by two days."
+  khor_ath->coracao_cinzas:
+    segments:
+      - { terrain: wilderness, days: 3, label: "Khor-Ath -> ash desert edge" }
+      - { terrain: corrupted, days: 4, label: "Ash Desert -> Heart" }
+    total_days: 7
+  khor_ath->ordo_cineris:
+    segments:
+      - { terrain: wilderness, days: 2, label: "Khor-Ath -> eastern edge" }
+      - { terrain: corrupted, days: 2, label: "Edge -> Ordo Cineris" }
+    total_days: 4
+  ordo_cineris->coracao_cinzas:
+    segments:
+      - { terrain: corrupted, days: 3 }
+    total_days: 3
+    notes: "Only the order knows the safest route."
+  urbes_ambulantes->coracao_cinzas:
+    segments:
+      - { terrain: wilderness, days: 2 }
+      - { terrain: corrupted, days: 3 }
+    total_days: 5
+  veth_ara->terra_incognita:
+    segments:
+      - { terrain: trail, days: 4, label: "Coast -> interior edge" }
+      - { terrain: corrupted, days: 2, label: "Edge -> forbidden land" }
+    total_days: 6
+    notes: "Even the Vethani fear what lies deeper inside."

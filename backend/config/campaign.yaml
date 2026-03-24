@@ -1,0 +1,83 @@
+﻿campaign:
+  name: "The Incomplete Sealing"
+  version: "1.0.0"
+  max_players: 5
+  language: "en"
+
+tone:
+  darkness_level: 8          # 1-10, influences GM descriptions
+  horror_elements: true
+  hope_exists: true          # redemption is possible, but costly
+  narrative_style: "literary" # literary | pulp | terse
+
+difficulty:
+  base: "brutal"             # forgiving | standard | brutal | merciless
+  permadeath: true
+  friendly_fire: false
+
+isekai:
+  enabled: true
+  summoner_faction: "Dome"   # entity that summons the players
+  reveal_delay_turns: 3      # turns until the faction secret objective is revealed
+
+factions:
+  - id: "church_pure_flame"
+    name: "Church of the Pure Flame"
+    location: "Sanctum"
+    public_agenda: "Purge Vor'Athek's corruption through faith and sacrifice"
+    player_slots: 1
+
+  - id: "empire_valdrek"
+    name: "Empire of Valdrek"
+    location: "Auramveld"
+    public_agenda: "Preserve order and expand magical stability through Aeridian Fragments"
+    player_slots: 1
+
+  - id: "guild_of_threads"
+    name: "Guild of Threads"
+    location: "Vel'Ossian"
+    public_agenda: "Catalog and preserve the remaining magical knowledge"
+    player_slots: 2
+
+  - id: "children_of_broken_thread"
+    name: "Children of the Broken Thread"
+    location: "Nomadic"
+    public_agenda: "Restore the Primordial Thread through forbidden magic"
+    player_slots: 1
+
+model_selection:
+  # Phase 2: BYOK with Claude (Sonnet for medium/high tension, Opus for critical tension)
+  default: "anthropic/claude-sonnet-4-6"
+  fallback: "google/gemini-2.5-flash"
+  local_fallback: "qwen2.5:14b"
+  tension_thresholds:
+    low:      { max: 3, model: "google/gemini-2.5-flash" }
+    medium:   { max: 6, model: "anthropic/claude-sonnet-4-6" }
+    high:     { max: 8, model: "anthropic/claude-sonnet-4-6" }
+    critical: { max: 10, model: "anthropic/claude-opus-4-6" }
+
+context_budget:
+  l0_static_tokens: 200
+  l1_campaign_tokens: 200
+  l2_state_tokens: 400
+  l3_history_tokens: 1500
+  memory_tokens: 200
+  lore_retrieval_tokens: 800
+  hard_cap: 4000
+
+mechanics:
+  action_batch_window_seconds: 3
+  gm_thinking_timeout_seconds: 15
+  history_turns_in_context: 10
+  level_cap: 100
+  attribute_campaign_cap: 500
+  attribute_per_cap: 250
+  class_mutation_every_levels: 25
+  passive_milestone_every_points: 25
+
+travel:
+  enabled: true
+  days_per_gm_turn: 1          # each GM turn advances 1 travel day
+  tension_encounter_bonus: 0.03  # +3% per tension point above 5
+  max_encounter_chance: 0.95   # hard cap regardless of tension
+  start_location: "port_myr"  # default campaign starting location
