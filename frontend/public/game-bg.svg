@@ -1,0 +1,204 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <!-- Sky -->
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#02030d"/>
+      <stop offset="55%"  stop-color="#080920"/>
+      <stop offset="100%" stop-color="#12102a"/>
+    </linearGradient>
+    <!-- Ground mist -->
+    <linearGradient id="mist" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#0e1228" stop-opacity="0.0"/>
+      <stop offset="100%" stop-color="#0e1228" stop-opacity="0.55"/>
+    </linearGradient>
+    <!-- Magical glow (center ruins) -->
+    <radialGradient id="ruinGlow" cx="50%" cy="62%" r="28%">
+      <stop offset="0%"   stop-color="#3a2080" stop-opacity="0.28"/>
+      <stop offset="50%"  stop-color="#1a0f40" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Ground gradient -->
+    <linearGradient id="gnd" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#0c0e14"/>
+      <stop offset="100%" stop-color="#050507"/>
+    </linearGradient>
+    <!-- Vignette -->
+    <radialGradient id="vig" cx="50%" cy="45%" r="70%">
+      <stop offset="0%"   stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.88"/>
+    </radialGradient>
+    <!-- Left/right fade -->
+    <linearGradient id="lr" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#000000" stop-opacity="0.70"/>
+      <stop offset="15%"  stop-color="#000000" stop-opacity="0"/>
+      <stop offset="85%"  stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.70"/>
+    </linearGradient>
+    <!-- Tree dark gradient -->
+    <linearGradient id="tree" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#0d110a"/>
+      <stop offset="100%" stop-color="#040504"/>
+    </linearGradient>
+  </defs>
+
+  <!-- SKY BASE -->
+  <rect width="1920" height="1080" fill="url(#sky)"/>
+
+  <!-- Stars (sparse, subtle for UI background) -->
+  <circle cx="112"  cy="44"  r="1.4" fill="#ffffff" opacity="0.55"/>
+  <circle cx="298"  cy="78"  r="1.8" fill="#f0f4ff" opacity="0.52"/>
+  <circle cx="534"  cy="32"  r="1.2" fill="#ffffff" opacity="0.48"/>
+  <circle cx="712"  cy="68"  r="1.6" fill="#fffef8" opacity="0.55"/>
+  <circle cx="956"  cy="28"  r="1.4" fill="#ffffff" opacity="0.50"/>
+  <circle cx="1134" cy="58"  r="1.9" fill="#f0f4ff" opacity="0.54"/>
+  <circle cx="1378" cy="42"  r="1.3" fill="#fffef8" opacity="0.49"/>
+  <circle cx="1558" cy="76"  r="1.7" fill="#ffffff" opacity="0.53"/>
+  <circle cx="1744" cy="38"  r="1.5" fill="#f0f4ff" opacity="0.51"/>
+  <circle cx="1888" cy="62"  r="1.2" fill="#ffffff" opacity="0.47"/>
+  <circle cx="188"  cy="128" r="1.3" fill="#fffef8" opacity="0.44"/>
+  <circle cx="446"  cy="112" r="1.5" fill="#ffffff" opacity="0.46"/>
+  <circle cx="678"  cy="142" r="1.2" fill="#f0f4ff" opacity="0.43"/>
+  <circle cx="912"  cy="104" r="1.6" fill="#fffef8" opacity="0.47"/>
+  <circle cx="1222" cy="138" r="1.3" fill="#ffffff" opacity="0.44"/>
+  <circle cx="1488" cy="118" r="1.4" fill="#e8f0ff" opacity="0.42"/>
+  <circle cx="1712" cy="148" r="1.2" fill="#fffef8" opacity="0.45"/>
+  <circle cx="66"   cy="196" r="1.0" fill="#ffffff" opacity="0.38"/>
+  <circle cx="334"  cy="218" r="1.1" fill="#e8f0ff" opacity="0.36"/>
+  <circle cx="602"  cy="202" r="0.9" fill="#ffffff" opacity="0.40"/>
+  <circle cx="844"  cy="222" r="1.1" fill="#f0f4ff" opacity="0.37"/>
+  <circle cx="1068" cy="198" r="1.0" fill="#ffffff" opacity="0.39"/>
+  <circle cx="1312" cy="216" r="1.1" fill="#fffef8" opacity="0.36"/>
+  <circle cx="1566" cy="204" r="0.9" fill="#e8f0ff" opacity="0.38"/>
+  <circle cx="1812" cy="224" r="1.0" fill="#ffffff" opacity="0.37"/>
+  <circle cx="142"  cy="284" r="0.8" fill="#ffffff" opacity="0.32"/>
+  <circle cx="422"  cy="298" r="0.9" fill="#e8f0ff" opacity="0.30"/>
+  <circle cx="744"  cy="312" r="0.7" fill="#ffffff" opacity="0.33"/>
+  <circle cx="1002" cy="288" r="0.8" fill="#f0f4ff" opacity="0.31"/>
+  <circle cx="1244" cy="304" r="0.9" fill="#fffef8" opacity="0.29"/>
+  <circle cx="1622" cy="294" r="0.7" fill="#ffffff" opacity="0.32"/>
+  <circle cx="1878" cy="308" r="0.8" fill="#e8f0ff" opacity="0.30"/>
+
+  <!-- Subtle aurora/nebula in sky -->
+  <ellipse cx="960" cy="320" rx="700" ry="130" fill="#2a1060" opacity="0.055" transform="rotate(-8 960 320)"/>
+  <ellipse cx="860" cy="350" rx="520" ry="85"  fill="#3a1880" opacity="0.040" transform="rotate(-8 860 350)"/>
+
+  <!-- FAR MOUNTAINS -->
+  <polygon
+    points="0,580 180,422 310,458 478,398 622,434 778,392 924,428 1076,388 1218,424 1388,392 1528,426 1698,398 1842,430 1920,408 1920,610 0,610"
+    fill="#1a1638" opacity="0.80"/>
+  <polygon
+    points="0,610 124,494 258,520 404,474 548,506 692,464 840,498 978,462 1128,496 1272,466 1418,498 1572,468 1712,496 1858,470 1920,484 1920,628 0,628"
+    fill="#100e28" opacity="0.92"/>
+
+  <!-- RUINS — central atmospheric focal point -->
+  <!-- Left broken arch column -->
+  <rect x="682" y="440" width="28" height="220" rx="4" fill="#0e1118" opacity="0.90"/>
+  <rect x="672" y="434" width="48" height="18"  rx="3" fill="#0e1118" opacity="0.90"/>
+  <!-- Arch top (partial) -->
+  <path d="M682,450 Q720,398 758,450" fill="none" stroke="#0c0f1a" stroke-width="26" opacity="0.88"/>
+  <!-- Right arch column -->
+  <rect x="890" y="440" width="28" height="220" rx="4" fill="#0e1118" opacity="0.90"/>
+  <rect x="880" y="434" width="48" height="18"  rx="3" fill="#0e1118" opacity="0.90"/>
+
+  <!-- Broken columns scattered -->
+  <rect x="540" y="528" width="22" height="130" rx="3" fill="#0c0f18" opacity="0.82"/>
+  <rect x="530" y="522" width="42" height="14"  rx="2" fill="#0c0f18" opacity="0.82"/>
+  <rect x="1040" y="508" width="22" height="150" rx="3" fill="#0c0f18" opacity="0.82"/>
+  <rect x="1030" y="502" width="42" height="14"  rx="2" fill="#0c0f18" opacity="0.82"/>
+  <!-- Fallen column piece -->
+  <rect x="790" y="626" width="140" height="20" rx="8" fill="#0d1018" opacity="0.78"/>
+  <!-- Crumbled stones -->
+  <ellipse cx="600" cy="648" rx="18" ry="10" fill="#0c0e16" opacity="0.75"/>
+  <ellipse cx="628" cy="656" rx="12" ry="8"  fill="#0c0e16" opacity="0.70"/>
+  <ellipse cx="986" cy="652" rx="16" ry="9"  fill="#0c0e16" opacity="0.75"/>
+  <ellipse cx="1008" cy="660" rx="10" ry="7" fill="#0c0e16" opacity="0.70"/>
+
+  <!-- DISTANT TREE LINE (behind ruins) -->
+  <path d="
+    M0,628
+    L22,592 L38,604 L56,580 L72,594 L90,572 L108,588 L126,568 L144,584 L162,562
+    L180,578 L198,558 L216,574 L234,554 L252,568 L270,550 L290,565 L310,547
+    L330,562 L350,544 L370,558 L390,542 L410,556 L430,540 L450,554 L470,538
+    L490,552 L510,536 L530,550 L550,534 L570,548 L590,534 L610,547 L630,533
+    L650,546 L670,532 L690,544 L710,531 L730,543 L750,530 L770,542 L790,529
+    L810,541 L830,528 L850,540 L870,528 L890,539 L910,527 L930,539 L950,527
+    L970,538 L990,527 L1010,538 L1030,526 L1050,537 L1070,526 L1090,536 L1110,526
+    L1130,535 L1150,525 L1170,534 L1190,524 L1210,534 L1230,524 L1250,533 L1270,523
+    L1290,532 L1310,522 L1330,531 L1350,521 L1370,530 L1390,521 L1410,529 L1430,520
+    L1450,528 L1470,520 L1490,527 L1510,519 L1530,526 L1550,518 L1570,525 L1590,517
+    L1610,524 L1630,517 L1650,523 L1670,516 L1690,522 L1710,515 L1730,521 L1750,514
+    L1770,520 L1790,514 L1810,519 L1830,513 L1850,518 L1870,512 L1890,517 L1920,513
+    L1920,640 L0,640 Z"
+    fill="#07090603"/>
+
+  <!-- GROUND -->
+  <rect x="0" y="632" width="1920" height="448" fill="url(#gnd)"/>
+
+  <!-- CLOSE PINE TREES — left cluster -->
+  <g fill="url(#tree)">
+    <!-- Far-left trees -->
+    <polygon points="48,580  10,728  86,728"/>
+    <polygon points="48,634  4,752  92,752"/>
+    <rect x="40" y="752" width="16" height="70"/>
+
+    <polygon points="142,556 100,714 184,714"/>
+    <polygon points="142,614  96,738 188,738"/>
+    <polygon points="142,664  92,758 192,758"/>
+    <rect x="134" y="758" width="16" height="60"/>
+
+    <polygon points="248,568 208,722 288,722"/>
+    <polygon points="248,622 204,744 292,744"/>
+    <rect x="240" y="744" width="16" height="56"/>
+
+    <polygon points="78,490  34,676 122,676"/>
+    <polygon points="78,558  26,702 130,702"/>
+    <polygon points="78,618  20,726 136,726"/>
+    <rect x="70" y="726" width="16" height="94"/>
+
+    <!-- Right cluster -->
+    <polygon points="1872,580 1834,728 1910,728"/>
+    <polygon points="1872,634 1828,752 1916,752"/>
+    <rect x="1864" y="752" width="16" height="70"/>
+
+    <polygon points="1778,556 1736,714 1820,714"/>
+    <polygon points="1778,614 1732,738 1824,738"/>
+    <polygon points="1778,664 1728,758 1828,758"/>
+    <rect x="1770" y="758" width="16" height="60"/>
+
+    <polygon points="1672,568 1632,722 1712,722"/>
+    <polygon points="1672,622 1628,744 1716,744"/>
+    <rect x="1664" y="744" width="16" height="56"/>
+
+    <polygon points="1842,490 1798,676 1886,676"/>
+    <polygon points="1842,558 1790,702 1894,702"/>
+    <polygon points="1842,618 1784,726 1900,726"/>
+    <rect x="1834" y="726" width="16" height="94"/>
+
+    <!-- Mid-distance both sides (smaller) -->
+    <polygon points="358,542 326,652 390,652"/>
+    <polygon points="358,588 322,668 394,668"/>
+    <rect x="350" y="668" width="14" height="28"/>
+
+    <polygon points="436,554 406,660 466,660"/>
+    <rect x="429" y="660" width="14" height="26"/>
+
+    <polygon points="1562,542 1530,652 1594,652"/>
+    <polygon points="1562,588 1526,668 1598,668"/>
+    <rect x="1555" y="668" width="14" height="28"/>
+
+    <polygon points="1484,554 1454,660 1514,660"/>
+    <rect x="1477" y="660" width="14" height="26"/>
+  </g>
+
+  <!-- Magical ruin glow -->
+  <ellipse cx="960" cy="620" rx="380" ry="160" fill="url(#ruinGlow)"/>
+
+  <!-- Ground mist layer -->
+  <rect x="0" y="600" width="1920" height="80" fill="url(#mist)"/>
+
+  <!-- VIGNETTE -->
+  <rect width="1920" height="1080" fill="url(#vig)"/>
+
+  <!-- SIDE FADES -->
+  <rect width="1920" height="1080" fill="url(#lr)"/>
+</svg>

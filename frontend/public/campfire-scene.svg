@@ -1,0 +1,329 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#02030a"/>
+      <stop offset="45%"  stop-color="#09091e"/>
+      <stop offset="100%" stop-color="#1a1030"/>
+    </linearGradient>
+    <linearGradient id="groundGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#110f09"/>
+      <stop offset="100%" stop-color="#050503"/>
+    </linearGradient>
+    <radialGradient id="fireGlow" cx="50%" cy="70%" r="50%">
+      <stop offset="0%"   stop-color="#ff8800" stop-opacity="0.60"/>
+      <stop offset="30%"  stop-color="#ff4400" stop-opacity="0.30"/>
+      <stop offset="60%"  stop-color="#ff1100" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="groundLight" cx="50%" cy="20%" r="55%">
+      <stop offset="0%"   stop-color="#ff6600" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="stoneGrad" cx="35%" cy="30%" r="65%">
+      <stop offset="0%"   stop-color="#4e3c3c"/>
+      <stop offset="100%" stop-color="#1c1515"/>
+    </radialGradient>
+    <linearGradient id="logGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#2d1c0a"/>
+      <stop offset="100%" stop-color="#160d04"/>
+    </linearGradient>
+    <linearGradient id="treeGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#0c1009"/>
+      <stop offset="100%" stop-color="#04060303"/>
+    </linearGradient>
+    <radialGradient id="vignette" cx="50%" cy="50%" r="75%">
+      <stop offset="0%"   stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.80"/>
+    </radialGradient>
+    <linearGradient id="sideShadow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#000000" stop-opacity="0.65"/>
+      <stop offset="18%"  stop-color="#000000" stop-opacity="0"/>
+      <stop offset="82%"  stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.65"/>
+    </linearGradient>
+    <linearGradient id="mistGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#14123a" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#14123a" stop-opacity="0.28"/>
+    </linearGradient>
+  </defs>
+
+  <!-- SKY -->
+  <rect width="1600" height="900" fill="url(#skyGrad)"/>
+
+  <!-- Subtle Milky Way band -->
+  <ellipse cx="920" cy="240" rx="640" ry="100" fill="#8090d0" opacity="0.025" transform="rotate(-22 920 240)"/>
+  <ellipse cx="840" cy="270" rx="500" ry="65"  fill="#a0b0ff" opacity="0.030" transform="rotate(-22 840 270)"/>
+
+  <!-- STARS — large bright -->
+  <circle cx="90"   cy="36"  r="2.0" fill="#fffef8" opacity="0.95"/>
+  <circle cx="248"  cy="62"  r="2.2" fill="#fff8f0" opacity="0.92"/>
+  <circle cx="412"  cy="28"  r="1.7" fill="#ffffff"  opacity="0.88"/>
+  <circle cx="568"  cy="74"  r="2.4" fill="#f0f4ff"  opacity="0.93"/>
+  <circle cx="712"  cy="42"  r="1.8" fill="#fffef8"  opacity="0.87"/>
+  <circle cx="834"  cy="22"  r="2.1" fill="#ffffff"  opacity="0.91"/>
+  <circle cx="978"  cy="55"  r="2.0" fill="#fff8f0"  opacity="0.89"/>
+  <circle cx="1134" cy="38"  r="2.2" fill="#fffef8"  opacity="0.93"/>
+  <circle cx="1298" cy="68"  r="1.7" fill="#f0f4ff"  opacity="0.88"/>
+  <circle cx="1452" cy="32"  r="2.1" fill="#ffffff"  opacity="0.91"/>
+  <circle cx="1558" cy="72"  r="1.9" fill="#fff8f0"  opacity="0.87"/>
+  <circle cx="162"  cy="124" r="2.0" fill="#fffef8"  opacity="0.86"/>
+  <circle cx="448"  cy="104" r="1.8" fill="#ffffff"  opacity="0.84"/>
+  <circle cx="732"  cy="116" r="2.3" fill="#f0f4ff"  opacity="0.90"/>
+  <circle cx="944"  cy="94"  r="1.9" fill="#fffef8"  opacity="0.85"/>
+  <circle cx="1188" cy="120" r="2.1" fill="#ffffff"  opacity="0.88"/>
+  <circle cx="1382" cy="106" r="1.7" fill="#fff8f0"  opacity="0.83"/>
+  <circle cx="318"  cy="172" r="2.0" fill="#fffef8"  opacity="0.82"/>
+  <circle cx="876"  cy="152" r="2.2" fill="#f0f4ff"  opacity="0.86"/>
+  <circle cx="1528" cy="136" r="1.8" fill="#ffffff"  opacity="0.84"/>
+
+  <!-- STARS — medium -->
+  <circle cx="55"   cy="88"  r="1.3" fill="#ffffff"  opacity="0.72"/>
+  <circle cx="180"  cy="84"  r="1.4" fill="#e8f0ff"  opacity="0.68"/>
+  <circle cx="338"  cy="54"  r="1.2" fill="#ffffff"  opacity="0.70"/>
+  <circle cx="482"  cy="146" r="1.3" fill="#fff8f0"  opacity="0.73"/>
+  <circle cx="618"  cy="90"  r="1.2" fill="#ffffff"  opacity="0.69"/>
+  <circle cx="752"  cy="158" r="1.4" fill="#f0f4ff"  opacity="0.67"/>
+  <circle cx="896"  cy="130" r="1.1" fill="#fffef8"  opacity="0.74"/>
+  <circle cx="1038" cy="86"  r="1.3" fill="#ffffff"  opacity="0.71"/>
+  <circle cx="1172" cy="152" r="1.2" fill="#e8f0ff"  opacity="0.68"/>
+  <circle cx="1318" cy="92"  r="1.4" fill="#fffef8"  opacity="0.72"/>
+  <circle cx="1462" cy="146" r="1.1" fill="#ffffff"  opacity="0.67"/>
+  <circle cx="1592" cy="96"  r="1.3" fill="#f0f4ff"  opacity="0.73"/>
+  <circle cx="86"   cy="184" r="1.2" fill="#ffffff"  opacity="0.64"/>
+  <circle cx="218"  cy="212" r="1.4" fill="#e8f0ff"  opacity="0.61"/>
+  <circle cx="362"  cy="196" r="1.1" fill="#ffffff"  opacity="0.66"/>
+  <circle cx="516"  cy="220" r="1.2" fill="#fff8f0"  opacity="0.62"/>
+  <circle cx="641"  cy="186" r="1.3" fill="#fffef8"  opacity="0.67"/>
+  <circle cx="784"  cy="210" r="1.1" fill="#f0f4ff"  opacity="0.63"/>
+  <circle cx="928"  cy="193" r="1.4" fill="#ffffff"  opacity="0.65"/>
+  <circle cx="1074" cy="216" r="1.2" fill="#fffef8"  opacity="0.61"/>
+  <circle cx="1218" cy="186" r="1.1" fill="#ffffff"  opacity="0.64"/>
+  <circle cx="1352" cy="213" r="1.3" fill="#e8f0ff"  opacity="0.62"/>
+  <circle cx="1494" cy="193" r="1.2" fill="#f0f4ff"  opacity="0.66"/>
+  <circle cx="132"  cy="260" r="1.0" fill="#ffffff"  opacity="0.57"/>
+  <circle cx="272"  cy="282" r="1.2" fill="#e0e8ff"  opacity="0.54"/>
+  <circle cx="418"  cy="270" r="0.9" fill="#ffffff"  opacity="0.59"/>
+  <circle cx="562"  cy="292" r="1.1" fill="#ffffff"  opacity="0.55"/>
+  <circle cx="706"  cy="266" r="1.0" fill="#f0f4ff"  opacity="0.58"/>
+  <circle cx="852"  cy="280" r="1.2" fill="#fffef8"  opacity="0.56"/>
+  <circle cx="1304" cy="276" r="1.1" fill="#ffffff"  opacity="0.55"/>
+  <circle cx="1448" cy="292" r="1.0" fill="#e8f0ff"  opacity="0.57"/>
+  <circle cx="1588" cy="268" r="0.9" fill="#ffffff"  opacity="0.54"/>
+
+  <!-- STARS — tiny scattered -->
+  <circle cx="28"   cy="142" r="0.6" fill="#ffffff"  opacity="0.44"/>
+  <circle cx="148"  cy="318" r="0.5" fill="#ffffff"  opacity="0.40"/>
+  <circle cx="292"  cy="336" r="0.6" fill="#ffffff"  opacity="0.42"/>
+  <circle cx="444"  cy="308" r="0.5" fill="#ffffff"  opacity="0.38"/>
+  <circle cx="590"  cy="342" r="0.6" fill="#f0f4ff"  opacity="0.41"/>
+  <circle cx="718"  cy="326" r="0.5" fill="#ffffff"  opacity="0.39"/>
+  <circle cx="862"  cy="340" r="0.6" fill="#fffef8"  opacity="0.43"/>
+  <circle cx="1002" cy="322" r="0.5" fill="#ffffff"  opacity="0.40"/>
+  <circle cx="1148" cy="336" r="0.6" fill="#e8f0ff"  opacity="0.38"/>
+  <circle cx="1294" cy="318" r="0.5" fill="#ffffff"  opacity="0.42"/>
+  <circle cx="1452" cy="340" r="0.6" fill="#f0f4ff"  opacity="0.41"/>
+  <circle cx="1568" cy="324" r="0.5" fill="#ffffff"  opacity="0.39"/>
+  <circle cx="66"   cy="372" r="0.5" fill="#ffffff"  opacity="0.34"/>
+  <circle cx="238"  cy="365" r="0.6" fill="#e0e8ff"  opacity="0.32"/>
+  <circle cx="382"  cy="380" r="0.4" fill="#ffffff"  opacity="0.37"/>
+  <circle cx="524"  cy="376" r="0.5" fill="#fffef8"  opacity="0.33"/>
+  <circle cx="668"  cy="388" r="0.6" fill="#ffffff"  opacity="0.31"/>
+  <circle cx="812"  cy="372" r="0.4" fill="#f0f4ff"  opacity="0.36"/>
+  <circle cx="958"  cy="386" r="0.5" fill="#ffffff"  opacity="0.33"/>
+  <circle cx="1104" cy="370" r="0.6" fill="#fffef8"  opacity="0.35"/>
+
+  <!-- FAR MOUNTAINS — layer 1 (lighter, farthest) -->
+  <polygon
+    points="0,548 148,378 264,412 398,358 524,396 646,354 762,392 876,348 992,388 1108,360 1234,398 1362,364 1478,402 1600,372 1600,570 0,570"
+    fill="#16132e" opacity="0.85"/>
+
+  <!-- FAR MOUNTAINS — layer 2 (darker, closer) -->
+  <polygon
+    points="0,568 98,448 212,474 348,432 472,462 598,424 728,458 848,422 984,456 1112,426 1248,460 1388,432 1508,466 1600,440 1600,588 0,588"
+    fill="#0f0d1d" opacity="0.95"/>
+
+  <!-- DISTANT TREE LINE — jagged silhouette -->
+  <path d="
+    M0,588
+    L18,552 L32,562 L48,538 L63,550 L78,526 L94,542 L110,522 L127,538 L143,516
+    L160,532 L176,514 L192,530 L208,508 L224,524 L240,506 L258,521 L275,502
+    L292,518 L308,500 L326,515 L342,498 L358,513 L375,496 L392,511 L409,494
+    L426,508 L443,492 L460,506 L478,490 L495,504 L513,488 L530,502 L548,486
+    L566,500 L584,485 L602,498 L620,482 L638,496 L657,480 L675,494 L694,478
+    L712,492 L731,477 L750,490 L769,475 L788,488 L808,474 L827,487 L847,473
+    L866,486 L886,472 L906,485 L926,471 L946,484 L966,470 L986,483 L1006,470
+    L1026,482 L1046,469 L1066,481 L1086,468 L1106,480 L1126,467 L1146,479 L1166,466
+    L1186,478 L1206,465 L1226,477 L1246,464 L1266,476 L1285,463 L1304,475 L1322,462
+    L1340,474 L1358,461 L1376,472 L1394,459 L1412,471 L1430,458 L1448,470 L1466,458
+    L1484,469 L1502,457 L1520,468 L1538,456 L1556,467 L1574,455 L1592,466 L1600,456
+    L1600,598 L0,598 Z"
+    fill="#07090505"/>
+
+  <!-- GROUND -->
+  <rect x="0" y="592" width="1600" height="308" fill="url(#groundGrad)"/>
+
+  <!-- Subtle ground variation -->
+  <ellipse cx="420"  cy="760" rx="380" ry="55" fill="#0c0a06" opacity="0.35"/>
+  <ellipse cx="1220" cy="790" rx="320" ry="45" fill="#0c0a06" opacity="0.35"/>
+
+  <!-- CLOSE PINE TREES — LEFT SIDE -->
+  <g fill="url(#treeGrad)">
+    <!-- Far left cluster (3 trees, small/medium depth) -->
+    <polygon points="52,590  18,720  86,720"/>
+    <polygon points="52,640  10,740  94,740"/>
+    <rect x="44" y="740" width="16" height="60"/>
+
+    <polygon points="138,555 100,698 176,698"/>
+    <polygon points="138,610  94,725 182,725"/>
+    <polygon points="138,658  90,748 186,748"/>
+    <rect x="130" y="748" width="16" height="52"/>
+
+    <polygon points="224,572 188,710 260,710"/>
+    <polygon points="224,626 184,732 264,732"/>
+    <rect x="216" y="732" width="16" height="48"/>
+
+    <!-- Larger foreground trees left -->
+    <polygon points="80,490  36,668  124,668"/>
+    <polygon points="80,556  28,694 132,694"/>
+    <polygon points="80,614  22,718 138,718"/>
+    <rect x="72" y="718" width="16" height="82"/>
+
+    <polygon points="178,504 134,686 222,686"/>
+    <polygon points="178,564 128,710 228,710"/>
+    <polygon points="178,618 124,732 232,732"/>
+    <rect x="170" y="732" width="16" height="68"/>
+
+    <!-- Leftmost tall trees (partial, clipped by edge) -->
+    <polygon points="-12,460  -50,660  26,660"/>
+    <polygon points="-12,524  -54,688  30,688"/>
+    <polygon points="-12,578  -56,710  32,710"/>
+    <rect x="-20" y="710" width="16" height="90"/>
+
+    <!-- Mid-distance left (smaller) -->
+    <polygon points="310,532 278,642 342,642"/>
+    <polygon points="310,578 274,660 346,660"/>
+    <rect x="302" y="660" width="14" height="30"/>
+
+    <polygon points="380,545 350,650 410,650"/>
+    <polygon points="380,590 346,665 414,665"/>
+    <rect x="373" y="665" width="14" height="25"/>
+
+    <!-- FAR RIGHT CLUSTER -->
+    <polygon points="1548,590 1514,720 1582,720"/>
+    <polygon points="1548,640 1506,740 1590,740"/>
+    <rect x="1540" y="740" width="16" height="60"/>
+
+    <polygon points="1462,555 1424,698 1500,698"/>
+    <polygon points="1462,610 1418,725 1506,725"/>
+    <polygon points="1462,658 1414,748 1510,748"/>
+    <rect x="1454" y="748" width="16" height="52"/>
+
+    <polygon points="1376,572 1340,710 1412,710"/>
+    <polygon points="1376,626 1336,732 1416,732"/>
+    <rect x="1368" y="732" width="16" height="48"/>
+
+    <!-- Larger foreground trees right -->
+    <polygon points="1520,490 1476,668 1564,668"/>
+    <polygon points="1520,556 1468,694 1572,694"/>
+    <polygon points="1520,614 1462,718 1578,718"/>
+    <rect x="1512" y="718" width="16" height="82"/>
+
+    <polygon points="1422,504 1378,686 1466,686"/>
+    <polygon points="1422,564 1372,710 1472,710"/>
+    <polygon points="1422,618 1368,732 1476,732"/>
+    <rect x="1414" y="732" width="16" height="68"/>
+
+    <!-- Rightmost tall trees (partial) -->
+    <polygon points="1612,460 1574,660 1650,660"/>
+    <polygon points="1612,524 1570,688 1654,688"/>
+    <polygon points="1612,578 1566,710 1658,710"/>
+    <rect x="1604" y="710" width="16" height="90"/>
+
+    <!-- Mid-distance right (smaller) -->
+    <polygon points="1290,532 1258,642 1322,642"/>
+    <polygon points="1290,578 1254,660 1326,660"/>
+    <rect x="1283" y="660" width="14" height="30"/>
+
+    <polygon points="1220,545 1190,650 1250,650"/>
+    <polygon points="1220,590 1186,665 1254,665"/>
+    <rect x="1213" y="665" width="14" height="25"/>
+  </g>
+
+  <!-- GROUND LIGHTING FROM FIRE -->
+  <!-- Wide area glow -->
+  <ellipse cx="800" cy="740" rx="280" ry="90" fill="url(#groundLight)"/>
+  <!-- Close glow around stones -->
+  <ellipse cx="800" cy="760" rx="130" ry="48" fill="#ff5500" opacity="0.10"/>
+
+  <!-- STONE RING — center (800, 760), radius ~92 -->
+  <!-- Stone 0 — top -->
+  <ellipse cx="800" cy="668" rx="23" ry="16" fill="url(#stoneGrad)" transform="rotate(-4 800 668)"/>
+  <!-- Stone 1 — 1 o'clock -->
+  <ellipse cx="862" cy="686" rx="20" ry="14" fill="url(#stoneGrad)" transform="rotate(18 862 686)"/>
+  <!-- Stone 2 — 2-3 o'clock -->
+  <ellipse cx="896" cy="720" rx="24" ry="15" fill="url(#stoneGrad)" transform="rotate(42 896 720)"/>
+  <!-- Stone 3 — 4 o'clock -->
+  <ellipse cx="888" cy="764" rx="21" ry="14" fill="url(#stoneGrad)" transform="rotate(72 888 764)"/>
+  <!-- Stone 4 — 5 o'clock -->
+  <ellipse cx="858" cy="800" rx="23" ry="15" fill="url(#stoneGrad)" transform="rotate(-68 858 800)"/>
+  <!-- Stone 5 — bottom -->
+  <ellipse cx="800" cy="816" rx="25" ry="14" fill="url(#stoneGrad)" transform="rotate(-8 800 816)"/>
+  <!-- Stone 6 — 7 o'clock -->
+  <ellipse cx="742" cy="800" rx="22" ry="14" fill="url(#stoneGrad)" transform="rotate(78 742 800)"/>
+  <!-- Stone 7 — 8 o'clock -->
+  <ellipse cx="712" cy="764" rx="24" ry="15" fill="url(#stoneGrad)" transform="rotate(-78 712 764)"/>
+  <!-- Stone 8 — 9-10 o'clock -->
+  <ellipse cx="704" cy="720" rx="20" ry="14" fill="url(#stoneGrad)" transform="rotate(-42 704 720)"/>
+  <!-- Stone 9 — 11 o'clock -->
+  <ellipse cx="738" cy="686" rx="21" ry="15" fill="url(#stoneGrad)" transform="rotate(-18 738 686)"/>
+  <!-- Gap-fillers -->
+  <ellipse cx="834" cy="673" rx="10" ry="7"  fill="#281e1e" transform="rotate(12 834 673)"/>
+  <ellipse cx="878" cy="698" rx="9"  ry="6"  fill="#281e1e" transform="rotate(-22 878 698)"/>
+  <ellipse cx="764" cy="673" rx="10" ry="7"  fill="#281e1e" transform="rotate(-12 764 673)"/>
+  <ellipse cx="722" cy="698" rx="9"  ry="6"  fill="#281e1e" transform="rotate(22 722 698)"/>
+
+  <!-- LOGS — X pattern inside stone ring -->
+  <!-- Log A: NW–SE tilt -->
+  <rect x="742" y="732" width="116" height="18" rx="9" fill="url(#logGrad)" transform="rotate(-22 800 741)"/>
+  <ellipse cx="752" cy="748" rx="9" ry="10" fill="#110803" transform="rotate(-22 752 748)"/>
+  <ellipse cx="848" cy="734" rx="9" ry="10" fill="#110803" transform="rotate(-22 848 734)"/>
+  <!-- fire-lit top edge -->
+  <rect x="742" y="732" width="116" height="5" rx="2.5" fill="#bb4400" opacity="0.28" transform="rotate(-22 800 741)"/>
+
+  <!-- Log B: NE–SW tilt -->
+  <rect x="742" y="732" width="116" height="18" rx="9" fill="url(#logGrad)" transform="rotate(22 800 741)"/>
+  <ellipse cx="752" cy="734" rx="9" ry="10" fill="#110803" transform="rotate(22 752 734)"/>
+  <ellipse cx="848" cy="748" rx="9" ry="10" fill="#110803" transform="rotate(22 848 748)"/>
+  <rect x="742" y="732" width="116" height="5" rx="2.5" fill="#bb4400" opacity="0.28" transform="rotate(22 800 741)"/>
+
+  <!-- FIRE GLOW CORE (static — the React animation overlays on top) -->
+  <ellipse cx="800" cy="724" rx="74" ry="58" fill="url(#fireGlow)"/>
+
+  <!-- EMBERS on ground -->
+  <circle cx="762" cy="816" r="2.8" fill="#ff8800" opacity="0.72"/>
+  <circle cx="826" cy="819" r="2.2" fill="#ff6600" opacity="0.66"/>
+  <circle cx="784" cy="824" r="1.6" fill="#ffaa00" opacity="0.62"/>
+  <circle cx="816" cy="812" r="2.1" fill="#ff7700" opacity="0.70"/>
+  <circle cx="748" cy="813" r="1.9" fill="#ff5500" opacity="0.58"/>
+  <circle cx="844" cy="817" r="1.6" fill="#ffaa00" opacity="0.62"/>
+  <circle cx="770" cy="808" r="1.3" fill="#ff8800" opacity="0.55"/>
+  <circle cx="832" cy="809" r="1.4" fill="#ff6600" opacity="0.58"/>
+
+  <!-- SPARKS floating up -->
+  <circle cx="784" cy="682" r="1.6" fill="#ffcc00" opacity="0.52"/>
+  <circle cx="818" cy="668" r="1.3" fill="#ffaa00" opacity="0.46"/>
+  <circle cx="800" cy="654" r="1.1" fill="#ffdd00" opacity="0.42"/>
+  <circle cx="822" cy="640" r="0.9" fill="#ffcc00" opacity="0.36"/>
+  <circle cx="778" cy="634" r="1.1" fill="#ffaa00" opacity="0.32"/>
+  <circle cx="808" cy="620" r="0.7" fill="#ffee00" opacity="0.28"/>
+  <circle cx="790" cy="610" r="0.6" fill="#ffcc00" opacity="0.24"/>
+
+  <!-- MIST at tree-line / horizon -->
+  <rect x="0" y="550" width="1600" height="55" fill="url(#mistGrad)"/>
+
+  <!-- VIGNETTE -->
+  <rect width="1600" height="900" fill="url(#vignette)"/>
+
+  <!-- SIDE SHADOWS -->
+  <rect width="1600" height="900" fill="url(#sideShadow)"/>
+</svg>
