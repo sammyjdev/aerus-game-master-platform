@@ -1,0 +1,32 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install system dependencies (required by ChromaDB)
+        run: sudo apt-get install -y build-essential
+
+      - name: Install Python dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Run unit tests
+        working-directory: backend
+        env:
+          DATABASE_PATH: ":memory:"
+          OPENROUTER_API_KEY: "test-key"
+          FERNET_KEY: ${{ secrets.FERNET_KEY || 'dGVzdC1mZXJuZXQta2V5LXBhZGRlZC10by0zMmJ5dGVz' }}
+          JWT_SECRET: "test-jwt-secret"
+        run: python -m pytest tests/ -v --tb=short

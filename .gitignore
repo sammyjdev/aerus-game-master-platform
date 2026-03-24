@@ -1,0 +1,66 @@
+# --- OS / Editor ---
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+*.swo
+
+# --- VS Code ---
+.vscode/*
+!.vscode/tasks.json
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# --- Temporary run scripts ---
+.run-backend.sh
+.run-frontend.sh
+.claude/
+
+# --- Python (global + backend) ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.python-version
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Backend runtime artifacts
+backend/.env
+backend/.venv/
+backend/.pytest_cache/
+backend/aerus.db
+backend/chroma_db/
+backend/*.log
+
+# --- Node / Frontend ---
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+coverage/
+frontend/coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Frontend local env overrides
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+# Evaluation artifacts
+backend/eval/__pycache__/
+backend/eval/history/
+backend/eval/*.log

@@ -1,0 +1,9 @@
+{
+  "sonarlint.analysisExcludesStandalone": [
+    "**/.venv/**",
+    "backend/.venv/**",
+    "**/backend/.venv/Lib/site-packages/playwright/**",
+    "**/node_modules/**",
+    "frontend/node_modules/**"
+  ]
+}

@@ -1,0 +1,19 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+
+# Local virtual environment
+.venv/
+
+# Test and tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Runtime local data
+aerus.db
+chroma_db/
+*.log
+
+# Local environment overrides
+.env

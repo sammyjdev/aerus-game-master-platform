@@ -1,0 +1,38 @@
+app = "aerus-rpg"
+primary_region = "gru"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  CONFIG_DIR = "/app/config"
+  DATABASE_PATH = "/data/aerus.db"
+
+[mounts]
+  source = "aerus_data"
+  destination = "/data"
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 8080
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 25
+    soft_limit = 20
+
+[deploy]
+  strategy = "immediate"
+
+# NUNCA aumentar max_machines sem migrar para PostgreSQL (ADR-002)
+[machines]
+  max = 1

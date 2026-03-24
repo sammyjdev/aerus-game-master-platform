@@ -1,0 +1,93 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    // ── Setup ──────────────────────────────────────────────────────────────
+    {
+      "label": "🔧 setup: criar venv e instalar dependências",
+      "type": "shell",
+      "command": "python -m venv .venv && .venv/Scripts/pip install --upgrade pip -q && .venv/Scripts/pip install chromadb --prefer-binary -q && .venv/Scripts/pip install -r requirements.txt -q && echo 'Setup concluído.'",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "📦 install: atualizar dependências",
+      "type": "shell",
+      "command": ".venv/Scripts/pip install chromadb --prefer-binary -q && .venv/Scripts/pip install -r requirements.txt -q && echo 'Dependências atualizadas.'",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+
+    // ── Servidor ───────────────────────────────────────────────────────────
+    {
+      "label": "🚀 dev: iniciar servidor (hot-reload)",
+      "type": "shell",
+      "command": ".venv/Scripts/uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --env-file .env",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "group": { "kind": "build", "isDefault": true },
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "problemMatcher": {
+        "owner": "uvicorn",
+        "pattern": { "regexp": "^.*ERROR.*$", "message": 1 },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^.*Started.*$",
+          "endsPattern": "^.*Application startup complete.*$"
+        }
+      }
+    },
+    {
+      "label": "▶️ run: iniciar servidor (produção local)",
+      "type": "shell",
+      "command": ".venv/Scripts/uvicorn src.main:app --host 0.0.0.0 --port 8000 --env-file .env",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+    },
+
+    // ── Utilitários ────────────────────────────────────────────────────────
+    {
+      "label": "🔑 keys: gerar FERNET_KEY e JWT_SECRET",
+      "type": "shell",
+      "command": "echo '' && echo 'FERNET_KEY=' && .venv/Scripts/python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\" && echo '' && echo 'JWT_SECRET=' && .venv/Scripts/python -c \"import secrets; print(secrets.token_hex(32))\" && echo ''",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "🎟️ invite: criar código de convite",
+      "type": "shell",
+      "command": "curl -s -X POST http://localhost:8000/admin/invite | .venv/Scripts/python -c \"import sys,json; d=json.load(sys.stdin); print('\\nCódigo de convite:', d['invite_code'], '\\n')\"",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "shared" },
+      "dependsOn": []
+    },
+
+    // ── Testes ─────────────────────────────────────────────────────────────
+    {
+      "label": "🧪 test: executar testes",
+      "type": "shell",
+      "command": ".venv/Scripts/python -m pytest tests/ -v",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "group": { "kind": "test", "isDefault": true },
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+
+    // ── Limpeza ────────────────────────────────────────────────────────────
+    {
+      "label": "🧹 clean: remover banco e chromadb",
+      "type": "shell",
+      "command": "rm -f aerus.db && rm -rf chroma_db && find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null; echo 'Limpeza concluída.'",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    }
+  ]
+}
