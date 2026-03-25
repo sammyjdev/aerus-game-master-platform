@@ -27,12 +27,12 @@ class TestBuildL0Static:
         mock_kernel.assert_called_once()
 
     def test_build_l0_truncates_long_kernel(self):
-        """Kernel maior que 1000 chars deve ser truncado."""
+        """Kernels longer than 1000 chars must be truncated."""
         long_kernel = "x" * 2000
         with patch("src.context_builder.load_world_kernel", return_value=long_kernel):
             result = _build_l0_static()
 
-        max_expected = 1000 + len("[...truncado]") + 1  # +1 for newline
+        max_expected = 1000 + len("[...truncated]") + 1  # +1 for newline
         assert len(result) <= max_expected
         assert "x" * 2000 not in result
 
@@ -51,21 +51,21 @@ class TestBuildL1Campaign:
     }
 
     def test_build_l1_excludes_redundant_fields(self):
-        """L1 não deve incluir campos como Idioma ou Janela de ação."""
+        """L1 should not include fields like Language or Action window."""
         with patch("src.context_builder.load_campaign", return_value=self._TYPICAL_CAMPAIGN):
             result = _build_l1_campaign()
 
-        assert "Idioma" not in result
-        assert "Janela de ação" not in result
+        assert "Language" not in result
+        assert "Action window" not in result
 
     def test_build_l1_includes_required_fields(self):
-        """L1 deve conter Campanha, Tom, Dificuldade e Permadeath."""
+        """L1 must contain Campaign, Tone, Difficulty and Permadeath."""
         with patch("src.context_builder.load_campaign", return_value=self._TYPICAL_CAMPAIGN):
             result = _build_l1_campaign()
 
-        assert "Campanha" in result
-        assert "Tom" in result
-        assert "Dificuldade" in result
+        assert "Campaign" in result
+        assert "Tone" in result
+        assert "Difficulty" in result
         assert "Permadeath" in result
 
 

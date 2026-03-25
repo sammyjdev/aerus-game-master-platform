@@ -59,9 +59,9 @@ async def test_update_memory_after_turn_persists_character_world_arc(db):
     assert "Sofreu dano ao proteger Lyra" in memory.character
     assert "Selou a cripta com magia de fogo" in memory.character
     assert "Resumo do turno" in memory.character
-    assert "Turno 3" in memory.world
+    assert "Turn 3" in memory.world
     assert "CapitÃ£o cultista fugiu para a cripta" in memory.world
-    assert "TensÃ£o 8/10" in memory.arc
+    assert "Tension 8/10" in memory.arc
 
 
 @pytest.mark.asyncio
@@ -78,9 +78,9 @@ async def test_update_memory_after_turn_uses_deterministic_fallback_when_extract
             await memory_manager.update_memory_after_turn(db, batch, gm_response)
 
     memory = await state_manager.get_memory_layers(db, [p1])
-    assert "Agiu no turno 1" in memory.character
-    assert "ConsequÃªncia observada no turno 1" in memory.world
-    assert "TensÃ£o 5/10" in memory.arc
+    assert "Acted on turn 1" in memory.character
+    assert "Observed consequence on turn 1" in memory.world
+    assert "Tension 5/10" in memory.arc
 
 
 def test_parse_extractor_json_strips_markdown_fences():

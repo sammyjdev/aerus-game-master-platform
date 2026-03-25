@@ -29,5 +29,5 @@ async def test_local_backstory_inference_fallbacks_to_keyword_when_invalid_json(
             "empire_valdrek",
         )
 
-    assert inferred == "Guerreiro"
+    assert inferred == "Soldier"
 

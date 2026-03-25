@@ -185,7 +185,7 @@ def _make_batch(*actions: tuple[str, str, str]) -> ActionBatch:
 def test_format_batch_single_action():
     batch = _make_batch(("p1", "Kael", "Ataco o goblin com a espada."))
     msg = _format_batch_as_user_message(batch)
-    assert "[Turno 3]" in msg
+    assert "[Turn 3]" in msg
     assert "**Kael**" in msg
     assert "Ataco o goblin com a espada." in msg
 
@@ -205,14 +205,14 @@ def test_format_batch_includes_turn_number():
     batch = _make_batch(("p1", "Kael", "Ação qualquer."))
     batch.turn_number = 42
     msg = _format_batch_as_user_message(batch)
-    assert "[Turno 42]" in msg
+    assert "[Turn 42]" in msg
 
 
 def test_format_batch_empty_actions():
     """Batch sem ações deve retornar pelo menos o header de turno."""
     batch = ActionBatch(actions=[], turn_number=1)
     msg = _format_batch_as_user_message(batch)
-    assert "[Turno 1]" in msg
+    assert "[Turn 1]" in msg
 
 
 # ---------------------------------------------------------------------------

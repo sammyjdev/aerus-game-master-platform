@@ -28,19 +28,18 @@ def _get_world_entries():
 # ---------------------------------------------------------------------------
 
 class TestParseWorldSectionsSkipsBestiary:
-    """Seção VI (Bestiário) não deve aparecer nas entradas de world lore."""
+    """Bestiary content lives in separate bestiary_tN.md files, not in world.md sections."""
 
     def test_no_entry_has_section_bestiario(self):
         entries = _get_world_entries()
         sections = [e["metadata"]["section"] for e in entries]
         assert "bestiario" not in sections
 
-    def test_no_entry_has_section_vi(self):
+    def test_no_entry_has_raw_vi_section(self):
         entries = _get_world_entries()
-        # _section_name_to_id("VI. BESTIÁRIO...") would produce "vi_besti..." but
-        # the section should have been skipped before reaching that point.
+        # Section VI is now "prophecy" in the map, not a raw "vi_..." fallback slug.
         for entry in entries:
-            assert not entry["metadata"]["section"].startswith("vi")
+            assert entry["metadata"]["section"] != "vi"
 
     def test_no_document_contains_tier1_marker(self):
         entries = _get_world_entries()
@@ -60,16 +59,16 @@ class TestParseWorldSectionsSkipsBestiary:
 # ---------------------------------------------------------------------------
 
 class TestParseWorldSectionsExpectedSections:
-    """All non-bestiary mapped sections must be present in the output."""
+    """All mapped sections must be present in the output."""
 
     EXPECTED_SECTIONS = {
-        "cosmologia",
-        "historia",
-        "geografia",
-        "faccoes",
-        "magia",
-        "profecias",
-        "linguas_cultura",
+        "cosmology",
+        "history",
+        "geography",
+        "factions",
+        "dome_travelers",
+        "prophecy",
+        "world_principles",
     }
 
     def test_all_expected_sections_present(self):
@@ -99,27 +98,24 @@ class TestParseWorldSectionsExpectedSections:
 class TestParseWorldSectionsChunksLargeSections:
     """Geography (III) is large enough to be split into multiple entries."""
 
-    def test_geografia_has_multiple_entries(self):
+    def test_geography_has_multiple_entries(self):
         entries = _get_world_entries()
-        geo_entries = [e for e in entries if e["metadata"]["section"] == "geografia"]
+        geo_entries = [e for e in entries if e["metadata"]["section"] == "geography"]
         assert len(geo_entries) > 1, (
-            f"Expected multiple 'geografia' entries due to chunking, got {len(geo_entries)}"
+            f"Expected multiple 'geography' entries due to chunking, got {len(geo_entries)}"
         )
 
-    def test_geografia_entries_each_under_max_chunk_chars(self):
-        """After chunking, each sub-entry's document should be reasonably sized.
-        We don't enforce a hard cap here — the split is on ### boundaries —
-        but the original unsplit block must have been larger than 1500 chars."""
+    def test_geography_entries_combined_size_exceeds_max_chunk(self):
+        """After chunking, the combined geography content must be well above 1500 chars."""
         entries = _get_world_entries()
-        geo_entries = [e for e in entries if e["metadata"]["section"] == "geografia"]
-        # Combined size should be well above the 1500-char limit
+        geo_entries = [e for e in entries if e["metadata"]["section"] == "geography"]
         total_chars = sum(len(e["document"]) for e in geo_entries)
         assert total_chars > 1500
 
     def test_short_sections_are_single_entry(self):
-        """Profecias and linguas_cultura are short enough to be a single entry each."""
+        """Dome/travelers and prophecy sections are short enough to be a single entry each."""
         entries = _get_world_entries()
-        for section in ("profecias", "linguas_cultura"):
+        for section in ("dome_travelers", "prophecy"):
             section_entries = [e for e in entries if e["metadata"]["section"] == section]
             # Each should exist
             assert len(section_entries) >= 1
@@ -176,13 +172,13 @@ class TestSectionNameToIdMapping:
     """_section_name_to_id must resolve roman numerals to canonical slugs."""
 
     CASES = [
-        ("I. COSMOLOGIA E ORIGEM", "cosmologia"),
-        ("II. HISTÓRIA — AS QUATRO ERAS", "historia"),
-        ("III. GEOGRAFIA — O MAPA DE AERUS", "geografia"),
-        ("IV. FACÇÕES PRINCIPAIS", "faccoes"),
-        ("V. O FIO PRIMORDIAL — REGRAS PARA O GM", "magia"),
-        ("VII. PROFECIAS E DESTINO", "profecias"),
-        ("VIII. LÍNGUAS E CULTURA", "linguas_cultura"),
+        ("I. Cosmology and Origin", "cosmology"),
+        ("II. History - The Four Eras", "history"),
+        ("III. Geography", "geography"),
+        ("IV. Major Factions", "factions"),
+        ("V. The Dome and the Travelers", "dome_travelers"),
+        ("VI. Prophecy and Endgame Pressure", "prophecy"),
+        ("VII. Core World Principles for Play", "world_principles"),
     ]
 
     @pytest.mark.parametrize("title,expected_id", CASES)
@@ -196,12 +192,12 @@ class TestSectionNameToIdMapping:
         assert len(result) > 0
         assert result == result.lower()
 
-    def test_bestiary_section_vi_is_not_in_map(self):
-        """VI is intentionally absent from _SECTION_MAP (handled by ingest_bestiary)."""
-        result = _section_name_to_id("VI. BESTIÁRIO DE AERUS")
-        # Not in the map — falls back to a sanitized slug
-        assert result != "bestiario"  # not mapped
-        assert "vi" in result or "besti" in result
+    def test_bestiary_section_is_not_a_world_section(self):
+        """Bestiary content is ingested separately via ingest_bestiary, not via world sections."""
+        result = _section_name_to_id("IX. BESTIÁRIO DE AERUS")
+        # IX is not in the map — falls back to a sanitized slug
+        assert isinstance(result, str)
+        assert result != "bestiary"
 
 
 # ---------------------------------------------------------------------------
