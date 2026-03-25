@@ -169,4 +169,55 @@ export function getDebugStateSnapshot(token: string): Promise<DebugStateSnapshot
   })
 }
 
+// ── Admin API ────────────────────────────────────────────────────────────────
+
+function adminRequest<T>(path: string, adminSecret: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers)
+  headers.set('Content-Type', 'application/json')
+  headers.set('X-Admin-Secret', adminSecret)
+  return request<T>(path, { ...init, headers })
+}
+
+export interface AdminPlayer {
+  player_id: string
+  username: string
+  name: string | null
+  faction: string | null
+  inferred_class: string | null
+  level: number
+  current_hp: number
+  max_hp: number
+  status: string
+  is_alive: boolean
+}
+
+export interface AdminStatus {
+  paused: boolean
+  players: AdminPlayer[]
+  tension_level: number
+}
+
+export function adminGetPlayers(adminSecret: string): Promise<AdminPlayer[]> {
+  return adminRequest<AdminPlayer[]>('/admin/players', adminSecret)
+}
+
+export function adminPauseCampaign(adminSecret: string, paused: boolean): Promise<{ status: string }> {
+  return adminRequest<{ status: string }>('/admin/pause', adminSecret, {
+    method: 'POST',
+    body: JSON.stringify({ paused }),
+  })
+}
+
+export function adminGenerateInvite(adminSecret: string): Promise<{ invite_code: string }> {
+  return adminRequest<{ invite_code: string }>('/admin/invite', adminSecret, {
+    method: 'POST',
+  })
+}
+
+export function adminReloadConfig(adminSecret: string): Promise<{ status: string }> {
+  return adminRequest<{ status: string }>('/admin/reload', adminSecret, {
+    method: 'POST',
+  })
+}
+
 export { API_BASE }

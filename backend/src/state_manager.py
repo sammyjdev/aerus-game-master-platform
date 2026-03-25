@@ -3,6 +3,7 @@ state_manager.py - Only module with SQLite access.
 Every database read and write goes through this layer.
 All writes are atomic inside a transaction context.
 """
+import logging
 import os
 import time
 from contextlib import asynccontextmanager
@@ -61,190 +62,11 @@ async def db_context() -> AsyncGenerator[aiosqlite.Connection, None]:
 
 
 async def init_db() -> None:
-    """Create all tables if they do not exist. Called at startup."""
+    """Run all pending schema migrations and seed default state. Called at startup."""
+    from .migration_runner import run_migrations
+
     async with db_context() as conn:
-        await conn.executescript("""
-            CREATE TABLE IF NOT EXISTS invites (
-                code        TEXT PRIMARY KEY,
-                created_by  TEXT NOT NULL,
-                used        INTEGER NOT NULL DEFAULT 0,
-                used_by     TEXT,
-                created_at  REAL NOT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS players (
-                player_id           TEXT PRIMARY KEY,
-                username            TEXT UNIQUE NOT NULL,
-                password_hash       TEXT NOT NULL,
-                name                TEXT,
-                race                TEXT,
-                faction             TEXT,
-                backstory           TEXT,
-                inferred_class      TEXT DEFAULT 'Desconhecido',
-                level               INTEGER NOT NULL DEFAULT 1,
-                experience          INTEGER NOT NULL DEFAULT 0,
-                max_hp              INTEGER NOT NULL DEFAULT 100,
-                current_hp          INTEGER NOT NULL DEFAULT 100,
-                max_mp              INTEGER NOT NULL DEFAULT 50,
-                current_mp          INTEGER NOT NULL DEFAULT 50,
-                max_stamina         INTEGER NOT NULL DEFAULT 100,
-                current_stamina     INTEGER NOT NULL DEFAULT 100,
-                status              TEXT NOT NULL DEFAULT 'alive',
-                secret_objective    TEXT DEFAULT '',
-                contribution_score  REAL NOT NULL DEFAULT 0.0,
-                byok_key_encrypted  TEXT,
-                created_at          REAL NOT NULL,
-                attributes_json     TEXT NOT NULL DEFAULT '{}',
-                magic_prof_json     TEXT NOT NULL DEFAULT '{}',
-                weapon_prof_json    TEXT NOT NULL DEFAULT '{}',
-                milestones_json     TEXT NOT NULL DEFAULT '[]',
-                currency_json       TEXT NOT NULL DEFAULT '{"copper":0,"silver":5,"gold":0,"platinum":0}',
-                inventory_weight    REAL NOT NULL DEFAULT 0.0,
-                weight_capacity     REAL NOT NULL DEFAULT 80.0,
-                macros_json         TEXT NOT NULL DEFAULT '[]',
-                spell_aliases_json  TEXT NOT NULL DEFAULT '{}',
-                backstory_changed_recently INTEGER NOT NULL DEFAULT 0,
-                convocation_sent    INTEGER NOT NULL DEFAULT 0
-            );
-
-            CREATE TABLE IF NOT EXISTS sessions (
-                session_id  TEXT PRIMARY KEY,
-                player_id   TEXT NOT NULL REFERENCES players(player_id),
-                token_hash  TEXT NOT NULL,
-                expires_at  REAL NOT NULL,
-                created_at  REAL NOT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS inventory (
-                item_id     TEXT PRIMARY KEY,
-                player_id   TEXT NOT NULL REFERENCES players(player_id),
-                name        TEXT NOT NULL,
-                description TEXT NOT NULL DEFAULT '',
-                rarity      TEXT NOT NULL DEFAULT 'common',
-                quantity    INTEGER NOT NULL DEFAULT 1,
-                equipped    INTEGER NOT NULL DEFAULT 0,
-                metadata_json TEXT NOT NULL DEFAULT '{}'
-            );
-
-            CREATE TABLE IF NOT EXISTS conditions (
-                condition_id    TEXT PRIMARY KEY,
-                player_id       TEXT NOT NULL REFERENCES players(player_id),
-                name            TEXT NOT NULL,
-                description     TEXT NOT NULL DEFAULT '',
-                duration_turns  INTEGER,
-                applied_at_turn INTEGER NOT NULL,
-                is_buff         INTEGER NOT NULL DEFAULT 0
-            );
-
-            CREATE TABLE IF NOT EXISTS history (
-                history_id  TEXT PRIMARY KEY,
-                turn_number INTEGER NOT NULL,
-                role        TEXT NOT NULL,
-                content     TEXT NOT NULL,
-                created_at  REAL NOT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS summaries (
-                summary_id  TEXT PRIMARY KEY,
-                turn_start  INTEGER NOT NULL,
-                turn_end    INTEGER NOT NULL,
-                content     TEXT NOT NULL,
-                created_at  REAL NOT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS quest_flags (
-                flag_key    TEXT PRIMARY KEY,
-                flag_value  TEXT NOT NULL,
-                updated_at  REAL NOT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS world_state (
-                key         TEXT PRIMARY KEY,
-                value       TEXT NOT NULL,
-                updated_at  REAL NOT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS character_memory (
-                player_id   TEXT PRIMARY KEY REFERENCES players(player_id),
-                content     TEXT NOT NULL DEFAULT '',
-                updated_at  REAL NOT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS world_memory (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                content     TEXT NOT NULL DEFAULT '',
-                updated_at  REAL NOT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS arc_memory (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                content     TEXT NOT NULL DEFAULT '',
-                updated_at  REAL NOT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS generated_images (
-                image_id    TEXT PRIMARY KEY,
-                prompt      TEXT NOT NULL,
-                url         TEXT,
-                status      TEXT NOT NULL DEFAULT 'pending',
-                created_at  REAL NOT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS faction_reputation (
-                player_id   TEXT NOT NULL REFERENCES players(player_id),
-                faction_id  TEXT NOT NULL,
-                score       INTEGER NOT NULL DEFAULT 0,
-                updated_at  REAL NOT NULL,
-                PRIMARY KEY (player_id, faction_id)
-            );
-
-            CREATE TABLE IF NOT EXISTS dice_roll_arguments (
-                roll_id              TEXT PRIMARY KEY,
-                player_id            TEXT NOT NULL REFERENCES players(player_id),
-                roll_type            TEXT NOT NULL,
-                dc                   INTEGER NOT NULL,
-                description          TEXT NOT NULL,
-                initial_roll         INTEGER,
-                initial_result       INTEGER,
-                argument             TEXT NOT NULL DEFAULT '',
-                argument_submitted   INTEGER NOT NULL DEFAULT 0,
-                verdict              TEXT,
-                circumstance_bonus   INTEGER NOT NULL DEFAULT 0,
-                final_result         INTEGER,
-                explanation          TEXT NOT NULL DEFAULT '',
-                created_at           REAL NOT NULL,
-                resolved_at          REAL
-            );
-        """)
-        await conn.commit()
-
-        # Migrations - add new columns to existing databases
-        _migrations = [
-            ("ALTER TABLE players ADD COLUMN convocation_sent INTEGER NOT NULL DEFAULT 0", "convocation_sent"),
-            ("ALTER TABLE players ADD COLUMN max_mp INTEGER NOT NULL DEFAULT 50", "max_mp"),
-            ("ALTER TABLE players ADD COLUMN current_mp INTEGER NOT NULL DEFAULT 50", "current_mp"),
-            ("ALTER TABLE players ADD COLUMN max_stamina INTEGER NOT NULL DEFAULT 100", "max_stamina"),
-            ("ALTER TABLE players ADD COLUMN current_stamina INTEGER NOT NULL DEFAULT 100", "current_stamina"),
-            ("ALTER TABLE conditions ADD COLUMN is_buff INTEGER NOT NULL DEFAULT 0", "conditions.is_buff"),
-            (
-                "ALTER TABLE players ADD COLUMN currency_json TEXT NOT NULL DEFAULT '{\"copper\":0,\"silver\":5,\"gold\":0,\"platinum\":0}'",
-                "currency_json",
-            ),
-            ("ALTER TABLE players ADD COLUMN inventory_weight REAL NOT NULL DEFAULT 0.0", "inventory_weight"),
-            ("ALTER TABLE players ADD COLUMN weight_capacity REAL NOT NULL DEFAULT 80.0", "weight_capacity"),
-            ("ALTER TABLE players ADD COLUMN macros_json TEXT NOT NULL DEFAULT '[]'", "macros_json"),
-            ("ALTER TABLE players ADD COLUMN spell_aliases_json TEXT NOT NULL DEFAULT '{}'", "spell_aliases_json"),
-            ("ALTER TABLE players ADD COLUMN backstory_changed_recently INTEGER NOT NULL DEFAULT 0", "backstory_changed_recently"),
-            ("ALTER TABLE players ADD COLUMN languages_json TEXT NOT NULL DEFAULT '[\"common_tongue\"]'", "languages_json"),
-        ]
-        for sql, col in _migrations:
-            try:
-                await conn.execute(sql)
-                await conn.commit()
-                logger.info("Migration: column %s added", col)
-            except Exception:
-                pass  # column already exists
-
+        await run_migrations(conn)
         await ensure_default_world_state(conn)
 
         # Initialize the calendar if it has not been set up yet
@@ -1017,6 +839,76 @@ async def upsert_arc_memory(
         (content, time.time()),
     )
     await conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# Player episodic memory
+# ---------------------------------------------------------------------------
+
+
+async def save_player_episode(
+    conn: aiosqlite.Connection,
+    episode_id: str,
+    player_id: str,
+    turn_number: int,
+    event_type: str,
+    description: str,
+    importance: int = 1,
+) -> None:
+    """Persist a single episodic memory for a player.
+
+    importance scale: 1 = minor, 2 = notable, 3 = defining
+    event_type examples: 'combat_action', 'social_action', 'stealth_action',
+                         'moral_choice', 'faction_event', 'level_up', 'death_avoided'
+    """
+    await conn.execute(
+        """
+        INSERT INTO player_episodes
+            (episode_id, player_id, turn_number, event_type, description, importance, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (episode_id, player_id, turn_number, event_type, description, importance, time.time()),
+    )
+    await conn.commit()
+
+
+async def get_player_episodes(
+    conn: aiosqlite.Connection,
+    player_id: str,
+    limit: int = 10,
+    min_importance: int = 1,
+) -> list[dict]:
+    """Return the most important recent episodes for a player."""
+    cursor = await conn.execute(
+        """
+        SELECT episode_id, turn_number, event_type, description, importance
+        FROM player_episodes
+        WHERE player_id = ? AND importance >= ?
+        ORDER BY importance DESC, turn_number DESC
+        LIMIT ?
+        """,
+        (player_id, min_importance, limit),
+    )
+    rows = await cursor.fetchall()
+    return [dict(row) for row in rows]
+
+
+async def get_player_episode_counts_by_type(
+    conn: aiosqlite.Connection,
+    player_id: str,
+) -> dict[str, int]:
+    """Return count of episodes per event_type for behavioral pattern analysis (B5)."""
+    cursor = await conn.execute(
+        """
+        SELECT event_type, COUNT(*) as cnt
+        FROM player_episodes
+        WHERE player_id = ?
+        GROUP BY event_type
+        """,
+        (player_id,),
+    )
+    rows = await cursor.fetchall()
+    return {row["event_type"]: row["cnt"] for row in rows}
 
 
 # ---------------------------------------------------------------------------

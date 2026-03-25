@@ -1,0 +1,127 @@
+# rumors.yaml — Base rumors with faction-biased variants.
+#
+# Each rumor has:
+#   rumor_id: unique identifier
+#   base: what actually happened (GM reference, not injected directly)
+#   tension_min: only active at or above this tension level (0 = always)
+#   variants: how each faction hears this rumor (distorted, filtered, incomplete)
+#
+# Factions: church_pure_flame, empire_valdrek, guild_of_threads,
+#           children_of_broken_thread, myr_council
+# "neutral" covers unaffiliated players.
+#
+# Design rule: each variant should point toward an action, not just atmosphere.
+
+rumors:
+
+  - rumor_id: "sealing_fracture_khorrath"
+    base: "A major Thread fracture has reopened near the Heart of Ashes in Khorrath."
+    tension_min: 5
+    variants:
+      church_pure_flame: >
+        A pilgrim returned from Khorrath with burns on his palms — divine signs, the Church says.
+        The Sanctum has quietly reassigned three inquisitors to 'eastern observation posts.'
+        No explanation given.
+      empire_valdrek: >
+        Imperial surveyors near Ferren March reported instrument failures and 'magnetic anomalies'
+        consistent with Thread instability. The dispatch office offered no reward for the report.
+        The surveyor who filed it was reassigned to a desk position in Auramveld.
+      guild_of_threads: >
+        Measurement irregularities in three separate Vel'Ossian Thread charts point to a common
+        epicenter: somewhere in the Khorrath interior. The Guild has not published the findings.
+        The researcher who correlated them is no longer responding to messages.
+      children_of_broken_thread: >
+        One of the Children's circuit riders came back early from Khorrath — shaking, wouldn't say why.
+        Before she left again she left a folded paper with one line: 'It breathes. It remembers.'
+      myr_council: >
+        A Myr trading ship was denied port clearance at Khor-Ath for the third consecutive month.
+        The dock authority cited 'unusual atmospheric hazards in the interior.' No details.
+        The ship's captain says she saw a glow on the horizon that had no natural source.
+      neutral: >
+        A dockworker at Port Myr claims he saw the cargo from a Khorrath ship — burnt crates,
+        no goods, and a manifest listing only 'sample: do not open.' The ship left before dawn.
+
+  - rumor_id: "church_inquisitor_missing"
+    base: "Senior inquisitor Vael Correth disappeared en route to Vel'Ossian on a sealed assignment."
+    tension_min: 3
+    variants:
+      church_pure_flame: >
+        Inquisitor Correth was diverted to a secondary assignment. The Church discourages speculation.
+        His route files have been sealed. His assistant was offered a transfer and declined.
+        No one has seen her either.
+      empire_valdrek: >
+        Imperial border records show Correth's papers were processed at the Ferren March crossing.
+        He was traveling alone, which is irregular for a senior inquisitor.
+        The Empire has received no inquiry about his whereabouts.
+      guild_of_threads: >
+        Correth had contacted the Guild archives three weeks before his disappearance,
+        requesting access to pre-Sealing correspondence. His access was denied.
+        The request itself has since been deleted from the registry.
+      children_of_broken_thread: >
+        The Children believe Correth found something and the Church silenced him before he could
+        act on it. Or before he could talk. Either way, one fewer inquisitor is not a tragedy.
+      myr_council: >
+        A merchant who shared a ferry with Correth said he was carrying a locked case
+        chained to his wrist. The case was not on him when he was found at the Vel'Ossian docks —
+        confused, no memory of the last four days, no case.
+      neutral: >
+        The harbor master at Vel'Ossian logged a Church official arriving by ferry —
+        disoriented, no papers, no luggage. He was collected by two men who didn't identify themselves.
+        The record was amended the following morning.
+
+  - rumor_id: "empire_garrison_movement"
+    base: "Three imperial garrison companies have been quietly redeployed from Osthara toward the coast."
+    tension_min: 4
+    variants:
+      church_pure_flame: >
+        The Church received a formal notice that imperial escort availability near Osthara
+        will be reduced for 'internal reassignment.' No reason provided. The Sanctum
+        has requested a clarification meeting. It has not been scheduled.
+      empire_valdrek: >
+        The redeployment is a routine rotation. The garrison at Calmveth has been understaffed
+        since the spring flooding. Nothing to read into the timing. The coast is always watched.
+      guild_of_threads: >
+        Three companies is not routine. The Guild's cartographer in Osthara noted the movement
+        patterns suggest a rapid-response posture — not a rotation. The destination
+        hasn't been confirmed but the heading is consistent with Port Myr's shipping lanes.
+      children_of_broken_thread: >
+        The Empire is preparing something. The Children's contact in Osthara says the soldiers
+        were told they were going to 'secure an asset.' Nobody knows what asset.
+        The Children want to know before the Empire gets there.
+      myr_council: >
+        Three garrison companies moving toward the coast affects Port Myr's independence.
+        The Council is monitoring. They've quietly increased the Port Myr dockside watch.
+        If imperial boots touch the harbor, the Council will want answers — and leverage.
+      neutral: >
+        A merchant on the Osthara road passed a column of imperial soldiers heading east —
+        no colors, no banners, traveling at night. They didn't stop to check his cargo,
+        which never happens. He made it to Port Myr faster than expected.
+
+  - rumor_id: "dome_convocation_rumor"
+    base: "The Dome has activated again — new travelers from beyond Aerus have been summoned."
+    tension_min: 0
+    variants:
+      church_pure_flame: >
+        The Church of the Pure Flame has issued an internal notice about 'foreign arrivals of unknown
+        origin.' The notice instructs clergy to observe but not engage. Seal inspection at the ports
+        has quietly increased. The phrasing 'unknown origin' is underlined.
+      empire_valdrek: >
+        Imperial census records near Port Myr note several new individuals with no registered faction
+        and no travel papers. They have been flagged for observation but not detained — not yet.
+        The dispatch office has asked for reports on their activities.
+      guild_of_threads: >
+        The Guild has seen this before. Isekai travelers arrive with no context and dangerous
+        potential. The archives have a standing protocol: observe, do not recruit, assess Thread
+        sensitivity before any contact. This batch seems different — more of them, and faster.
+      children_of_broken_thread: >
+        New arrivals from outside. The Children believe the Dome summons people the current age
+        cannot produce — people uncorrupted by Aerus's institutions. They want contact.
+        They're being careful about it.
+      myr_council: >
+        New faces in Port Myr with no papers and good coin. The Council doesn't ask questions
+        about origins. What matters is whether they're buying or selling — and whether they're
+        trouble. So far: buying, no trouble. The Council is reserving judgment.
+      neutral: >
+        People are saying there are newcomers in Port Myr who don't know what a Flame Seal is
+        and seem confused by the currency. They're not confused by weapons, though.
+        A few of the regulars at the Saltback Inn are keeping their distance.

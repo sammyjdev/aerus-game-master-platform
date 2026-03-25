@@ -20,6 +20,11 @@ const GamePage = lazy(async () => {
   return { default: module.GamePage };
 });
 
+const AdminPage = lazy(async () => {
+  const module = await import('./pages/AdminPage');
+  return { default: module.AdminPage };
+});
+
 function ProtectedRoute({ children }: Readonly<{ children: ReactElement }>) {
   const token = useGameStore((state) => state.token);
   if (!token) {
@@ -56,6 +61,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route path='/admin' element={<AdminPage />} />
         </Routes>
       </Suspense>
       <DebugPanel />

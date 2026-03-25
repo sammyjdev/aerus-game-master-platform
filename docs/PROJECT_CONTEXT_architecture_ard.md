@@ -1,6 +1,7 @@
-﻿> Extracted from the Aerus project context bundle. This file summarizes the system architecture and the application requirements document (ARD).
+﻿> Extracted from the Aerus project context bundle. This file covers system architecture and the application requirements document (ARD).
+> See also: [PROJECT_CONTEXT_overview_stack.md](PROJECT_CONTEXT_overview_stack.md) for project overview and stack details.
 
-## 3. System Architecture
+## 1. System Architecture
 
 ### Directory Structure
 
@@ -90,7 +91,7 @@ type WSEvent =
 
 ---
 
-## 4. ARD - Application Requirements Document
+## 2. ARD - Application Requirements Document
 
 ### Functional Requirements
 
