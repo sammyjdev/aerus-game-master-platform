@@ -6,7 +6,7 @@ BACKEND_DIR   = backend
 FRONTEND_DIR  = frontend
 NPM           = npm
 
-.PHONY: help setup install dev run frontend frontend-install frontend-build full-dev stop-dev restart-dev keys invite register character ws test clean
+.PHONY: help setup install dev run frontend frontend-install frontend-build full-dev stop-dev restart-dev keys invite register character ws test clean sync-lore
 
 # ── Ajuda ──────────────────────────────────────────────────────────────────
 help:
@@ -30,6 +30,7 @@ help:
 	@echo "  make ws         Conecta WebSocket  (TOKEN=)"
 	@echo "  make test       Executa testes"
 	@echo "  make clean      Remove banco, chromadb e cache"
+	@echo "  make sync-lore  Sync lore/ to backend/config/ and invalidate chroma_db"
 	@echo ""
 
 # ── Setup ──────────────────────────────────────────────────────────────────
@@ -119,6 +120,10 @@ character:
 ws:
 	@if [ -z "$(TOKEN)" ]; then echo "  Uso: make ws TOKEN=eyJ..."; exit 1; fi
 	cd $(BACKEND_DIR) && ../$(PYTHON) ws_client.py $(TOKEN)
+
+# ── Lore Sync ──────────────────────────────────────────────────────────────
+sync-lore:
+	@bash scripts/sync_lore.sh
 
 # ── Testes ─────────────────────────────────────────────────────────────────
 test:

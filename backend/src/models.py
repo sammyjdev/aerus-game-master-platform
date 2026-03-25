@@ -289,9 +289,27 @@ class CharacterResponse(BaseModel):
 
 
 class WSMessageType(str, Enum):
+    # Server → client: narrative
     NARRATIVE_TOKEN = "narrative_token"
+    STREAM_END = "stream_end"
     GM_THINKING = "gm_thinking"
+    # Server → client: game state
     GAME_EVENT = "game_event"
-    DICE_ROLL = "dice_roll"
+    STATE_UPDATE = "state_update"
     FULL_STATE_SYNC = "full_state_sync"
+    HISTORY_SYNC = "history_sync"
+    # Server → client: dice
+    DICE_ROLL = "dice_roll"
+    REQUEST_DICE_ROLL = "request_dice_roll"
+    DICE_ROLL_RESOLVED = "dice_roll_resolved"
+    # Server → client: audio/media
+    AUDIO_CUE = "audio_cue"
+    BOSS_MUSIC = "boss_music"
+    IMAGE_READY = "image_ready"
+    # Server → client: auth
+    TOKEN_REFRESH = "token_refresh"
+    # Server → client: isekai
     ISEKAI_CONVOCATION = "isekai_convocation"
+    FACTION_OBJECTIVE_UPDATE = "faction_objective_update"
+    # Server → client: errors
+    ERROR = "error"

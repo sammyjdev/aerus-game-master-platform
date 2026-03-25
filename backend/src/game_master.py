@@ -323,7 +323,8 @@ async def process_batch(
     thinking_task = asyncio.create_task(_thinking_timeout(cm.manager))
 
     try:
-        context = await build_context(conn, batch)
+        current_tension = await _get_tension_level(conn)
+        context = await build_context(conn, batch, tension_level=current_tension)
         billing = None if local_llm.is_local_only() else await _resolve_billing(conn, batch)
         user_message = _format_batch_as_user_message(batch)
         party_size = await _get_party_size(conn, batch)
@@ -496,10 +497,13 @@ async def _apply_deltas_and_events(
             )
             await _maybe_emit_progression_events(conn, player_id)
             # Apply faction reputation deltas when present
+            from .reputation_gates import check_reputation_gates
             for rep_delta in delta.get("reputation_delta", []):
                 faction_id = rep_delta.get("faction_id")
                 change = rep_delta.get("delta", 0)
                 if faction_id and change:
+                    current_rep = await state_manager.get_faction_reputation(conn, player_id)
+                    old_score = current_rep.get(faction_id, 0)
                     new_score = await state_manager.update_faction_reputation(
                         conn, player_id, faction_id, change
                     )
@@ -513,6 +517,14 @@ async def _apply_deltas_and_events(
                             "new_score": new_score,
                         },
                     )
+                    # Check and fire reputation gates
+                    gate_events = await check_reputation_gates(
+                        conn, player_id, faction_id, new_score, old_score
+                    )
+                    for gate_event in gate_events:
+                        await cm.manager.broadcast_game_event(
+                            "REPUTATION_GATE_UNLOCKED", gate_event
+                        )
         await cm.manager.broadcast({
             "type": WSMessageType.STATE_UPDATE,
             "delta": gm_response.state_delta,
@@ -580,8 +592,10 @@ async def _maybe_emit_progression_events(
     if already_mutated == "1":
         return
 
+    from .behavior_trajectory import get_mutation_name
+
     old_class = inferred_class
-    new_class = _mutated_class_name(old_class)
+    new_class = await get_mutation_name(conn, player_id, old_class)
     if new_class == old_class:
         await state_manager.set_quest_flag(conn, mutation_lock_key, "1")
         return

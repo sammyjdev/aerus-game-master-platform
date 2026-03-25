@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
+import uuid
 
 import aiosqlite
 
@@ -10,6 +12,32 @@ from . import state_manager
 from .local_llm import generate_text
 from .models import ActionBatch, GMResponse
 from .summarizer import summarize_recent_history
+
+# event_type → importance level mapping
+_EVENT_TYPE_IMPORTANCE: dict[str, int] = {
+    "DEATH": 3,
+    "CLASS_MUTATION": 3,
+    "LEVEL_UP": 2,
+    "ABILITY_UNLOCK": 2,
+    "FACTION_REPUTATION_CHANGE": 2,
+    "LOOT": 1,
+    "DICE_ROLL": 1,
+}
+
+# Game event types that map to behavioral action categories (used by B5)
+_GAME_EVENT_TO_ACTION_TYPE: dict[str, str] = {
+    "COMBAT_STARTED": "combat_action",
+    "COMBAT_ENDED": "combat_action",
+    "STEALTH_SUCCESS": "stealth_action",
+    "STEALTH_FAILURE": "stealth_action",
+    "PERSUASION_SUCCESS": "social_action",
+    "PERSUASION_FAILURE": "social_action",
+    "FACTION_REPUTATION_CHANGE": "faction_event",
+    "LEVEL_UP": "level_up",
+    "CLASS_MUTATION": "level_up",
+    "DEATH": "death_avoided",
+    "ABILITY_UNLOCK": "level_up",
+}
 
 
 async def update_memory_after_turn(
@@ -64,6 +92,8 @@ async def update_memory_after_turn(
 
     await state_manager.upsert_world_memory(conn, world_memory)
     await state_manager.upsert_arc_memory(conn, arc_memory)
+
+    await _record_episodic_events(conn, batch, gm_response)
 
 
 async def _extract_structured_memory(
@@ -214,6 +244,110 @@ def _deterministic_memory_fallback(batch: ActionBatch, gm_response: GMResponse) 
         "arc_progress": arc_progress,
         "tension_hint": max(0, min(10, int(gm_response.tension_level))),
     }
+
+
+async def _record_episodic_events(
+    conn: aiosqlite.Connection,
+    batch: ActionBatch,
+    gm_response: GMResponse,
+) -> None:
+    """Extract and persist episodic memories from game events and player actions.
+
+    Two sources:
+    1. Structured game_events (death, level-up, faction change, etc.) — high reliability
+    2. Player actions classified into behavioral categories — for mutation tracking (B5)
+    """
+    player_name_to_id = {
+        action.player_name: action.player_id
+        for action in batch.actions
+        if action.player_name
+    }
+
+    # Source 1: game events with a known player target
+    for event in gm_response.game_events:
+        event_type = event.get("type", "")
+        player_id = event.get("player_id") or None
+        player_name = event.get("player_name") or ""
+
+        if not player_id and player_name:
+            player_id = player_name_to_id.get(player_name)
+
+        if not player_id:
+            continue
+
+        importance = _EVENT_TYPE_IMPORTANCE.get(event_type, 1)
+        action_category = _GAME_EVENT_TO_ACTION_TYPE.get(event_type, event_type.lower())
+        description = _describe_game_event(event, event_type)
+
+        await state_manager.save_player_episode(
+            conn,
+            episode_id=str(uuid.uuid4()),
+            player_id=player_id,
+            turn_number=batch.turn_number,
+            event_type=action_category,
+            description=description,
+            importance=importance,
+        )
+
+    # Source 2: player actions → behavioral category (always importance=1)
+    for action in batch.actions:
+        category = _classify_action_text(action.action_text)
+        if category:
+            await state_manager.save_player_episode(
+                conn,
+                episode_id=str(uuid.uuid4()),
+                player_id=action.player_id,
+                turn_number=batch.turn_number,
+                event_type=category,
+                description=f"Turn {batch.turn_number}: {action.action_text[:120]}",
+                importance=1,
+            )
+
+
+def _describe_game_event(event: dict, event_type: str) -> str:
+    player_name = event.get("player_name", "Unknown")
+    if event_type == "DEATH":
+        cause = event.get("cause", "unknown cause")
+        return f"{player_name} died: {cause}"
+    if event_type == "CLASS_MUTATION":
+        new_class = event.get("new_class", "?")
+        old_class = event.get("old_class", "?")
+        return f"{player_name} mutated from {old_class} to {new_class}"
+    if event_type == "LEVEL_UP":
+        level = event.get("level", "?")
+        return f"{player_name} reached level {level}"
+    if event_type == "ABILITY_UNLOCK":
+        ability = event.get("ability_name", "?")
+        return f"{player_name} unlocked ability: {ability}"
+    if event_type == "FACTION_REPUTATION_CHANGE":
+        faction = event.get("faction_id", "?")
+        delta = event.get("delta", 0)
+        direction = "improved" if delta > 0 else "damaged"
+        return f"{player_name} {direction} reputation with {faction} by {delta:+d}"
+    description = event.get("description", "")
+    return f"{player_name}: {event_type}{' - ' + description if description else ''}"
+
+
+def _classify_action_text(action_text: str) -> str | None:
+    """Classify a free-form action text into a behavioral category.
+
+    Returns a category string or None if no strong signal.
+    """
+    text = action_text.lower()
+    combat_signals = ("attack", "strike", "stab", "slash", "shoot", "cast", "hit", "fight", "kill")
+    stealth_signals = ("sneak", "hide", "shadow", "silent", "infiltrate", "pickpocket", "steal")
+    social_signals = ("persuade", "convince", "negotiate", "bribe", "charm", "seduce", "threaten", "deceive", "lie")
+    explore_signals = ("search", "investigate", "examine", "study", "read", "look", "scout", "explore")
+
+    if any(s in text for s in combat_signals):
+        return "combat_action"
+    if any(s in text for s in stealth_signals):
+        return "stealth_action"
+    if any(s in text for s in social_signals):
+        return "social_action"
+    if any(s in text for s in explore_signals):
+        return "explore_action"
+    return None
 
 
 def _merge_memory(existing: str, incoming: str, max_lines: int = 12) -> str:

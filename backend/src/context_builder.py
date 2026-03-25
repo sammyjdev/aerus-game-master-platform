@@ -14,7 +14,7 @@ import aiosqlite
 
 _TRUNCATED = "\n[truncated]"
 
-from . import state_manager, travel_manager, vector_store
+from . import rumor_manager, state_manager, travel_manager, vector_store
 from .infrastructure.config.config_loader import load_campaign, load_world_kernel
 from .models import ActionBatch, ContextLayers, LoreResult, MemoryLayers
 from .time_manager import get_current_date
@@ -33,10 +33,14 @@ _LORE_CHAR_LIMIT = 3_200 # ~800 tokens
 async def build_context(
     conn: aiosqlite.Connection,
     batch: ActionBatch,
+    tension_level: int = 5,
 ) -> ContextLayers:
     """
     Main entry point - builds all 4 layers.
     Called by game_master before each LLM request.
+
+    tension_level drives narrative tone (L1) and world state indicators (L2)
+    beyond just LLM model selection.
     """
     player_ids = [a.player_id for a in batch.actions]
 
@@ -60,13 +64,25 @@ async def build_context(
     )
     location = location_raw or "Isles of Myr"
 
-    # Reputation + inventory for every player in parallel
-    rep_results, inv_results = await asyncio.gather(
+    # Build faction map from already-fetched players (no extra DB call)
+    player_factions_by_id = {p["player_id"]: p.get("faction") for p in players}
+
+    # Reputation, inventory, episodes, and rumors for every player in parallel
+    rep_results, inv_results, ep_results, rumor_results = await asyncio.gather(
         asyncio.gather(*[state_manager.get_faction_reputation(conn, pid) for pid in player_ids]),
         asyncio.gather(*[state_manager.get_player_inventory(conn, pid) for pid in player_ids]),
+        asyncio.gather(*[state_manager.get_player_episodes(conn, pid, limit=5, min_importance=2) for pid in player_ids]),
+        asyncio.gather(*[
+            rumor_manager.get_active_rumors_for_player(
+                conn, pid, player_factions_by_id.get(pid), tension_level
+            )
+            for pid in player_ids
+        ]),
     )
     reputations: dict[str, dict[str, int]] = dict(zip(player_ids, rep_results))
     inventories: dict[str, list] = dict(zip(player_ids, inv_results))
+    episodes: dict[str, list] = dict(zip(player_ids, ep_results))
+    player_rumors: dict[str, list[str]] = dict(zip(player_ids, rumor_results))
 
     # Enriched semantic retrieval: actions + location + factions
     action_text = " ".join(a.action_text for a in batch.actions)[:300]
@@ -75,8 +91,8 @@ async def build_context(
     lore = await vector_store.retrieve_lore(query, n_results=5)
 
     l0 = _build_l0_static()
-    l1 = _build_l1_campaign()
-    l2 = _build_l2_state(players, location, cooperative_mission, current_date, reputations, inventories, travel_state)
+    l1 = _build_l1_campaign(tension_level)
+    l2 = _build_l2_state(players, location, cooperative_mission, current_date, reputations, inventories, travel_state, tension_level, episodes, player_rumors)
     l3 = _build_l3_history(history)
     mem = _build_memory_injection(memory)
     lore_text = _build_lore_text(lore)
@@ -103,16 +119,64 @@ def _build_l0_static() -> str:
     return kernel
 
 
-def _build_l1_campaign() -> str:
-    """L1: Current campaign configuration."""
+_TENSION_DIRECTIVES: dict[tuple[int, int], str] = {
+    (1, 3): (
+        "Exploration mode. Focus on discovery, NPC bonds, and world-building. "
+        "Faction aggression is low. Encounters are rare and mostly social or environmental. "
+        "Let the world breathe."
+    ),
+    (4, 6): (
+        "Rising conflict. Threats exist but are manageable. "
+        "Factions are watchful; NPCs choose sides carefully. "
+        "Encounters are meaningful and carry consequences."
+    ),
+    (7, 8): (
+        "Active conflict. Violence is imminent. Faction lines are drawn; NPC trust is fragile. "
+        "Every scene should carry the weight of what has already been lost. "
+        "Danger is present even in safe locations."
+    ),
+    (9, 10): (
+        "Crisis. The world is at a breaking point. Every faction is mobilizing. "
+        "Death is a real possibility each turn. "
+        "Horror should be present in routine things. Restraint costs more than action."
+    ),
+}
+
+
+def _get_tension_directive(tension_level: int) -> str:
+    for (low, high), directive in _TENSION_DIRECTIVES.items():
+        if low <= tension_level <= high:
+            return directive
+    return _TENSION_DIRECTIVES[(4, 6)]
+
+
+def _build_l1_campaign(tension_level: int = 5) -> str:
+    """L1: Current campaign configuration with tension-driven narrative directive."""
     campaign = load_campaign()
     parts = [
         f"Campaign: {campaign.get('campaign', {}).get('name', 'Aerus')}",
         f"Tone: darkness level {campaign.get('tone', {}).get('darkness_level', 8)}/10",
         f"Difficulty: {campaign.get('difficulty', {}).get('base', 'brutal')}",
         f"Permadeath: {'yes' if campaign.get('difficulty', {}).get('permadeath', True) else 'no'}",
+        f"Current tension: {tension_level}/10",
+        f"Narrative directive: {_get_tension_directive(tension_level)}",
     ]
     return "\n".join(parts)
+
+
+_TENSION_WORLD_STATE: dict[tuple[int, int], str] = {
+    (1, 3): "Faction activity: dormant. Streets are calm. Institutional surveillance is routine.",
+    (4, 6): "Faction activity: watchful. Patrols are increased. Rumors are circulating.",
+    (7, 8): "Faction activity: mobilized. Public spaces are tense. Checkpoints and informants are active.",
+    (9, 10): "Faction activity: crisis footing. Open conflict is possible. Civilians are withdrawing. Nothing is safe.",
+}
+
+
+def _get_tension_world_state(tension_level: int) -> str:
+    for (low, high), state in _TENSION_WORLD_STATE.items():
+        if low <= tension_level <= high:
+            return state
+    return _TENSION_WORLD_STATE[(4, 6)]
 
 
 def _build_l2_state(
@@ -123,10 +187,19 @@ def _build_l2_state(
     reputations: dict[str, dict[str, int]] | None = None,
     inventories: dict[str, list] | None = None,
     travel_state: dict | None = None,
+    tension_level: int = 5,
+    episodes: dict[str, list] | None = None,
+    player_rumors: dict[str, list[str]] | None = None,
 ) -> str:
-    """L2: Current player and world state."""
+    """L2: Current player and world state with tension-driven faction/world indicators."""
     date_str = current_date["description"] if current_date else "Unknown date"
-    state_parts = [f"Current location: {location}", f"Date: {date_str}", "", "Players:"]
+    state_parts = [
+        f"Current location: {location}",
+        f"Date: {date_str}",
+        f"World state: {_get_tension_world_state(tension_level)}",
+        "",
+        "Players:",
+    ]
 
     for p in players:
         attrs = json.loads(p["attributes_json"] or "{}")
@@ -135,6 +208,8 @@ def _build_l2_state(
         magic_text = _format_proficiency(magic_prof)
         weapon_text = _format_proficiency(weapon_prof)
         inv_text = _format_inventory(inventories.get(p["player_id"], []) if inventories else [])
+        ep_text = _format_episodes(episodes.get(p["player_id"], []) if episodes else [])
+        ep_suffix = f" | KeyMemory:[{ep_text}]" if ep_text else ""
         state_parts.append(
             f"- {p['name']} ({p['race']}, {p['faction']}) | "
             f"Class: {p['inferred_class']} | "
@@ -146,7 +221,14 @@ def _build_l2_state(
             f"Magic Prof.:{magic_text} | Weapon Prof.:{weapon_text} | "
             f"Inventory:[{inv_text}] | "
             f"SecretObjective:{(p['secret_objective'] or 'N/A')[:120]}"
+            f"{ep_suffix}"
         )
+
+        # Inject faction-biased rumors this player hasn't heard yet
+        rumors = player_rumors.get(p["player_id"], []) if player_rumors else []
+        if rumors:
+            rumor_block = rumor_manager.format_rumors_for_context(rumors, p["name"] or "Player")
+            state_parts.append(rumor_block)
 
     mission_active = cooperative_mission.get("cooperative_mission_active", "0") == "1"
     mission_completed = cooperative_mission.get("cooperative_mission_completed", "0") == "1"
@@ -196,6 +278,17 @@ def _format_reputations(reputations: dict[str, dict[str, int]] | None) -> str:
     if not lines:
         return ""
     return "\nFaction reputation:\n" + "\n".join(lines)
+
+
+def _format_episodes(episodes: list) -> str:
+    """Format the top episodic memories as compact context for the GM."""
+    if not episodes:
+        return ""
+    parts = []
+    for ep in episodes[:4]:  # cap at 4 to stay within L2 budget
+        desc = ep.get("description", "")[:80]
+        parts.append(desc)
+    return " | ".join(parts)
 
 
 def _format_inventory(items: list) -> str:

@@ -1,0 +1,146 @@
+# reputation_gates.yaml — Maps faction reputation bands to unlockable content.
+#
+# When a player's reputation with a faction crosses a threshold, the GM receives
+# a context hint and a game event is emitted to the frontend.
+#
+# bands:
+#   hostile:   -100 to -50
+#   distrusted: -49 to -20
+#   neutral:    -19 to +19
+#   friendly:   +20 to +49
+#   allied:     +50 to +100
+#
+# Each gate fires ONCE per player per faction (tracked via quest_flags).
+# gate_id must be globally unique.
+
+gates:
+
+  # ── Church of the Pure Flame ──────────────────────────────────────────────
+
+  - gate_id: "church_friendly_confessional"
+    faction_id: "church_pure_flame"
+    threshold: 20
+    direction: "up"
+    unlock_type: "npc_access"
+    description: "Sister Vayne Toral offers private confessional meetings — she knows which heresies the Church overlooks for a price."
+    gm_hint: "Sister Vayne Toral becomes available as a private contact. She can provide sealed letters and lower-tier Flame Seal forgeries if the player has coin and discretion."
+
+  - gate_id: "church_allied_high_seal"
+    faction_id: "church_pure_flame"
+    threshold: 50
+    direction: "up"
+    unlock_type: "item_access"
+    description: "The Church grants access to High Flame Seal certification — regulated but now reachable."
+    gm_hint: "The Church's Seal Office in Sanctum will process a High Flame Seal application without bureaucratic obstruction. Cost: 80 gold. Processing: 3 in-game days."
+
+  - gate_id: "church_hostile_surveillance"
+    faction_id: "church_pure_flame"
+    threshold: -50
+    direction: "down"
+    unlock_type: "faction_pressure"
+    description: "Church inquisitors are now actively tracking the player across Port Myr."
+    gm_hint: "Inject an inquisitor NPC into the next scene in a public location. They observe without confronting — for now. Church checkpoints become unavoidable on the road to Sanctum."
+
+  # ── Empire of Valdrek ─────────────────────────────────────────────────────
+
+  - gate_id: "empire_friendly_dispatch"
+    faction_id: "empire_valdrek"
+    threshold: 20
+    direction: "up"
+    unlock_type: "mission_access"
+    description: "An imperial dispatch officer in Port Myr offers contract work — courier jobs that pay well and ask few questions."
+    gm_hint: "Commander Arren Osthal at the imperial consulate will offer bounty contracts and route papers. Missions available: recovery of stolen imperial property, escort through Ferren March."
+
+  - gate_id: "empire_allied_military_escort"
+    faction_id: "empire_valdrek"
+    threshold: 50
+    direction: "up"
+    unlock_type: "travel_benefit"
+    description: "Imperial military escort is now available for travel through Valdoria."
+    gm_hint: "Players traveling through Valdoria (Auramveld, Osthara, Ferren March) may request a military escort: reduces encounter chance by 20% and bypasses checkpoint delays."
+
+  - gate_id: "empire_hostile_wanted"
+    faction_id: "empire_valdrek"
+    threshold: -50
+    direction: "down"
+    unlock_type: "faction_pressure"
+    description: "Imperial wanted notices are circulating in Port Myr and coastal towns."
+    gm_hint: "Innkeepers, merchants, and dock workers may recognize the player. Imperial soldiers in any location will challenge them on sight. Travel through Valdoria becomes extremely dangerous."
+
+  # ── Guild of Threads ──────────────────────────────────────────────────────
+
+  - gate_id: "guild_friendly_archives"
+    faction_id: "guild_of_threads"
+    threshold: 20
+    direction: "up"
+    unlock_type: "lore_access"
+    description: "The Guild opens its public research archives in Vel'Ossian."
+    gm_hint: "Players may now request lore searches at the Guild archives. Each search takes 1 in-game day and provides a specific lore result beyond what ChromaDB retrieves organically. Cost: 15 gold or a favor."
+
+  - gate_id: "guild_allied_thread_map"
+    faction_id: "guild_of_threads"
+    threshold: 50
+    direction: "up"
+    unlock_type: "lore_access"
+    description: "A senior researcher shares a classified Thread Map — locations of active Sealing fractures."
+    gm_hint: "Inject a sealed document into the player's narrative: coordinates for three Thread fracture sites in Khorrath. One is already unstable. This triggers the Guild's arc mission chain."
+
+  - gate_id: "guild_hostile_knowledge_embargo"
+    faction_id: "guild_of_threads"
+    threshold: -50
+    direction: "down"
+    unlock_type: "faction_pressure"
+    description: "The Guild has flagged the player as a knowledge security risk."
+    gm_hint: "Guild contacts refuse to speak. Vel'Ossian island authority will not issue docking permits for the player's faction. Any Thread-related item the player carries may be 'reported' to the Church."
+
+  # ── Children of the Broken Thread ────────────────────────────────────────
+
+  - gate_id: "children_friendly_contact"
+    faction_id: "children_of_broken_thread"
+    threshold: 20
+    direction: "up"
+    unlock_type: "npc_access"
+    description: "A Children courier makes contact in Port Myr's lower docks district."
+    gm_hint: "Mireth, a young Children courier, approaches at night near the Saltback Alley. She offers to carry messages to Children cells across Aerus — and asks for nothing yet."
+
+  - gate_id: "children_allied_truth_fragment"
+    faction_id: "children_of_broken_thread"
+    threshold: 50
+    direction: "up"
+    unlock_type: "lore_access"
+    description: "The Children share a Fragment of Broken Truth — a pre-Sealing record the Church suppressed."
+    gm_hint: "The player receives a contraband scroll: partial transcription of the original Sealing ritual. It names participants the Church's history has erased. This unlocks the Children's arc mission chain."
+
+  - gate_id: "children_hostile_dangerous_truth"
+    faction_id: "children_of_broken_thread"
+    threshold: -50
+    direction: "down"
+    unlock_type: "faction_pressure"
+    description: "The Children consider the player an active threat to the movement."
+    gm_hint: "A Children cell will attempt to retrieve any sensitive information the player carries. Non-violent at first — a theft, a warning, a fire. Escalates if ignored."
+
+  # ── Myr Council ───────────────────────────────────────────────────────────
+
+  - gate_id: "myr_friendly_trade_license"
+    faction_id: "myr_council"
+    threshold: 20
+    direction: "up"
+    unlock_type: "item_access"
+    description: "The Myr Council issues an informal trade license — prices drop 15% at Port Myr vendors."
+    gm_hint: "Apply a 15% discount modifier when the player buys from Port Myr merchants. Council-aligned merchants will also share market rumors proactively."
+
+  - gate_id: "myr_allied_smuggler_route"
+    faction_id: "myr_council"
+    threshold: 50
+    direction: "up"
+    unlock_type: "travel_benefit"
+    description: "Access to the Council's unofficial smuggler routes — faster travel avoiding imperial checkpoints."
+    gm_hint: "Alternative routes are now available: Port Myr → Auramveld in 4 days (vs. 7) via smuggler channels. No imperial checkpoints. Higher sea encounter chance (+10%). Council escort available for hire."
+
+  - gate_id: "myr_hostile_port_ban"
+    faction_id: "myr_council"
+    threshold: -50
+    direction: "down"
+    unlock_type: "faction_pressure"
+    description: "The Myr Council has issued an unofficial port ban — Port Myr vendors refuse service."
+    gm_hint: "Port Myr vendors will not trade with the player. Dockmaster Corvel Hast has marked them in the harbor registry. Arriving by ship will be met with fee demands and deliberate delays."
