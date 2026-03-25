@@ -766,7 +766,7 @@ async def test_seed_starter_inventory_creates_default_items_and_weight(db):
     names = {row["name"] for row in rows}
     player = await state_manager.get_player_by_id(db, pid)
 
-    assert names == {"Arma BÃ¡sica", "Suprimentos", "Mochila"}
+    assert names == {"Basic Weapon", "Supplies", "Backpack"}
     assert player["inventory_weight"] > 0
 
 

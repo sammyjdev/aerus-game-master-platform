@@ -3,6 +3,7 @@ state_manager.py - Only module with SQLite access.
 Every database read and write goes through this layer.
 All writes are atomic inside a transaction context.
 """
+import json
 import logging
 import os
 import time

@@ -199,7 +199,7 @@ async def test_build_messages_uses_dynamic_tension_level(db):
         party_size=1,
     )
 
-    assert "TensÃ£o atual: 9/10" in messages[0]["content"]
+    assert "Current tension: 9/10" in messages[0]["content"]
 
 
 # ---------------------------------------------------------------------------
@@ -390,7 +390,7 @@ async def test_apply_deltas_triggers_class_mutation_on_level_25(db):
     player_id = await _seed_player(db)
     await db.execute(
         "UPDATE players SET inferred_class = ?, level = ?, experience = ? WHERE player_id = ?",
-        ("Guerreiro", 24, 9999, player_id),
+        ("Warrior", 24, 9999, player_id),
     )
     await db.commit()
 
@@ -408,15 +408,15 @@ async def test_apply_deltas_triggers_class_mutation_on_level_25(db):
 
     row = await state_manager.get_player_by_id(db, player_id)
     assert row["level"] == 25
-    assert row["inferred_class"] == "GuardiÃ£o de AÃ§o"
+    assert row["inferred_class"] == "Steel Warden"
     mock_manager.broadcast_game_event.assert_any_call(
         "CLASS_MUTATION",
         {
             "type": "CLASS_MUTATION",
             "player_id": player_id,
             "player_name": "Kael",
-            "old_class": "Guerreiro",
-            "new_class": "GuardiÃ£o de AÃ§o",
+            "old_class": "Warrior",
+            "new_class": "Steel Warden",
             "level": 25,
         },
     )

@@ -75,8 +75,12 @@ async def run_migrations(conn: aiosqlite.Connection) -> None:
 
     for version, path in pending:
         sql = path.read_text(encoding="utf-8")
-        # Strip comment-only lines so executescript doesn't choke on them
-        statements = [s.strip() for s in sql.split(";") if s.strip() and not s.strip().startswith("--")]
+        # Strip comment-only lines from the SQL before splitting into statements.
+        # This prevents the leading comment block from masking the first CREATE statement.
+        sql_no_comments = "\n".join(
+            line for line in sql.splitlines() if not line.strip().startswith("--")
+        )
+        statements = [s.strip() for s in sql_no_comments.split(";") if s.strip()]
         for statement in statements:
             try:
                 await conn.execute(statement)

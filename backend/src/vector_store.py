@@ -23,7 +23,7 @@ COLLECTION_NAME = "aerus_lore"
 
 _WORLD_LORE_SOURCE = "world_lore"
 _BESTIARY_SOURCE = "bestiary"
-_SKIP_SECTIONS = {"VI"}  # Bestiary - already handled by ingest_bestiary
+_SKIP_SECTIONS: set[str] = set()  # Bestiary is in separate bestiary_tN.md files
 _MAX_CHUNK_CHARS = 1500
 
 _SECTION_MAP = {
@@ -31,9 +31,9 @@ _SECTION_MAP = {
     "II": "history",
     "III": "geography",
     "IV": "factions",
-    "V": "magic",
-    "VII": "prophecies",
-    "VIII": "languages_culture",
+    "V": "dome_travelers",
+    "VI": "prophecy",
+    "VII": "world_principles",
 }
 
 _client: chromadb.PersistentClient | None = None
