@@ -39,9 +39,20 @@ env/
 backend/.env
 backend/.venv/
 backend/.pytest_cache/
+backend/.pytest-tmp/
+backend/.tmp_pytest/
 backend/aerus.db
+backend/*.db
+backend/*.db-shm
+backend/*.db-wal
 backend/chroma_db/
 backend/*.log
+
+# Root-level local runtime artifacts
+chroma_db/
+*.db
+*.db-shm
+*.db-wal
 
 # --- Node / Frontend ---
 node_modules/

@@ -86,6 +86,21 @@ Fill at least these variables in `backend/.env`:
 - `AERUS_OLLAMA_SUMMARIZER_MODEL`
 - `OPENROUTER_API_KEY` if you want external provider support or admin fallback
 
+Recommended profiles:
+
+- Local development on a 12 GB GPU:
+  - `AERUS_LOCAL_ONLY=true`
+  - `AERUS_OLLAMA_GM_MODEL=qwen2.5:7b-instruct`
+  - `AERUS_OLLAMA_EXTRACTOR_MODEL=qwen2.5:7b-instruct`
+  - `AERUS_OLLAMA_SUMMARIZER_MODEL=phi4:mini`
+  - This favors full-GPU iteration speed over the higher quality ceiling of larger local models.
+
+- OpenRouter-first validation or production:
+  - `AERUS_LOCAL_ONLY=false`
+  - `OPENROUTER_API_KEY=...`
+  - keep Ollama configured only as a local fallback
+  - hosted model routing is selected by tension in `backend/src/billing_router.py`
+
 Quick key generation:
 
 ```powershell
@@ -174,6 +189,94 @@ cd backend
 .venv\Scripts\pip install -r requirements-e2e.txt
 .venv\Scripts\python -m pytest e2e/test_app_e2e_playwright.py -v -s
 ```
+
+### GM evaluation workflow
+
+Use `backend/eval/gm_eval.py` as a layered evaluation suite instead of a single monolithic run.
+
+Recommended operating flow:
+
+- Daily GM/runtime changes:
+  ```powershell
+  cd backend
+  $env:AERUS_EVAL_PROFILE="default"
+  .venv\Scripts\python eval/gm_eval.py
+  ```
+  This runs the fast `critical path` subset of the core tier: onboarding, combat, reputation, coop gating, healing, multiplayer delta behavior, missing inventory handling, and lore grounding.
+
+- Full core regression gate:
+  ```powershell
+  cd backend
+  $env:AERUS_EVAL_PROFILE="core-full"
+  .venv\Scripts\python eval/gm_eval.py
+  ```
+  This runs the entire `core` tier when you want broader contract and progression coverage.
+
+- Behavior expansion or narrative tuning:
+  ```powershell
+  cd backend
+  $env:AERUS_EVAL_PROFILE="extended"
+  .venv\Scripts\python eval/gm_eval.py
+  ```
+  This focuses on richer edge cases, lore pressure, disputes, morally heavy actions, and other extended behavior scenarios.
+
+- Full manual baseline:
+  ```powershell
+  cd backend
+  $env:AERUS_EVAL_PROFILE="full-baseline"
+  .venv\Scripts\python eval/gm_eval.py
+  ```
+  This runs all tiers and replays even the scenarios that were already green.
+
+Useful overrides:
+
+- `AERUS_EVAL_TIER=core|extended|all`
+- `AERUS_EVAL_INCLUDE_STABLE=1`
+- `AERUS_EVAL_SCENARIOS=1,4,7`
+- `AERUS_EVAL_LIMIT=5`
+- `AERUS_EVAL_MAX_TOKENS=900`
+- `AERUS_EVAL_SCENARIO_TIMEOUT_SECONDS=75`
+
+Recommended evaluation strategy by provider:
+
+- Local/Ollama iteration:
+  - use the `default` profile for prompt/runtime changes
+  - use `core-full` before merges that affect contracts, progression, or multiplayer state handling
+  - prefer smaller local models for faster feedback loops
+- OpenRouter quality validation:
+  - use `extended` before important merges
+  - use `full-baseline` when changing prompts, contracts, or model-routing behavior
+
+Report interpretation:
+
+- `Contract checks`: output shape, IDs, multiplayer deltas, and retrieval-friendly structured fields.
+- `Narrative checks`: tone, lore, consequences, dramatic weight, and behavioral quality.
+- `Core tier`: regression gate for routine work.
+- `Extended tier`: deeper review before major merges or model/prompt changes.
+
+## Git-ready checklist
+
+Before pushing the repository:
+
+- keep `backend/.env` local only; use `backend/.env.example` as the committed template
+- do not commit local databases such as `*.db`, `*.db-wal`, or `*.db-shm`
+- do not commit Chroma runtime folders such as `backend/chroma_db/` or root `chroma_db/`
+- do not commit evaluation history or temporary logs from `backend/eval/history/` and `backend/eval/*.log`
+- prefer committed config changes in `backend/config/campaign.yaml`, but keep API keys only in environment variables
+- run backend tests and at least one `GM_EVAL` profile before opening a PR
+
+Suggested pre-push review:
+
+```powershell
+git status --short
+git diff --stat
+```
+
+If you are preparing a hosted-model branch, verify these env assumptions locally and do not hardcode them in tracked files:
+
+- `AERUS_LOCAL_ONLY=false`
+- `OPENROUTER_API_KEY` set in your shell or `.env`
+- Ollama values kept only as optional fallback
 
 ## Lore synchronization
 
