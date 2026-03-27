@@ -28,6 +28,24 @@ def is_local_only() -> bool:
     return _is_local_only()
 
 
+def configured_execution_mode() -> str:
+    return "ollama-only" if _is_local_only() else "openrouter-first"
+
+
+def configured_hosted_model(tension_level: int = 5) -> str | None:
+    if _is_local_only():
+        return None
+    try:
+        return select_billing_config(tension_level=tension_level).model
+    except Exception:
+        return None
+
+
+def configured_model_label(tension_level: int = 5) -> str:
+    hosted = configured_hosted_model(tension_level=tension_level)
+    return hosted or _ollama_model()
+
+
 def _ollama_timeout_seconds() -> float:
     try:
         return float(os.getenv("AERUS_OLLAMA_TIMEOUT_SECONDS", "3"))
@@ -41,18 +59,27 @@ async def generate_text(
     max_tokens: int = 220,
     model_override: str | None = None,
 ) -> str:
+    if _is_local_only():
+        try:
+            return await _generate_with_ollama(
+                system_prompt,
+                user_prompt,
+                max_tokens=max_tokens,
+                model_override=model_override,
+            )
+        except Exception as exc:
+            raise RuntimeError(f"Local model failed while AERUS_LOCAL_ONLY=true: {exc}") from exc
+
     try:
+        return await _generate_with_openrouter(system_prompt, user_prompt, max_tokens=max_tokens)
+    except Exception as hosted_exc:
+        logger.warning("OpenRouter unavailable, falling back to Ollama: %s", hosted_exc)
         return await _generate_with_ollama(
             system_prompt,
             user_prompt,
             max_tokens=max_tokens,
             model_override=model_override,
         )
-    except Exception as exc:
-        if _is_local_only():
-            raise RuntimeError(f"Local model failed while AERUS_LOCAL_ONLY=true: {exc}") from exc
-        logger.warning("Ollama unavailable, falling back to OpenRouter: %s", exc)
-        return await _generate_with_openrouter(system_prompt, user_prompt, max_tokens=max_tokens)
 
 
 async def generate_chat(
@@ -60,17 +87,25 @@ async def generate_chat(
     max_tokens: int = 2048,
     model_override: str | None = None,
 ) -> str:
+    if _is_local_only():
+        try:
+            return await _generate_chat_with_ollama(
+                messages,
+                max_tokens=max_tokens,
+                model_override=model_override,
+            )
+        except Exception as exc:
+            raise RuntimeError(f"Local chat failed while AERUS_LOCAL_ONLY=true: {exc}") from exc
+
     try:
+        return await _generate_chat_with_openrouter(messages, max_tokens=max_tokens)
+    except Exception as hosted_exc:
+        logger.warning("OpenRouter chat unavailable, falling back to Ollama: %s", hosted_exc)
         return await _generate_chat_with_ollama(
             messages,
             max_tokens=max_tokens,
             model_override=model_override,
         )
-    except Exception as exc:
-        if _is_local_only():
-            raise RuntimeError(f"Local chat failed while AERUS_LOCAL_ONLY=true: {exc}") from exc
-        logger.warning("Local chat unavailable, falling back to OpenRouter: %s", exc)
-        return await _generate_chat_with_openrouter(messages, max_tokens=max_tokens)
 
 
 async def _generate_with_ollama(

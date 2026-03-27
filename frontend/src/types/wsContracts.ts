@@ -32,18 +32,18 @@ export const GmThinkingSchema = z.object({
 export const GameEventSchema = z.object({
   type: z.literal('game_event'),
   event: z.string(),
-  payload: z.record(z.unknown()),
+  payload: z.record(z.string(), z.unknown()),
 })
 
 export const StateUpdateSchema = z.object({
   type: z.literal('state_update'),
-  delta: z.record(z.unknown()),
+  delta: z.record(z.string(), z.unknown()),
 })
 
 export const FullStateSyncSchema = z.object({
   type: z.literal('full_state_sync'),
-  state: z.record(z.unknown()),
-  world_state: z.record(z.unknown()).optional(),
+  state: z.record(z.string(), z.unknown()),
+  world_state: z.record(z.string(), z.unknown()).optional(),
 })
 
 export const HistorySyncSchema = z.object({

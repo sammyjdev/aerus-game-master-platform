@@ -147,6 +147,10 @@ async def _build_messages(
         turn_number=batch.turn_number,
         encounter_scale=encounter_scale,
         boss_scale_steps=boss_scale_steps,
+        player_output_targets=[
+            (action.player_id, action.player_name or f"Player {idx + 1}")
+            for idx, action in enumerate(batch.actions)
+        ],
     )
     messages: list[dict[str, str]] = [
         {"role": "system", "content": context.to_system_prompt() + "\n\n" + system_prompt},
@@ -334,7 +338,7 @@ async def process_batch(
 
         full_response, _ = await _stream_llm(billing, messages)
         await cm.manager.broadcast({"type": WSMessageType.STREAM_END})
-        gm_response = _parse_gm_response(full_response)
+        gm_response = _parse_gm_response(full_response, current_tension=current_tension)
 
         # 6. Aplica deltas e emite eventos
         await _apply_deltas_and_events(conn, gm_response, batch)
@@ -398,7 +402,7 @@ def _format_batch_as_user_message(batch: ActionBatch) -> str:
     return "\n".join(lines)
 
 
-def _parse_gm_response(full_response: str) -> GMResponse:
+def _parse_gm_response(full_response: str, current_tension: int = 5) -> GMResponse:
     """
     Parse the GM response by extracting JSON from the <game_state> tag.
     Defensive fallback - returns a default GMResponse if parsing fails.
@@ -410,21 +414,48 @@ def _parse_gm_response(full_response: str) -> GMResponse:
         r"<game_state>\s*([\s\S]*?)\s*</game_state>",
         full_response,
     )
+    if not match:
+        match = re.search(
+            r"```game_state\s*([\s\S]*?)\s*```",
+            full_response,
+            re.IGNORECASE,
+        )
+    if not match:
+        open_tag = re.search(r"<game_state>\s*", full_response, re.IGNORECASE)
+        if open_tag:
+            json_candidate = full_response[open_tag.end():]
+            match = True
+        else:
+            fence_tag = re.search(r"```game_state\s*", full_response, re.IGNORECASE)
+            if fence_tag:
+                json_candidate = full_response[fence_tag.end():]
+                match = True
+            else:
+                json_candidate = ""
 
     if not match:
         logger.warning("GM response missing structured <game_state>")
         return GMResponse(narrative=narrative)
 
     try:
-        data: dict[str, Any] = json.loads(match.group(1))
+        json_text = match.group(1) if hasattr(match, "group") else json_candidate
+        repaired = _repair_json_candidate(json_text)
+        repaired = re.sub(r"([:\[,]\s*)\+(\d)", r"\1\2", repaired)
+        try:
+            data: dict[str, Any] = json.loads(repaired)
+        except json.JSONDecodeError:
+            data = _salvage_partial_game_state(json_text)
+            if not data:
+                raise
+        next_scene_query = _normalize_next_scene_query(data.get("next_scene_query"), narrative)
         response = GMResponse(
             narrative=narrative,
             dice_rolls=data.get("dice_rolls", []),
             state_delta=data.get("state_delta", {}),
-            game_events=data.get("game_events", []),
-            tension_level=int(data.get("tension_level", 5)),
+            game_events=_normalize_game_events(data.get("game_events", [])),
+            tension_level=int(data.get("tension_level", current_tension)),
             audio_cue=data.get("audio_cue"),
-            image_prompt=data.get("next_scene_query"),
+            image_prompt=next_scene_query,
         )
         log_debug(
             logger,
@@ -435,7 +466,7 @@ def _parse_gm_response(full_response: str) -> GMResponse:
             events=len(response.game_events),
             tension_level=response.tension_level,
         )
-        return response
+        return _apply_response_guardrails(response)
     except ValueError as e:
         logger.warning("Failed to parse <game_state>: %s", e)
         return GMResponse(narrative=narrative)
@@ -443,12 +474,206 @@ def _parse_gm_response(full_response: str) -> GMResponse:
 
 def _extract_narrative_only(full_response: str) -> str:
     """Remove the <game_state> tag from the response, leaving only the narrative."""
-    return re.sub(
+    stripped = re.sub(
         r"\s*<game_state>.*?</game_state>\s*",
         "",
         full_response,
         flags=re.DOTALL,
-    ).strip()
+    )
+    stripped = re.sub(
+        r"\s*```game_state.*?```\s*",
+        "",
+        stripped,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    return stripped.strip()
+
+
+def _normalize_next_scene_query(raw_query: Any, narrative: str) -> str | None:
+    if isinstance(raw_query, str) and raw_query.strip():
+        cleaned = re.sub(r"[?!.]+", "", raw_query).strip()
+        cleaned = " ".join(cleaned.split()[:12])
+        return cleaned or None
+    fallback = _derive_next_scene_query(narrative)
+    return fallback or None
+
+
+def _narrative_has_healing_signal(narrative: str) -> bool:
+    text = narrative.lower()
+    healing_terms = (
+        "heal", "healing", "mend", "mending", "warmth", "relief", "pain eases",
+        "pain eased", "wound closes", "wounds close", "wound knits", "knit shut",
+        "restored", "restoration", "breath returns", "strength returns",
+        "stitches itself", "closed flesh", "closing flesh",
+    )
+    return any(term in text for term in healing_terms)
+
+
+def _apply_response_guardrails(response: GMResponse) -> GMResponse:
+    if not response.state_delta or _narrative_has_healing_signal(response.narrative):
+        return response
+
+    adjusted = False
+    normalized_state: dict[str, Any] = {}
+    for player_id, delta in response.state_delta.items():
+        if not isinstance(delta, dict):
+            normalized_state[player_id] = delta
+            continue
+
+        updated = dict(delta)
+        hp_change = updated.get("hp_change", 0)
+        try:
+            hp_change_int = int(hp_change)
+        except (TypeError, ValueError):
+            hp_change_int = 0
+
+        if hp_change_int > 0:
+            updated["hp_change"] = 0
+            adjusted = True
+            logger.info(
+                "GM guardrail removed positive hp_change without healing signal: player=%s original=%s",
+                player_id,
+                hp_change,
+            )
+
+        normalized_state[player_id] = updated
+
+    if adjusted:
+        response.state_delta = normalized_state
+    return response
+
+
+def _normalize_game_events(raw_events: Any) -> list[dict[str, Any]]:
+    if not isinstance(raw_events, list):
+        return []
+    normalized: list[dict[str, Any]] = []
+    for event in raw_events:
+        if not isinstance(event, dict):
+            continue
+        if not event.get("type"):
+            continue
+        player_id = event.get("player_id")
+        if player_id is not None:
+            if not isinstance(player_id, str):
+                continue
+            candidate = player_id.strip()
+            if len(candidate) < 30 or candidate.count("-") < 4:
+                continue
+        normalized.append(event)
+    return normalized
+
+
+def _derive_next_scene_query(narrative: str) -> str:
+    text = re.sub(r"\s+", " ", narrative).strip()
+    if not text:
+        return ""
+    sentences = [segment.strip(" .,!?:;\"'") for segment in re.split(r"[.!?]+", text) if segment.strip()]
+    seed = sentences[-1] if sentences else text
+    words = [word for word in re.findall(r"[A-Za-z0-9'_-]+", seed) if len(word) > 2]
+    return " ".join(words[:12])
+
+
+def _repair_json_candidate(raw_json: str) -> str:
+    text = raw_json.strip()
+    if not text:
+        return text
+    start = text.find("{")
+    if start >= 0:
+        text = text[start:]
+    text = re.sub(r"\s*```.*$", "", text, flags=re.DOTALL)
+    chars: list[str] = []
+    stack: list[str] = []
+    in_string = False
+    escape = False
+    for ch in text:
+        chars.append(ch)
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch in "{[":
+            stack.append("}" if ch == "{" else "]")
+        elif ch in "}]":
+            if stack and stack[-1] == ch:
+                stack.pop()
+            else:
+                break
+    if in_string:
+        chars.append('"')
+    while stack:
+        chars.append(stack.pop())
+    repaired = "".join(chars)
+    return re.sub(r"([:\[,]\s*)\+(\d)", r"\1\2", repaired)
+
+
+def _salvage_partial_game_state(raw_json: str) -> dict[str, Any]:
+    text = raw_json.strip()
+    if not text:
+        return {}
+    salvaged: dict[str, Any] = {}
+    for key, opener in (("dice_rolls", "["), ("state_delta", "{"), ("game_events", "[")):
+        match = re.search(rf'"{key}"\s*:\s*', text)
+        if not match:
+            continue
+        start = text.find(opener, match.end())
+        if start < 0:
+            continue
+        block = _extract_balanced_json_block(text, start)
+        if not block:
+            continue
+        candidate = _repair_json_candidate(block)
+        candidate = re.sub(r",\s*([}\]])", r"\1", candidate)
+        try:
+            salvaged[key] = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+
+    tension_match = re.search(r'"tension_level"\s*:\s*(-?\d+)', text)
+    if tension_match:
+        salvaged["tension_level"] = int(tension_match.group(1))
+    for key in ("audio_cue", "next_scene_query"):
+        match = re.search(rf'"{key}"\s*:\s*"([^"]*)"', text)
+        if match:
+            salvaged[key] = match.group(1)
+    return salvaged
+
+
+def _extract_balanced_json_block(text: str, start: int) -> str:
+    if start < 0 or start >= len(text) or text[start] not in "{[":
+        return ""
+    closing = "}" if text[start] == "{" else "]"
+    stack = [closing]
+    chars: list[str] = []
+    in_string = False
+    escape = False
+    for ch in text[start:]:
+        chars.append(ch)
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch in "{[":
+            stack.append("}" if ch == "{" else "]")
+        elif ch in "}]":
+            if stack and ch == stack[-1]:
+                stack.pop()
+                if not stack:
+                    return "".join(chars)
+            else:
+                break
+    return "".join(chars + stack[::-1])
 
 
 async def _get_tension_level(conn: aiosqlite.Connection) -> int:

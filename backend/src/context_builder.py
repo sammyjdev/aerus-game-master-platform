@@ -65,7 +65,7 @@ async def build_context(
     location = location_raw or "Isles of Myr"
 
     # Build faction map from already-fetched players (no extra DB call)
-    player_factions_by_id = {p["player_id"]: p.get("faction") for p in players}
+    player_factions_by_id = {p["player_id"]: p["faction"] for p in players}
 
     # Reputation, inventory, episodes, and rumors for every player in parallel
     rep_results, inv_results, ep_results, rumor_results = await asyncio.gather(
@@ -212,12 +212,15 @@ def _build_l2_state(
         ep_suffix = f" | KeyMemory:[{ep_text}]" if ep_text else ""
         state_parts.append(
             f"- {p['name']} ({p['race']}, {p['faction']}) | "
+            f"PlayerID:{p['player_id']} | "
             f"Class: {p['inferred_class']} | "
             f"Level: {p['level']} | "
             f"HP: {p['current_hp']}/{p['max_hp']} | "
             f"STR:{attrs.get('strength',10)} DEX:{attrs.get('dexterity',10)} "
             f"INT:{attrs.get('intelligence',10)} VIT:{attrs.get('vitality',10)} "
             f"LUK:{attrs.get('luck',10)} CHA:{attrs.get('charisma',10)} | "
+            f"Languages:{_format_languages(p['languages_json'])} | "
+            f"Wallet:{_format_currency_wallet(p['currency_json'])} | "
             f"Magic Prof.:{magic_text} | Weapon Prof.:{weapon_text} | "
             f"Inventory:[{inv_text}] | "
             f"SecretObjective:{(p['secret_objective'] or 'N/A')[:120]}"
@@ -278,6 +281,34 @@ def _format_reputations(reputations: dict[str, dict[str, int]] | None) -> str:
     if not lines:
         return ""
     return "\nFaction reputation:\n" + "\n".join(lines)
+
+
+def _format_languages(raw_languages: Any) -> str:
+    if not raw_languages:
+        return "common_tongue"
+    try:
+        parsed = json.loads(raw_languages) if isinstance(raw_languages, str) else raw_languages
+    except (TypeError, ValueError):
+        parsed = []
+    if not isinstance(parsed, list):
+        return "common_tongue"
+    values = [str(item).strip() for item in parsed if str(item).strip()]
+    return ",".join(values) if values else "common_tongue"
+
+
+def _format_currency_wallet(raw_wallet: Any) -> str:
+    try:
+        parsed = json.loads(raw_wallet) if isinstance(raw_wallet, str) else raw_wallet
+    except (TypeError, ValueError):
+        parsed = {}
+    if not isinstance(parsed, dict):
+        parsed = {}
+    return (
+        f"cp:{int(parsed.get('copper', 0) or 0)} "
+        f"sp:{int(parsed.get('silver', 0) or 0)} "
+        f"gp:{int(parsed.get('gold', 0) or 0)} "
+        f"pp:{int(parsed.get('platinum', 0) or 0)}"
+    )
 
 
 def _format_episodes(episodes: list) -> str:
@@ -380,7 +411,7 @@ ABSOLUTE RULES:
 4. Return structured JSON after the narrative.
 5. Current tension: {tension_level}/10 - scale danger and epic weight accordingly.
 6. ALL players begin together in the Islands of Myr. Maintain geographic consistency for that shared starting point.
-7. While the initial cooperative mission is active, progression is BLOCKED: all living players must cooperate and participate. If any player tries to leave the Islands of Myr before completing it, stop the departure narratively with a concrete obstacle.
+7. While the initial cooperative mission is active, progression is BLOCKED: all living players must cooperate and participate. If any player tries to leave the Islands of Myr before completing it, stop the departure narratively with a concrete obstacle such as a harbor refusal, checkpoint, storm wall, sealed route, or mission pressure.
 8. Balance EVERY encounter around the number of players present (current party size: {num_players}).
 9. Suggested non-boss encounter scale: multiplier {encounter_scale}.
 10. Boss exception: base difficulty plus one phase step for every 2 additional players (current boss step bonus: +{boss_scale_steps}).
@@ -389,12 +420,39 @@ ABSOLUTE RULES:
 13. ITEMS AND INVENTORY: Never grant the effect of an item that is not present in the contextual inventory. If an absent item is used, the narrative must explicitly state that the character searched and failed to find it.
 14. OUTCOME DISPUTES: Never retroactively change dice results or already narrated damage.
 15. PER-PLAYER DELTA: In multiplayer sessions, each player must have an individual `state_delta` entry.
+16. PLAYER IDS: Use the exact runtime player IDs listed below. Never use placeholders such as `player_id`, `id`, `uuid`, `name`, or invented IDs.
+17. OUTPUT DISCIPLINE: Keep the narrative compact. Never use markdown headings, numbered lists, bullet lists, or code fences.
+18. LENGTH PRIORITY: If space is tight, shorten the narrative first. Never omit or truncate the `game_state` block.
+19. NARRATIVE CAP: Use at most two short paragraphs and no more than 130 words unless the scene absolutely requires more.
+20. EVENT DISCIPLINE: Only emit `LOOT`, `LEVELUP`, `ABILITY_UNLOCK`, `CLASS_MUTATION`, or `DEATH` when the scene directly earns them. Social aid, aftermath, celebration, travel, and lore scenes should not invent combat loot or progression spikes.
+21. REPUTATION CAUSALITY: If the player visibly protects, aids, or publicly supports a faction member or institution, include an explicit `reputation_delta` with the correct faction ID inside that player's `state_delta`.
+22. CELEBRATION AND AFTERMATH: If the scene is post-objective relief or celebration, keep tension between 2 and 4 and give the narrative emotional payoff with explicit relief, earned quiet, shared victory, gratitude, rest, or sober togetherness. Name that payoff directly instead of only implying it.
+23. DESPERATE ESCAPE: If the scene begins near death, under pursuit, or in a desperate retreat, tension must stay at 7 or higher until clear safety is reached. Use urgency words like desperate, blood, panic, crushing, breathless, or terror.
+24. COMBAT CAUSALITY: If a hostile strike lands, a dangerous creature connects, or a heavy action backfires, at least one affected player should usually have negative `hp_change` unless the narrative clearly explains a miss, block, or harmless glancing blow.
+25. HEALING VISIBILITY: If any player has positive `hp_change`, the narrative must explicitly describe visible healing, relief, warmth, closed wounds, restored breath, or pain easing.
+26. PROGRESSION SIGNALING: When `ABILITY_UNLOCK`, `LEVELUP`, or `CLASS_MUTATION` is emitted, the narrative should also mention awakening, growth, a new technique, or transformation in natural language.
+27. LOOT SIGNALING: When meaningful loot is earned, name the reward in the narrative and emit a `LOOT` event with at least one concrete item. Rare victories should not default to common loot.
+28. CREATIVE SPECIFICITY: Avoid generic fantasy phrasing. Use at least one concrete sensory detail and one Aerus-specific proper noun when the scene depends on lore, place, faction, or aftermath.
+
+PLAYER OUTPUT TARGETS:
+{player_output_targets}
 
 FINAL CHECKLIST:
 - The JSON inside `<game_state>` is valid and parseable.
 - If the level is a multiple of 25, `game_events` includes both `ABILITY_UNLOCK` and `CLASS_MUTATION`.
 - If a missing item is used, the narrative explicitly states the item was not found and `hp_change` is not positive.
+- If combat harm is narrated, at least one affected player usually has negative `hp_change`.
+- If healing is applied with positive `hp_change`, the prose names the healing visibly.
 - If one faction benefits and another is harmed, `reputation_delta` includes both entries.
+- If a public rescue helps the Church, include a positive `church_pure_flame` delta.
+- If the scene is celebration or aftermath, do not inject random combat rewards.
+- If departure is blocked during the cooperative mission, name the obstacle directly.
+- If progression events are present, mention the growth in prose as well.
+- `state_delta` keys are exact runtime player IDs from PLAYER OUTPUT TARGETS.
+- Every `game_events[].player_id` value is an exact runtime player ID from PLAYER OUTPUT TARGETS.
+- `next_scene_query` is a short retrieval fragment only: max 12 words, no question mark, no full sentence.
+- Narrative target: 70-130 words and two short paragraphs max.
+- Do not wrap JSON in markdown fences. Use only plain `<game_state> ... </game_state>`.
 
 RESPONSE FORMAT:
 Free-form prose narrative, followed by:
@@ -402,36 +460,39 @@ Free-form prose narrative, followed by:
 <game_state>
 {{
   "dice_rolls": [
-    {{"player": "name", "die": 20, "purpose": "sword attack", "result": 18}}
+    {{"player": "{example_player_name}", "die": 20, "purpose": "sword attack", "result": 18}}
   ],
   "state_delta": {{
-    "player_id": {{
+    "{example_player_id}": {{
       "hp_change": -15,
       "mp_change": -10,
       "stamina_change": -20,
       "experience_gain": 50,
+      "reputation_delta": [
+        {{"faction_id": "church_pure_flame", "delta": 10, "reason": "Protected a wounded sentinel in public"}}
+      ],
       "inventory_add": [
-        {{"item_id": "uuid", "name": "Item Name", "description": "Item description.", "rarity": "rare", "quantity": 1, "equipped": false}}
+        {{"item_id": "generated-item-id", "name": "Item Name", "description": "Item description.", "rarity": "rare", "quantity": 1, "equipped": false}}
       ],
       "inventory_remove": [],
       "conditions_add": [
-        {{"condition_id": "uuid", "name": "Poisoned", "description": "Loses 5 HP per turn.", "duration_turns": 3, "applied_at_turn": {turn_number}, "is_buff": false}}
+        {{"condition_id": "generated-condition-id", "name": "Poisoned", "description": "Loses 5 HP per turn.", "duration_turns": 3, "applied_at_turn": {turn_number}, "is_buff": false}}
       ],
       "conditions_remove": []
     }}
   }},
   "game_events": [
-    {{"type": "LOOT", "player_id": "id", "player_name": "name", "items": [
-      {{"item_id": "uuid", "name": "Ash Sword", "description": "Forged in the ruins.", "rarity": "epic", "quantity": 1, "equipped": false}}
+    {{"type": "LOOT", "player_id": "{example_player_id}", "player_name": "{example_player_name}", "items": [
+      {{"item_id": "generated-loot-id", "name": "Ash Sword", "description": "Forged in the ruins.", "rarity": "epic", "quantity": 1, "equipped": false}}
     ]}},
-    {{"type": "LEVELUP", "player_id": "id", "player_name": "name", "new_level": 5}},
-    {{"type": "ABILITY_UNLOCK", "player_id": "id", "player_name": "name", "ability_name": "Ability Name", "ability_description": "Organic description."}},
-    {{"type": "CLASS_MUTATION", "player_id": "id", "player_name": "name", "new_class": "Ash Warden", "old_class": "Warrior"}},
-    {{"type": "DEATH", "player_id": "id", "player_name": "name", "cause": "fatal blow from the Golem"}}
+    {{"type": "LEVELUP", "player_id": "{example_player_id}", "player_name": "{example_player_name}", "new_level": 5}},
+    {{"type": "ABILITY_UNLOCK", "player_id": "{example_player_id}", "player_name": "{example_player_name}", "ability_name": "Ability Name", "ability_description": "Organic description."}},
+    {{"type": "CLASS_MUTATION", "player_id": "{example_player_id}", "player_name": "{example_player_name}", "new_class": "Ash Warden", "old_class": "Warrior"}},
+    {{"type": "DEATH", "player_id": "{example_player_id}", "player_name": "{example_player_name}", "cause": "fatal blow from the Golem"}}
   ],
   "tension_level": 6,
   "audio_cue": "combat_intense",
-  "next_scene_query": "short description for lore retrieval"
+  "next_scene_query": "harbor rumor about Traveler mark"
 }}
 </game_state>"""
 
@@ -442,11 +503,22 @@ def build_gm_system_prompt(
     turn_number: int = 0,
     encounter_scale: float = 1.0,
     boss_scale_steps: int = 0,
+    player_output_targets: list[tuple[str, str]] | None = None,
 ) -> str:
+    player_output_targets = player_output_targets or []
+    example_player_id = player_output_targets[0][0] if player_output_targets else "runtime-player-id"
+    example_player_name = player_output_targets[0][1] if player_output_targets else "Player"
+    rendered_targets = "\n".join(
+        f"- {player_id} => {player_name}"
+        for player_id, player_name in player_output_targets
+    ) or "- runtime-player-id => Player"
     return GM_SYSTEM_PROMPT_TEMPLATE.format(
         num_players=num_players,
         tension_level=tension_level,
         turn_number=turn_number,
         encounter_scale=encounter_scale,
         boss_scale_steps=boss_scale_steps,
+        player_output_targets=rendered_targets,
+        example_player_id=example_player_id,
+        example_player_name=example_player_name,
     )

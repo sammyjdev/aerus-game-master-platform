@@ -74,6 +74,7 @@ def _parse_bestiary_entries(bestiary_md: str) -> list[dict[str, Any]]:
     Each creature starts with '## ' and ends at the next '## ' or file end.
     """
     entries: list[dict[str, Any]] = []
+    seen_ids: dict[str, int] = {}
     blocks = re.split(r"\n(?=## )", bestiary_md)
 
     for block in blocks:
@@ -90,7 +91,9 @@ def _parse_bestiary_entries(bestiary_md: str) -> list[dict[str, Any]]:
         element = _extract_field(block, r"Element[:\s]+([^\n]+)")
         creature_type = _extract_field(block, r"Type[:\s]+([^\n]+)")
 
-        entry_id = re.sub(r"[^a-z0-9_]", "_", name.lower())
+        base_id = re.sub(r"[^a-z0-9_]", "_", name.lower()).strip("_") or "bestiary_entry"
+        seen_ids[base_id] = seen_ids.get(base_id, 0) + 1
+        entry_id = base_id if seen_ids[base_id] == 1 else f"{base_id}_{seen_ids[base_id]}"
 
         entries.append(
             {
