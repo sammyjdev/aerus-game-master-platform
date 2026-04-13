@@ -71,6 +71,18 @@ make sync-lore    # Sync lore/ to backend/config/ and invalidate chroma_db
 - **`billing_router.py`** and `application/billing/billing_router.py` — BYOK vs. admin key routing by tension.
 - **`vector_store.py`** — ingests bestiary.md + world.md (by section) into ChromaDB at startup, semantic search for lore and creatures.
 - **`connection_manager.py`** — manages WebSocket rooms, token-by-token streaming, heartbeat.
+- **`ws_contracts.py`** — Pydantic schemas for all outbound WebSocket message types. **Single source of truth for the WS contract**; the frontend Zod schemas in `frontend/src/types/wsSchemas.ts` must mirror this file.
+- **`travel_manager.py`** — reads routes/locations from `travel.yaml`, rolls daily encounters (d20 ± terrain/tension), drives `start_travel` / `advance_travel_day` / `complete_travel`.
+- **`behavior_trajectory.py`** — scores player episodes by action category; drives class mutation path selection at levels 25/50/75/100.
+- **`memory_manager.py`** — assigns importance scores to episodic events for selective LLM context injection.
+- **`reputation_gates.py`** — fires one-shot faction unlock events when a player crosses thresholds defined in `config/reputation_gates.yaml`; guards via `quest_flags` to prevent re-firing.
+- **`rumor_manager.py`** — injects faction-biased rumor variants per player into L2 context once per `rumor_id`; new rumors surface as world tension crosses `tension_min`.
+- **`time_manager.py`** — persists Ash Calendar state (3 seasons × 90 days = 270-day year, starting year 4217 PC) via `world_state` table.
+- **`inventory_manager.py`** — weight/carrying-capacity checks and copper→silver→gold→platinum currency conversion.
+- **`recipe_manager.py`** — loads crafting recipes from `config/recipes.yaml` at startup.
+- **`summarizer.py`** — LLM-based summarization of recent conversation history for memory injection.
+- **`models.py`** — shared Pydantic/dataclass contracts between modules (`ActionBatch`, `GMResponse`, `Faction`, etc.). No raw dicts for cross-module communication.
+- **`migration_runner.py`** — applies sequential SQL migrations from `backend/migrations/` at server startup (currently 11 migrations).
 
 ### Deployment Constraint
 
@@ -81,11 +93,13 @@ make sync-lore    # Sync lore/ to backend/config/ and invalidate chroma_db
 ### Hybrid Organization
 
 - `pages/*` — screen composition (LoginPage, CharacterCreationPage, GamePage)
-- `features/game/` — domain entrypoints; pages should import via `features/` when available
-- `components/*` — components by domain (`character/`, `combat/`, `narrative/`, `screens/`, `ui/`)
+- `features/game/` — barrel re-export of all game components; pages should import via `features/` when available
+- `components/*` — components by domain (`character/`, `combat/`, `narrative/`, `screens/`, `travel/`, `ui/`)
 - `store/gameStore.ts` — Zustand, single source of truth for game state
 - `hooks/useWebSocket.ts` — manages WS connection and message dispatch
 - `api/http.ts` — fetch wrappers for REST endpoints
+- `i18n/` — i18next setup; supported locales are English (`en.json`) and Portuguese (`pt.json`)
+- `types/wsContracts.ts` — Zod schemas mirroring `backend/src/ws_contracts.py`; keep in sync when WS message types change
 
 ## Lore and Configuration
 
@@ -106,6 +120,23 @@ Frontend (`.env.local`): `VITE_API_URL`
 ## Local Artifacts (do not version)
 
 `backend/.venv`, `backend/aerus.db`, `backend/chroma_db`, `frontend/node_modules`, `frontend/dist`
+
+## GM Evaluation
+
+The `backend/eval/` directory contains a modular behavioral evaluator for GM response quality.
+
+```bash
+# Run all eval scenarios
+cd backend && .venv/Scripts/python eval/gm_eval.py
+
+# Key env vars:
+# AERUS_EVAL_TIER=core|extended|all
+# AERUS_EVAL_SCENARIOS=1,3        (specific scenario indexes)
+# AERUS_EVAL_CONCURRENCY=2        (parallel scenarios)
+# AERUS_EVAL_MAX_TOKENS=600       (override GM response budget)
+```
+
+Modules: `gm_eval.py` (orchestrator) → `gm_eval_runtime.py` (scenario execution) → `gm_eval_assertions.py` (scoring dimensions + hard-fail labels) → `gm_eval_reporting.py` (output). Scenario definitions live in `eval/topics/`.
 
 ## Sources of Truth
 

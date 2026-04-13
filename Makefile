@@ -80,6 +80,15 @@ frontend:
 frontend-build:
 	cd $(FRONTEND_DIR) && $(NPM) run build
 
+build: frontend-build
+
+serve:
+	cd $(BACKEND_DIR) && ../$(UVICORN) src.main:app --host 0.0.0.0 --port 8000 --env-file .env
+
+tunnel:
+	@echo "Run in a separate terminal: ngrok http 8000"
+	@echo "Or: cloudflared tunnel --url http://localhost:8000"
+
 frontend-test:
 	cd $(FRONTEND_DIR) && $(NPM) run test
 
