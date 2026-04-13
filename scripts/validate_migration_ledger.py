@@ -20,10 +20,13 @@ def _normalize(path: str) -> str:
     return cleaned.replace("\\", "/")
 
 
-def _parse_table_rows(lines: list[str], header_prefix: str) -> tuple[int, list[list[str]]]:
+def _parse_table_rows(lines: list[str], required_headers: list[str]) -> tuple[int, list[list[str]]]:
     start = -1
     for idx, line in enumerate(lines):
-        if line.strip().startswith(header_prefix):
+        raw = line.strip().lower()
+        if not raw.startswith("|"):
+            continue
+        if all(h.lower() in raw for h in required_headers):
             start = idx
             break
     if start == -1:
@@ -44,7 +47,7 @@ def _parse_ledger(
 ) -> tuple[dict[str, str], dict[str, tuple[str, str]], list[str], list[str]]:
     lines = ledger_path.read_text(encoding="utf-8").splitlines()
 
-    _, main_rows = _parse_table_rows(lines, "| Legacy file |")
+    _, main_rows = _parse_table_rows(lines, ["legacy file", "status", "notes"])
     status_map: dict[str, str] = {}
     pending_rows: list[str] = []
     issues: list[str] = []
@@ -62,7 +65,7 @@ def _parse_ledger(
         if status.startswith("pending"):
             pending_rows.append(legacy_file)
 
-    _, removal_rows = _parse_table_rows(lines, "| File | Justification |")
+    _, removal_rows = _parse_table_rows(lines, ["file", "justification", "approved by", "date"])
     approvals: dict[str, tuple[str, str]] = {}
     for cols in removal_rows:
         if len(cols) < 4:
