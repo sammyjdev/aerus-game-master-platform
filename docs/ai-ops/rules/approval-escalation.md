@@ -3,12 +3,14 @@
 ## Removal approval authority
 
 Deletion approval requires joint sign-off from:
+
 - Tech Lead
 - Narrative Lead
 
 Self-approval is not allowed.
 
 Authority registry:
+
 - `docs/ai-ops/rules/approval-authority-registry.json`
 
 ## Preconditions for approval

@@ -1,10 +1,12 @@
 # Lore To Runtime Sync Spec
 
 Canonical authored lore:
+
 - `lore/world.md`
 - `lore/bestiary.md`
 
 Runtime operational copy:
+
 - `backend/config/world.md`
 - `backend/config/bestiary_t1.md` ... `backend/config/bestiary_t5.md`
 

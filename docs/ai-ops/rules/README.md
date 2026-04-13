@@ -3,6 +3,7 @@
 Rules are non-negotiable constraints for implementation and content operations.
 
 Primary rule sources:
+
 - `docs/PROJECT_CONTEXT_rules_roadmap.md`
 - `CLAUDE.md`
 

@@ -23,4 +23,5 @@ If a playbook run fails mid-execution:
 ## Output requirement
 
 Each run must produce a short evidence entry in:
+
 - `docs/ai-ops/evidence/agent-validation-log.md`

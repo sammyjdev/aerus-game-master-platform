@@ -1,6 +1,7 @@
 # Frontend Spec (Operational)
 
 Primary references:
+
 - `docs/FRONTEND_SPEC.md`
 - `docs/IMPLEMENTATION.md`
 

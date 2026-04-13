@@ -1,9 +1,11 @@
 # WS Contract Spec
 
 Canonical backend contract:
+
 - `backend/src/ws_contracts.py`
 
 Canonical frontend mirror:
+
 - `frontend/src/types/wsContracts.ts`
 
 ## Required parity rules

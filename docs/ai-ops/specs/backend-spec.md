@@ -1,6 +1,7 @@
 # Backend Spec (Operational)
 
 Primary references:
+
 - `docs/PROJECT_CONTEXT_architecture_ard.md`
 - `docs/PROJECT_CONTEXT_adrs_sdd.md`
 - `docs/IMPLEMENTATION.md`
