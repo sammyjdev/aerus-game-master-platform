@@ -55,6 +55,12 @@ The main flow already covers invite-based authentication, character creation, is
 - `lore/` is the canonical source of truth.
 - `backend/config/` is the operational copy used by runtime services.
 
+## AI documentation operations
+
+For task-oriented AI workflows (Specs, Rules, Agent playbooks, Skills, Harness, and non-destructive migration controls), start from:
+
+- `docs/ai-ops/README.md`
+
 ## Requirements
 
 - Python 3.11+

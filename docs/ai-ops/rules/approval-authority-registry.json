@@ -1,0 +1,13 @@
+{
+  "allowed_approvers": [
+    "Tech Lead",
+    "Narrative Lead",
+    "Backend Lead",
+    "QA/AI Lead",
+    "Docs Lead"
+  ],
+  "required_for_removal": [
+    "Tech Lead",
+    "Narrative Lead"
+  ]
+}

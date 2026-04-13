@@ -1,0 +1,39 @@
+name: Migration Guard
+
+on:
+  pull_request:
+
+jobs:
+  ledger-guard:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Collect deleted files in PR
+        id: deleted
+        run: |
+          base_sha="${{ github.event.pull_request.base.sha }}"
+          head_sha="${{ github.event.pull_request.head.sha }}"
+          git diff --name-only --diff-filter=D "$base_sha" "$head_sha" > deleted.txt
+          echo "deleted_count=$(wc -l < deleted.txt | tr -d ' ')" >> "$GITHUB_OUTPUT"
+
+      - name: Validate migration ledger
+        run: |
+          args=""
+          while IFS= read -r file; do
+            if [ -n "$file" ]; then
+              args="$args --deleted-file $file"
+            fi
+          done < deleted.txt
+          python scripts/validate_migration_ledger.py \
+            --ledger docs/ai-ops/migration/legacy-comparative-ledger.md \
+            --registry docs/ai-ops/rules/approval-authority-registry.json \
+            $args
