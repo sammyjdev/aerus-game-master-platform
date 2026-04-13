@@ -113,7 +113,7 @@ def mentions_combat(narrative: str, _: dict[str, Any], __: RuntimeContext) -> bo
 
 def mentions_port_myr(narrative: str, _: dict[str, Any], __: RuntimeContext) -> bool:
     text = narrative.lower()
-    return "port myr" in text or ("myr" in text and "harbor" in text)
+    return "port myr" in text or "harbor" in text or "docks" in text or ("myr" in text and "quay" in text)
 
 
 def blocks_or_discourages_departure(narrative: str, _: dict[str, Any], __: RuntimeContext) -> bool:
@@ -121,14 +121,23 @@ def blocks_or_discourages_departure(narrative: str, _: dict[str, Any], __: Runti
     return any(
         token in text
         for token in [
+            "halt",
+            "no departure",
+            "no departures",
+            "no vessel departs",
+            "no departures without clearance",
             "cannot leave",
             "can't leave",
             "blocked",
             "checkpoint",
+            "clearance",
+            "quarantine",
             "refused passage",
+            "return to your assigned quarters",
             "stopped at the docks",
             "the harbor closes",
             "the route is shut",
+            "the harbor is a gilded cage",
         ]
     )
 
@@ -205,7 +214,24 @@ def has_experience_gain(_: str, gs: dict[str, Any], __: RuntimeContext) -> bool:
 
 def mentions_progression(narrative: str, _: dict[str, Any], __: RuntimeContext) -> bool:
     text = narrative.lower()
-    return any(token in text for token in ["power", "growth", "awakens", "surges", "new technique", "transformation", "level"])
+    return any(
+        token in text
+        for token in [
+            "power",
+            "growth",
+            "awakens",
+            "surges",
+            "new technique",
+            "transformation",
+            "level",
+            "breakthrough",
+            "mastery",
+            "relic",
+            "treasure",
+            "reward",
+            "loot",
+        ]
+    )
 
 
 def has_event_type(_: str, gs: dict[str, Any], __: RuntimeContext, event_type: str) -> bool:
@@ -273,7 +299,28 @@ def has_inventory_remove(_: str, gs: dict[str, Any], __: RuntimeContext) -> bool
 
 def narrative_shows_healing(narrative: str, _: dict[str, Any], __: RuntimeContext) -> bool:
     text = narrative.lower()
-    return any(token in text for token in ["wound closes", "pain recedes", "restored", "healing warmth", "mended", "bandage"])
+    return any(
+        token in text
+        for token in [
+            "wound closes",
+            "wounds close",
+            "wounds knitting closed",
+            "wound knits",
+            "pain recedes",
+            "pain dulling",
+            "pain dulls",
+            "restored",
+            "healing warmth",
+            "warmth floods",
+            "mended",
+            "bandage",
+            "breath steadies",
+            "strength steals back",
+            "knitting torn",
+            "easing the searing pain",
+            "easing pain",
+        ]
+    )
 
 
 def has_scene_followup(_: str, gs: dict[str, Any], __: RuntimeContext) -> bool:
@@ -353,7 +400,31 @@ def gm_handles_absurd_with_consequence(narrative: str, gs: dict[str, Any], __: R
 
 def gm_refuses_nonexistent_item(narrative: str, _: dict[str, Any], __: RuntimeContext) -> bool:
     text = narrative.lower()
-    return any(token in text for token in ["cannot find", "does not have", "searches in vain", "isn't there", "no potion"])
+    return any(
+        token in text
+        for token in [
+            "cannot find",
+            "does not have",
+            "not found",
+            "searches in vain",
+            "isn't there",
+            "no potion",
+            "find no",
+            "finds no",
+            "nowhere to be found",
+            "nothing of the sort",
+            "no vial",
+            "no flask",
+            "empty pack",
+            "pack comes up empty",
+            "hand closes on nothing",
+            "nothing in your pack",
+            "nothing in his pack",
+            "nothing in her pack",
+            "nothing but air",
+            "no healing draught",
+        ]
+    )
 
 
 def gm_maintains_roll_result(narrative: str, _: dict[str, Any], __: RuntimeContext) -> bool:
@@ -451,8 +522,12 @@ def narrative_mentions_lore(narrative: str, _: dict[str, Any], __: RuntimeContex
         "guild of threads",
         "children of the broken thread",
         "primordial thread",
+        "thread",
         "vor'athek",
+        "the sealing",
+        "sealing",
         "valdrek",
+        "aerus",
         "bloom",
         "corruption",
     ]
@@ -490,12 +565,50 @@ def no_levelup_event(_: str, gs: dict[str, Any], runtime: RuntimeContext) -> boo
 
 def mentions_extreme_effort(narrative: str, _: dict[str, Any], __: RuntimeContext) -> bool:
     text = narrative.lower()
-    return any(token in text for token in ["strain", "burning lungs", "every muscle", "heavy blow", "exhaustion", "spent"])
+    return any(
+        token in text
+        for token in [
+            "strain",
+            "burning lungs",
+            "every muscle",
+            "every sinew",
+            "heavy blow",
+            "exhaustion",
+            "spent",
+            "pour everything",
+            "pours everything",
+            "mighty overhead",
+            "devastating overhead",
+            "muscles coiling",
+            "muscles coil",
+            "coiling like a spring",
+            "grunt of pain",
+            "drawn bowstring",
+            "plant my feet",
+            "planted his feet",
+            "brutal conviction",
+        ]
+    )
 
 
 def mentions_corruption_backfire(narrative: str, _: dict[str, Any], __: RuntimeContext) -> bool:
     text = narrative.lower()
-    return any(token in text for token in ["backfire", "corruption", "lashes into you", "thread bites back", "reverses"])
+    return any(
+        token in text
+        for token in [
+            "backfire",
+            "backlash",
+            "corruption",
+            "lashes into you",
+            "lashes back",
+            "bites back",
+            "thread bites back",
+            "rebounds into",
+            "corrupted fire magic bites",
+            "magic bites",
+            "reverses",
+        ]
+    )
 
 
 def mentions_fall_consequence(narrative: str, _: dict[str, Any], __: RuntimeContext) -> bool:

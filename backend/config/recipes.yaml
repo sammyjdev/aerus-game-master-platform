@@ -1,0 +1,52 @@
+# Aerus RPG — Crafting Recipes
+# Resolved narratively by the GM. Attribute checks determine success.
+
+common: # DC 10-12
+  - name: 'MP Absorption Potion'
+    ingredients: ['2x Draining Gland', '1x Grade 1 Keth']
+    check: 'INT DC 10'
+    effect: 'Restore 2d6 MP'
+    item_id: 'potion_mp_absorption'
+
+  - name: 'Regeneration Salve'
+    ingredients: ['3x Ash-Thorn Sap', '1x Grade 1 Keth']
+    check: 'INT DC 10'
+    effect: 'Restore 1d4 HP per turn for 3 turns'
+    item_id: 'salve_regeneration'
+
+  - name: 'Disruption Round'
+    ingredients: ['1x Draining Gland', 'common metal']
+    check: 'DEX DC 12'
+    effect: 'Single ammunition dealing bonus disruption damage to corrupted targets'
+    item_id: 'ammo_disruption'
+
+  - name: 'Arcane Bandage'
+    ingredients: ['1x Fragmented Memory Crystal', 'cloth']
+    check: 'INT DC 10'
+    effect: 'Next healing after stabilization gains bonus HP'
+    item_id: 'bandage_arcane'
+
+  - name: 'Keth Oil'
+    ingredients: ['2x Grade 1 Keth', 'common oil']
+    check: 'STR DC 10'
+    effect: 'Temporary bonus damage against corrupted enemies'
+    item_id: 'oil_keth'
+
+rare: # DC 13-15
+  - name: 'Light Ash Armor'
+    ingredients: ['5x Ash Exoskeleton', '2x Grade 2 Keth']
+    check: 'STR DC 14'
+    effect: 'Higher defense and surge resistance'
+    item_id: 'armor_light_ash'
+
+  - name: 'Disruption Blade'
+    ingredients: ['quality metal', '3x Grade 2 Keth']
+    check: 'STR DC 15'
+    effect: 'Extra damage to corrupted enemies and critical disruption effect'
+    item_id: 'blade_disruption'
+
+  - name: 'Minor Stability Amulet'
+    ingredients: ['1x Thread Fragment', '1x Grade 2 Keth']
+    check: 'INT DC 13'
+    effect: 'Reduces corruption accumulation rate during surge events'
+    item_id: 'amulet_stability_minor'

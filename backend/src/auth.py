@@ -5,7 +5,6 @@ Invite-code authentication with long-lived JWTs and silent refresh support.
 """
 from __future__ import annotations
 
-import hashlib
 import logging
 import os
 import secrets
@@ -13,6 +12,7 @@ import time
 from typing import Any
 
 from jose import JWTError, jwt
+import bcrypt
 
 logger = logging.getLogger(__name__)
 
@@ -21,15 +21,24 @@ JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_SECONDS = 60 * 60 * 24 * 180  # 6 months
 JWT_REFRESH_THRESHOLD = 60 * 60 * 24 * 7  # refresh when less than 7 days remain
 
+# Bcrypt cost factor (higher = slower but more secure)
+BCRYPT_ROUNDS = 12
+
 
 def hash_password(password: str) -> str:
-    """SHA-256 with a configured salt. Use bcrypt or argon2 in production."""
-    salt = os.getenv("PASSWORD_SALT", "aerus-salt-change-me")
-    return hashlib.sha256(f"{salt}{password}".encode()).hexdigest()
+    """Hash password using bcrypt with cost factor 12."""
+    # bcrypt.hashpw requires bytes input
+    salt = bcrypt.gensalt(rounds=BCRYPT_ROUNDS)
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
 
 def verify_password(password: str, password_hash: str) -> bool:
-    return hash_password(password) == password_hash
+    """Verify password against bcrypt hash."""
+    try:
+        return bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8'))
+    except (ValueError, TypeError):
+        # Handle invalid hash format
+        return False
 
 
 def create_token(player_id: str, username: str) -> str:

@@ -59,13 +59,15 @@ def test_extract_narrative_only_multiline_game_state():
 # _parse_gm_response
 # ---------------------------------------------------------------------------
 
+_FAKE_UUID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+
 VALID_RESPONSE = (
     "O cavaleiro cai de joelhos.\n\n"
     "<game_state>\n"
     "{\n"
     '  "dice_rolls": [{"player": "Kael", "die": 20, "purpose": "ataque", "result": 18}],\n'
-    '  "state_delta": {"pid-1": {"hp_change": -30, "experience_gain": 50}},\n'
-    '  "game_events": [{"type": "LOOT", "player_id": "pid-1", "player_name": "Kael", "items": []}],\n'
+    '  "state_delta": {"' + _FAKE_UUID + '": {"hp_change": -30, "experience_gain": 50}},\n'
+    '  "game_events": [{"type": "LOOT", "player_id": "' + _FAKE_UUID + '", "player_name": "Kael", "items": []}],\n'
     '  "tension_level": 7,\n'
     '  "audio_cue": "sword_hit",\n'
     '  "next_scene_query": "cavaleiro caindo"\n'
@@ -81,8 +83,8 @@ def test_parse_gm_response_valid():
     assert len(result.dice_rolls) == 1
     assert result.dice_rolls[0]["player"] == "Kael"
     assert result.dice_rolls[0]["result"] == 18
-    assert result.state_delta["pid-1"]["hp_change"] == -30
-    assert result.state_delta["pid-1"]["experience_gain"] == 50
+    assert result.state_delta[_FAKE_UUID]["hp_change"] == -30
+    assert result.state_delta[_FAKE_UUID]["experience_gain"] == 50
     assert len(result.game_events) == 1
     assert result.game_events[0]["type"] == "LOOT"
     assert result.tension_level == 7

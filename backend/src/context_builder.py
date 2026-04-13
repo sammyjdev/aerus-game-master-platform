@@ -29,6 +29,25 @@ _L3_CHAR_LIMIT = 6_000   # ~1500 tokens
 _MEM_CHAR_LIMIT = 800    # ~200 tokens
 _LORE_CHAR_LIMIT = 3_200 # ~800 tokens
 
+LANGUAGE_DISPLAY_NAMES: dict[str, str] = {
+    "common_tongue": "Common Tongue",
+    "valdrekian": "Valdrekian",
+    "myr_pidgin": "Myr Pidgin",
+    "old_aerus": "Old Aerus",
+    "the_hum": "The Hum (instinct, non-verbal)",
+    "glyph_script": "Glyph Script (written only)",
+    "deep_tongue": "Deep Tongue",
+    "ash_cant": "Ash Cant (slang/cipher)",
+}
+
+_ROOTING_STAGE_NAMES: dict[int, str] = {
+    0: "Unrooted",
+    1: "Anchored — 365+ days in Aerus",
+    2: "Resonant — 730+ days in Aerus",
+    3: "Merged — 1095+ days in Aerus",
+    4: "Sovereign — 1825+ days in Aerus",
+}
+
 
 async def build_context(
     conn: aiosqlite.Connection,
@@ -96,6 +115,11 @@ async def build_context(
     l3 = _build_l3_history(history)
     mem = _build_memory_injection(memory)
     lore_text = _build_lore_text(lore)
+
+    from .recipe_manager import get_recipes_context
+    crafting_ctx = get_recipes_context()
+    if crafting_ctx:
+        lore_text = (lore_text + "\n\n" + crafting_ctx).strip()
 
     return ContextLayers(
         l0_static=l0,
@@ -205,8 +229,10 @@ def _build_l2_state(
         attrs = json.loads(p["attributes_json"] or "{}")
         magic_prof = json.loads(p["magic_prof_json"] or "{}")
         weapon_prof = json.loads(p["weapon_prof_json"] or "{}")
+        skills_raw = json.loads(p["skills_json"] or "{}")
         magic_text = _format_proficiency(magic_prof)
         weapon_text = _format_proficiency(weapon_prof)
+        skills_text = _format_skills(skills_raw)
         inv_text = _format_inventory(inventories.get(p["player_id"], []) if inventories else [])
         ep_text = _format_episodes(episodes.get(p["player_id"], []) if episodes else [])
         ep_suffix = f" | KeyMemory:[{ep_text}]" if ep_text else ""
@@ -222,6 +248,7 @@ def _build_l2_state(
             f"Languages:{_format_languages(p['languages_json'])} | "
             f"Wallet:{_format_currency_wallet(p['currency_json'])} | "
             f"Magic Prof.:{magic_text} | Weapon Prof.:{weapon_text} | "
+            f"Skills:{skills_text} | "
             f"Inventory:[{inv_text}] | "
             f"SecretObjective:{(p['secret_objective'] or 'N/A')[:120]}"
             f"{ep_suffix}"
@@ -232,6 +259,37 @@ def _build_l2_state(
         if rumors:
             rumor_block = rumor_manager.format_rumors_for_context(rumors, p["name"] or "Player")
             state_parts.append(rumor_block)
+
+        # Isekai rooting status
+        race_lower = (p["race"] or "").lower()
+        if "isekai" in race_lower or "summoned" in race_lower:
+            try:
+                rooting_stage = p["rooting_stage"]
+                days_in_world = p["days_in_world"]
+            except (IndexError, KeyError):
+                rooting_stage = 0
+                days_in_world = 0
+            stage_label = _ROOTING_STAGE_NAMES.get(rooting_stage, f"Stage {rooting_stage}")
+            state_parts.append(
+                f"  [Isekai] Rooting stage: {rooting_stage} ({stage_label}, {days_in_world} days in Aerus)"
+            )
+
+        # Flame Seal status
+        try:
+            seal = p["flame_seal"]
+        except (IndexError, KeyError):
+            seal = None
+        _SEAL_DISPLAY = {
+            "common": "Common Seal (low-tier elemental use authorized)",
+            "trade": "Trade Seal (professional licensed use)",
+            "high_flame": "High Flame Seal (advanced magic authorized)",
+            "null_seal": "NULL SEAL — magic is suppressed by Church authority",
+            "conclave": "Conclave Authorization (unrestricted Guild-internal status)",
+        }
+        if seal:
+            state_parts.append(f"  Flame Seal: {_SEAL_DISPLAY.get(seal, seal)}")
+        else:
+            state_parts.append("  Flame Seal: None (unlicensed magic user)")
 
     mission_active = cooperative_mission.get("cooperative_mission_active", "0") == "1"
     mission_completed = cooperative_mission.get("cooperative_mission_completed", "0") == "1"
@@ -285,15 +343,18 @@ def _format_reputations(reputations: dict[str, dict[str, int]] | None) -> str:
 
 def _format_languages(raw_languages: Any) -> str:
     if not raw_languages:
-        return "common_tongue"
+        return "Common Tongue"
     try:
         parsed = json.loads(raw_languages) if isinstance(raw_languages, str) else raw_languages
     except (TypeError, ValueError):
         parsed = []
     if not isinstance(parsed, list):
-        return "common_tongue"
-    values = [str(item).strip() for item in parsed if str(item).strip()]
-    return ",".join(values) if values else "common_tongue"
+        return "Common Tongue"
+    values = [
+        LANGUAGE_DISPLAY_NAMES.get(str(item).strip(), str(item).strip())
+        for item in parsed if str(item).strip()
+    ]
+    return ", ".join(values) if values else "Common Tongue"
 
 
 def _format_currency_wallet(raw_wallet: Any) -> str:
@@ -344,6 +405,20 @@ def _format_proficiency(values: dict[str, int]) -> str:
         return "-"
     ordered = sorted(values.items(), key=lambda item: item[0])
     return ",".join(f"{name}:{int(level)}" for name, level in ordered[:5])
+
+
+def _format_skills(skills: dict) -> str:
+    """Format top-6 skills by rank for L2 injection. skills_json structure:
+    {skill_key: {rank, uses, impact}} or {skill_key: int} (legacy rank-only)."""
+    if not skills:
+        return "-"
+    ranked = []
+    for key, val in skills.items():
+        rank = val.get("rank", val) if isinstance(val, dict) else int(val)
+        if rank > 0:
+            ranked.append((key, int(rank)))
+    ranked.sort(key=lambda x: -x[1])
+    return ",".join(f"{k}:{r}" for k, r in ranked[:6]) or "-"
 
 
 def _build_l3_history(history: list[aiosqlite.Row]) -> str:
@@ -405,7 +480,7 @@ def _build_lore_text(lore: LoreResult) -> str:
 GM_SYSTEM_PROMPT_TEMPLATE = """You are the Game Master (GM) of Aerus RPG - a dark fantasy RPG for {num_players} player(s).
 
 ABSOLUTE RULES:
-1. Always respond in English, using the specified literary tone.
+1. Always respond in {language_name}, using the specified literary tone.
 2. Be cinematic, visceral, and consequential. Death carries real weight.
 3. Never ignore player actions - every action must have a consequence.
 4. Return structured JSON after the narrative.
@@ -433,6 +508,20 @@ ABSOLUTE RULES:
 26. PROGRESSION SIGNALING: When `ABILITY_UNLOCK`, `LEVELUP`, or `CLASS_MUTATION` is emitted, the narrative should also mention awakening, growth, a new technique, or transformation in natural language.
 27. LOOT SIGNALING: When meaningful loot is earned, name the reward in the narrative and emit a `LOOT` event with at least one concrete item. Rare victories should not default to common loot.
 28. CREATIVE SPECIFICITY: Avoid generic fantasy phrasing. Use at least one concrete sensory detail and one Aerus-specific proper noun when the scene depends on lore, place, faction, or aftermath.
+29. ONBOARDING GROUNDING: In Isles of Myr onboarding or dockside scenes, explicitly name Port Myr, the harbor, the docks, or the quay so the player is clearly grounded in place.
+30. EXPLICIT DENIAL WORDING: For blocked departures or missing items, use unmistakable wording such as `halt`, `no departures without clearance`, `refused passage`, `cannot find`, `finds no potion`, or `it is not there`.
+31. HEALING WORDING: When healing succeeds, explicitly mention wounds knitting closed, warmth flooding the body, pain receding, breath steadying, or strength returning.
+32. BREAKTHROUGH PAYOFF: If the action clearly describes a breakthrough, boss finish, limit break, or claimed reward, emit the earned progression or loot signal instead of only narrating mood.
+33. ACTIVE COMBAT COST: In an unresolved combat exchange against a living threat, include immediate pressure on the player side as well, usually through negative `hp_change` or at minimum clear stamina loss plus explicit danger of the next hit.
+34. CONSUMABLE ACCOUNTING: If a potion, antidote, salve, bomb, or similar consumable is used, it must appear in `inventory_remove` for the user.
+35. ITEM TRANSFER ACCOUNTING: In multiplayer item sharing, the giver loses the item in `inventory_remove`, and the receiver either gains it in `inventory_add` or immediately benefits from it in their own `state_delta`.
+36. FATAL BLOWS: If a nearly dead player is struck by a final blow or clearly dies in the scene, emit a `DEATH` event or an unmistakably fatal state.
+37. LEVEL THRESHOLD DISCIPLINE: On level 5/10/15/20/... awakening scenes, always emit `ABILITY_UNLOCK`. On level 25/50/... scenes, emit both `ABILITY_UNLOCK` and `CLASS_MUTATION`.
+38. LEVELUP MILESTONES: If the player is one level below a milestone and the action clearly claims a breakthrough, victory, or crossing a limit, emit `LEVELUP` with `new_level` equal to the next level reached.
+39. CONDITION ACCOUNTING: If poison, rot, corruption, burning, bleeding, or another harmful status is inflicted, include it in `conditions_add` with a positive `duration_turns`. If an antidote, cleanse, cure, or relief effect removes an active status, include the removed status in `conditions_remove`.
+40. LORE ANSWERS: When asked about the Pact of Myr, Vor'Athek, the Primordial Thread, the Guild of Threads, or the Sealing, name the asked canon term directly and connect it to at least one other canon term or institution.
+41. BACKLASH WORDING: When corrupted magic rebounds on the caster, say that the corruption backfires, lashes back, bites back, or rebounds into the caster instead of only implying generic pain.
+42. SKILL TRACKING: When a player's action clearly invokes a named skill category (combat, stealth, social, politics, survival, medicine, lore, crafting, ritual, athletics, perception, nature, tactics, mysticism), emit `skill_use: {"skill_key": "<sub_skill>", "impact": <float>}` inside that player's `state_delta`. Impact values: 0.5=trivial/failed, 1.0=normal success, 2.0=significant (changed the scene), 3.0=exceptional (pivoted the session), 5.0=legendary (campaign-defining). Skill rank-ups are automatic — do not emit `skill_delta` unless you need to override a rank directly (rare). Omit `skill_use` for trivial environmental actions that do not reflect practiced competency.
 
 PLAYER OUTPUT TARGETS:
 {player_output_targets}
@@ -446,8 +535,22 @@ FINAL CHECKLIST:
 - If one faction benefits and another is harmed, `reputation_delta` includes both entries.
 - If a public rescue helps the Church, include a positive `church_pure_flame` delta.
 - If the scene is celebration or aftermath, do not inject random combat rewards.
+- If a player used a named skill that meaningfully shaped the outcome, include `skill_use` with an appropriate impact score in their `state_delta`.
 - If departure is blocked during the cooperative mission, name the obstacle directly.
 - If progression events are present, mention the growth in prose as well.
+- In Port Myr onboarding, name Port Myr, the harbor, or the docks directly.
+- For absent items or blocked departures, use explicit denial language rather than implication alone.
+- For successful healing, use visible bodily recovery language rather than subtle implication alone.
+- In unresolved combat, prefer showing immediate player-side cost instead of consequence-free dominance.
+- If a consumable is drunk or applied, include it in `inventory_remove`.
+- If one player gives an item to another, account for both sides of the transfer.
+- If the player is nearly dead and the blow is final, emit `DEATH` or a fatal state.
+- On level-multiple awakening scenes, do not omit `ABILITY_UNLOCK`.
+- If the player crosses a level milestone after a breakthrough or claimed victory, emit `LEVELUP` with the new level.
+- If poison, rot, or corruption is inflicted, include a harmful entry in `conditions_add` with a positive duration.
+- If an antidote or cleanse works, include the removed effect in `conditions_remove`.
+- If the scene is about the Pact of Myr or related canon, name at least two canon terms directly.
+- If corrupted magic hurts the caster, describe it as backlash or corruption biting back.
 - `state_delta` keys are exact runtime player IDs from PLAYER OUTPUT TARGETS.
 - Every `game_events[].player_id` value is an exact runtime player ID from PLAYER OUTPUT TARGETS.
 - `next_scene_query` is a short retrieval fragment only: max 12 words, no question mark, no full sentence.
@@ -504,6 +607,7 @@ def build_gm_system_prompt(
     encounter_scale: float = 1.0,
     boss_scale_steps: int = 0,
     player_output_targets: list[tuple[str, str]] | None = None,
+    language: str = "en",
 ) -> str:
     player_output_targets = player_output_targets or []
     example_player_id = player_output_targets[0][0] if player_output_targets else "runtime-player-id"
@@ -512,6 +616,7 @@ def build_gm_system_prompt(
         f"- {player_id} => {player_name}"
         for player_id, player_name in player_output_targets
     ) or "- runtime-player-id => Player"
+    language_name = "Brazilian Portuguese" if language == "pt" else "English"
     return GM_SYSTEM_PROMPT_TEMPLATE.format(
         num_players=num_players,
         tension_level=tension_level,
@@ -521,4 +626,5 @@ def build_gm_system_prompt(
         player_output_targets=rendered_targets,
         example_player_id=example_player_id,
         example_player_name=example_player_name,
+        language_name=language_name,
     )

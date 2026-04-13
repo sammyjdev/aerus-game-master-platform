@@ -24,6 +24,7 @@ from . import local_llm
 from . import state_manager, travel_manager, vector_store
 from .application.billing.billing_router import select_billing_config
 from .context_builder import build_context, build_gm_system_prompt
+from .infrastructure.config.config_loader import get_campaign_value as _get_campaign_value
 from .models import ActionBatch, GMResponse, PlayerAction, WSMessageType
 
 logger = logging.getLogger(__name__)
@@ -151,6 +152,7 @@ async def _build_messages(
             (action.player_id, action.player_name or f"Player {idx + 1}")
             for idx, action in enumerate(batch.actions)
         ],
+        language=_get_campaign_value("campaign.language") or "en",
     )
     messages: list[dict[str, str]] = [
         {"role": "system", "content": context.to_system_prompt() + "\n\n" + system_prompt},
@@ -197,17 +199,33 @@ async def _get_party_size(conn: aiosqlite.Connection, batch: ActionBatch) -> int
 
 _GAME_STATE_MARKER = "<game_state>"
 
+# Some model responses omit the opening <game_state> tag and jump straight
+# into the JSON payload. Use stable keys as a secondary stop condition.
+_JSON_STOP_MARKERS = ('"dice_rolls"', '"state_delta"')
 
-def _flush_buffer(buffer: str) -> tuple[str, str]:
+
+def _json_stop_position(buffer: str) -> int | None:
+    for marker in _JSON_STOP_MARKERS:
+        idx = buffer.find(marker)
+        if idx != -1:
+            brace = buffer.rfind("{", 0, idx)
+            return brace if brace != -1 else idx
+    return None
+
+
+def _flush_buffer(buffer: str) -> tuple[str, str, bool]:
     """
-    Checks whether the buffer contains <game_state>.
-    Returns (to_emit, new_buffer). If to_emit is None, it signals stop.
+    Checks whether the buffer contains a structured game_state block.
+    Returns (to_emit, new_buffer, should_stop).
     """
     if _GAME_STATE_MARKER in buffer:
-        return buffer[: buffer.index(_GAME_STATE_MARKER)], ""
+        return buffer[: buffer.index(_GAME_STATE_MARKER)], "", True
+    stop_pos = _json_stop_position(buffer)
+    if stop_pos is not None:
+        return buffer[:stop_pos].rstrip(), "", True
     if len(buffer) > 50:
-        return buffer[:-20], buffer[-20:]
-    return "", buffer
+        return buffer[:-20], buffer[-20:], False
+    return "", buffer, False
 
 
 async def _tokens_from_stream(
@@ -221,13 +239,11 @@ async def _tokens_from_stream(
             continue
         collector.append(delta)
         buffer += delta
-        to_emit, buffer = _flush_buffer(buffer)
-        if _GAME_STATE_MARKER in (buffer + delta):
-            if to_emit:
-                yield to_emit
-            return
+        to_emit, buffer, should_stop = _flush_buffer(buffer)
         if to_emit:
             yield to_emit
+        if should_stop:
+            return
     if buffer:
         yield buffer
 
@@ -291,12 +307,12 @@ async def _tokens_from_text(full_response: str) -> AsyncIterator[str]:
     chunk_size = 48
     for index in range(0, len(full_response), chunk_size):
         buffer += full_response[index:index + chunk_size]
-        to_emit, buffer = _flush_buffer(buffer)
+        to_emit, buffer, should_stop = _flush_buffer(buffer)
         if to_emit:
             yield to_emit
-        if _GAME_STATE_MARKER in buffer:
+        if should_stop:
             return
-    if buffer and _GAME_STATE_MARKER not in buffer:
+    if buffer and _GAME_STATE_MARKER not in buffer and _json_stop_position(buffer) is None:
         yield buffer
 
 
@@ -338,7 +354,11 @@ async def process_batch(
 
         full_response, _ = await _stream_llm(billing, messages)
         await cm.manager.broadcast({"type": WSMessageType.STREAM_END})
-        gm_response = _parse_gm_response(full_response, current_tension=current_tension)
+        gm_response = _parse_gm_response(
+            full_response,
+            current_tension=current_tension,
+            valid_player_ids=[action.player_id for action in batch.actions],
+        )
 
         # 6. Aplica deltas e emite eventos
         await _apply_deltas_and_events(conn, gm_response, batch)
@@ -402,7 +422,75 @@ def _format_batch_as_user_message(batch: ActionBatch) -> str:
     return "\n".join(lines)
 
 
-def _parse_gm_response(full_response: str, current_tension: int = 5) -> GMResponse:
+def _normalize_runtime_id(raw_value: Any) -> str:
+    return re.sub(r"[^a-z0-9]", "", str(raw_value or "").lower())
+
+
+def _resolve_runtime_player_id(candidate: Any, valid_player_ids: list[str]) -> str | None:
+    if not isinstance(candidate, str):
+        return None
+    cleaned = candidate.strip()
+    if not cleaned:
+        return None
+    if cleaned in valid_player_ids:
+        return cleaned
+
+    normalized_candidate = _normalize_runtime_id(cleaned)
+    if not normalized_candidate:
+        return None
+
+    by_norm = {_normalize_runtime_id(player_id): player_id for player_id in valid_player_ids}
+    if normalized_candidate in by_norm:
+        return by_norm[normalized_candidate]
+
+    prefix_matches = [
+        player_id
+        for player_id in valid_player_ids
+        if _normalize_runtime_id(player_id).startswith(normalized_candidate)
+        or normalized_candidate.startswith(_normalize_runtime_id(player_id))
+    ]
+    if len(prefix_matches) == 1:
+        return prefix_matches[0]
+
+    if len(valid_player_ids) == 1 and len(normalized_candidate) >= 8:
+        return valid_player_ids[0]
+    return None
+
+
+def _reconcile_response_player_ids(response: GMResponse, valid_player_ids: list[str] | None) -> GMResponse:
+    if not valid_player_ids:
+        return response
+
+    state_delta = response.state_delta if isinstance(response.state_delta, dict) else {}
+    normalized_delta: dict[str, Any] = {}
+    for raw_player_id, delta in state_delta.items():
+        resolved = _resolve_runtime_player_id(raw_player_id, valid_player_ids)
+        if not resolved:
+            normalized_delta[str(raw_player_id)] = delta
+            continue
+        current = normalized_delta.get(resolved)
+        if isinstance(current, dict) and isinstance(delta, dict):
+            merged = dict(current)
+            merged.update(delta)
+            normalized_delta[resolved] = merged
+        else:
+            normalized_delta[resolved] = delta
+    response.state_delta = normalized_delta
+
+    normalized_events: list[dict[str, Any]] = []
+    for event in response.game_events:
+        if not isinstance(event, dict):
+            continue
+        normalized_event = dict(event)
+        resolved = _resolve_runtime_player_id(normalized_event.get("player_id"), valid_player_ids)
+        if resolved:
+            normalized_event["player_id"] = resolved
+        normalized_events.append(normalized_event)
+    response.game_events = normalized_events
+    return response
+
+
+def _parse_gm_response(full_response: str, current_tension: int = 5, valid_player_ids: list[str] | None = None) -> GMResponse:
     """
     Parse the GM response by extracting JSON from the <game_state> tag.
     Defensive fallback - returns a default GMResponse if parsing fails.
@@ -431,7 +519,20 @@ def _parse_gm_response(full_response: str, current_tension: int = 5) -> GMRespon
                 json_candidate = full_response[fence_tag.end():]
                 match = True
             else:
-                json_candidate = ""
+                close_tag = re.search(r"</game_state>", full_response, re.IGNORECASE)
+                if close_tag:
+                    text_before = full_response[: close_tag.start()]
+                    brace_idx = text_before.rfind("{")
+                    if brace_idx != -1:
+                        json_candidate = text_before[brace_idx:]
+                        match = True
+                        logger.warning(
+                            "GM response missing <game_state> opening tag; recovered JSON from closing tag"
+                        )
+                    else:
+                        json_candidate = ""
+                else:
+                    json_candidate = ""
 
     if not match:
         logger.warning("GM response missing structured <game_state>")
@@ -466,6 +567,7 @@ def _parse_gm_response(full_response: str, current_tension: int = 5) -> GMRespon
             events=len(response.game_events),
             tension_level=response.tension_level,
         )
+        response = _reconcile_response_player_ids(response, valid_player_ids)
         return _apply_response_guardrails(response)
     except ValueError as e:
         logger.warning("Failed to parse <game_state>: %s", e)
@@ -486,6 +588,26 @@ def _extract_narrative_only(full_response: str) -> str:
         stripped,
         flags=re.DOTALL | re.IGNORECASE,
     )
+    stripped = re.sub(
+        r"\s*<game_state>.*$",
+        "",
+        stripped,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    stripped = re.sub(
+        r"\s*```game_state.*$",
+        "",
+        stripped,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    close_idx = stripped.find("</game_state>")
+    if close_idx != -1:
+        brace_idx = stripped.rfind("{", 0, close_idx)
+        end_idx = close_idx + len("</game_state>")
+        if brace_idx != -1:
+            stripped = (stripped[:brace_idx] + stripped[end_idx:]).strip()
+        else:
+            stripped = stripped[:close_idx].strip()
     return stripped.strip()
 
 
@@ -509,12 +631,26 @@ def _narrative_has_healing_signal(narrative: str) -> bool:
     return any(term in text for term in healing_terms)
 
 
+def _narrative_has_combat_pressure(narrative: str) -> bool:
+    text = narrative.lower()
+    combat_terms = (
+        "counterattack", "counter-attack", "claw", "strike", "slashes", "slash",
+        "grazes", "wound", "blow", "impact", "hits", "hit", "retaliation",
+        "retaliate", "snarl", "battle", "combat", "enemy",
+    )
+    return any(term in text for term in combat_terms)
+
+
 def _apply_response_guardrails(response: GMResponse) -> GMResponse:
-    if not response.state_delta or _narrative_has_healing_signal(response.narrative):
+    if not response.state_delta:
         return response
 
+    healing_visible = _narrative_has_healing_signal(response.narrative)
     adjusted = False
     normalized_state: dict[str, Any] = {}
+    has_negative_hp = False
+    has_negative_stamina = False
+
     for player_id, delta in response.state_delta.items():
         if not isinstance(delta, dict):
             normalized_state[player_id] = delta
@@ -527,7 +663,18 @@ def _apply_response_guardrails(response: GMResponse) -> GMResponse:
         except (TypeError, ValueError):
             hp_change_int = 0
 
-        if hp_change_int > 0:
+        stamina_change = updated.get("stamina_change", 0)
+        try:
+            stamina_change_int = int(stamina_change)
+        except (TypeError, ValueError):
+            stamina_change_int = 0
+
+        if hp_change_int < 0:
+            has_negative_hp = True
+        if stamina_change_int < 0:
+            has_negative_stamina = True
+
+        if hp_change_int > 0 and not healing_visible:
             updated["hp_change"] = 0
             adjusted = True
             logger.info(
@@ -537,6 +684,27 @@ def _apply_response_guardrails(response: GMResponse) -> GMResponse:
             )
 
         normalized_state[player_id] = updated
+
+    if (
+        not has_negative_hp
+        and has_negative_stamina
+        and not healing_visible
+        and response.tension_level >= 5
+        and bool(response.dice_rolls)
+        and _narrative_has_combat_pressure(response.narrative)
+    ):
+        for pid, pdelta in normalized_state.items():
+            if not isinstance(pdelta, dict):
+                continue
+            inferred_delta = dict(pdelta)
+            inferred_delta["hp_change"] = min(int(inferred_delta.get("hp_change", 0) or 0), -5)
+            normalized_state[pid] = inferred_delta
+            adjusted = True
+            logger.info(
+                "GM guardrail inferred combat chip damage for active exchange: player=%s hp_change=%s",
+                pid,
+                inferred_delta["hp_change"],
+            )
 
     if adjusted:
         response.state_delta = normalized_state
@@ -713,7 +881,7 @@ async def _apply_deltas_and_events(
     # Per-player state deltas - apply to the DB and notify the frontend
     if gm_response.state_delta:
         for player_id, delta in gm_response.state_delta.items():
-            await state_manager.apply_state_delta(conn, player_id, delta)
+            delta_result = await state_manager.apply_state_delta(conn, player_id, delta)
             log_debug(
                 logger,
                 "state_delta_applied",
@@ -721,6 +889,12 @@ async def _apply_deltas_and_events(
                 delta=summarize_payload(delta),
             )
             await _maybe_emit_progression_events(conn, player_id)
+            if delta_result.get("milestones_unlocked"):
+                await cm.manager.broadcast({
+                    "type": "milestone",
+                    "player_id": player_id,
+                    "milestones": delta_result["milestones_unlocked"],
+                })
             # Apply faction reputation deltas when present
             from .reputation_gates import check_reputation_gates
             for rep_delta in delta.get("reputation_delta", []):
@@ -750,6 +924,15 @@ async def _apply_deltas_and_events(
                         await cm.manager.broadcast_game_event(
                             "REPUTATION_GATE_UNLOCKED", gate_event
                         )
+            # Faction credibility changes
+            for faction_name, change in delta.get("faction_cred_change", {}).items():
+                await cm.manager.broadcast({
+                    "type": "faction_objective_update",
+                    "faction": faction_name,
+                    "objective": "credibility_change",
+                    "status": "in_progress",
+                    "cred_change": float(change),
+                })
         await cm.manager.broadcast({
             "type": WSMessageType.STATE_UPDATE,
             "delta": gm_response.state_delta,
@@ -771,6 +954,14 @@ async def _apply_deltas_and_events(
         await cm.manager.broadcast({
             "type": WSMessageType.AUDIO_CUE,
             "cue": gm_response.audio_cue,
+        })
+
+    # Boss music event (W-04)
+    if gm_response.tension_level >= 5 and gm_response.audio_cue == "boss_music":
+        await cm.manager.broadcast({
+            "type": WSMessageType.BOSS_MUSIC,
+            "tension_level": gm_response.tension_level,
+            "intensity": "high" if gm_response.tension_level >= 7 else "medium",
         })
 
     if batch:
@@ -838,23 +1029,6 @@ async def _maybe_emit_progression_events(
             "level": level,
         },
     )
-
-
-def _mutated_class_name(old_class: str) -> str:
-    base = old_class.lower()
-    mapping = {
-        "mage": "Thread Archmage",
-        "warrior": "Steel Warden",
-        "rogue": "Vector Shade",
-        "cleric": "Ash Hierophant",
-        "ranger": "Ruin Hunter",
-        "paladin": "Paladin of the Eternal Flame",
-        "soldier": "Commander of Valdrek",
-        "arcanist": "Ascendant Arcanist",
-        "thread weaver": "Primordial Weaver",
-        "adventurer": "Ascended Traveler",
-    }
-    return mapping.get(base, f"Ascended {old_class}")
 
 
 async def _advance_travel_if_active(conn: aiosqlite.Connection) -> None:
@@ -1044,20 +1218,33 @@ async def generate_isekai_convocation(
     Called once during character creation.
     """
     faction_config = _get_faction_prompt(faction)
+    lang = _get_campaign_value("campaign.language") or "en"
+    if lang == "pt":
+        lang_instruction = "Escreva em português do Brasil."
+        user_label = "Personagem convocado"
+        user_instruction = "Escreva a narrativa de convocação deste personagem para Aerus."
+    else:
+        lang_instruction = "Write in English."
+        user_label = "Summoned character"
+        user_instruction = "Write this character's convocation narrative into Aerus."
 
     system = (
-        "You are the narrator of an Aerus RPG convocation. "
-        "Create an epic and personalized convocation narrative in English (max 300 words). "
-        "Tone: mysterious, heavy, inevitable. Mention the Dome of Factions and the Primordial Thread."
+        "You are the narrator of an Aerus RPG session. "
+        f"{lang_instruction} "
+        "Write a convocation scene for a character just pulled into Aerus — 200 to 300 words. "
+        "The tone is heavy and inevitable, not triumphant. "
+        "The world does not welcome them; it claims them. "
+        "Mention the Dome of Factions and the Primordial Thread naturally, without announcing them. "
+        "Write in second person. No em dashes. No flowery adjectives. No rule of three."
     )
 
     user = (
-        f"Summoned character:\n"
+        f"{user_label}:\n"
         f"Name: {player_name}\n"
         f"Race: {race}\n"
         f"Faction: {faction_config}\n"
         f"Backstory: {backstory[:500]}\n\n"
-        "Generate this character's convocation narrative into Aerus."
+        f"{user_instruction}"
     )
 
     messages = [

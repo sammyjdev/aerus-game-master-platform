@@ -156,7 +156,78 @@ async def apply_extra_world_state(conn: aiosqlite.Connection, values: dict[str, 
         await state_manager.set_world_state(conn, key, value)
 
 
-def parse_response(raw: str, *, default_tension: int = 5) -> tuple[str, dict[str, Any]]:
+def normalize_runtime_id(raw_value: Any) -> str:
+    return re.sub(r"[^a-z0-9]", "", str(raw_value or "").lower())
+
+
+def resolve_runtime_player_id(candidate: Any, valid_player_ids: list[str]) -> str | None:
+    if not isinstance(candidate, str):
+        return None
+    cleaned = candidate.strip()
+    if not cleaned:
+        return None
+    if cleaned in valid_player_ids:
+        return cleaned
+
+    normalized_candidate = normalize_runtime_id(cleaned)
+    if not normalized_candidate:
+        return None
+
+    by_norm = {normalize_runtime_id(player_id): player_id for player_id in valid_player_ids}
+    if normalized_candidate in by_norm:
+        return by_norm[normalized_candidate]
+
+    prefix_matches = [
+        player_id
+        for player_id in valid_player_ids
+        if normalize_runtime_id(player_id).startswith(normalized_candidate)
+        or normalized_candidate.startswith(normalize_runtime_id(player_id))
+    ]
+    if len(prefix_matches) == 1:
+        return prefix_matches[0]
+
+    if len(valid_player_ids) == 1 and len(normalized_candidate) >= 8:
+        return valid_player_ids[0]
+    return None
+
+
+def reconcile_runtime_player_ids(game_state: dict[str, Any], valid_player_ids: list[str]) -> dict[str, Any]:
+    if not valid_player_ids or not game_state:
+        return game_state
+
+    state_delta = game_state.get("state_delta", {})
+    if isinstance(state_delta, dict):
+        normalized_delta: dict[str, Any] = {}
+        for raw_player_id, delta in state_delta.items():
+            resolved = resolve_runtime_player_id(raw_player_id, valid_player_ids)
+            if not resolved:
+                normalized_delta[str(raw_player_id)] = delta
+                continue
+            current = normalized_delta.get(resolved)
+            if isinstance(current, dict) and isinstance(delta, dict):
+                merged = dict(current)
+                merged.update(delta)
+                normalized_delta[resolved] = merged
+            else:
+                normalized_delta[resolved] = delta
+        game_state["state_delta"] = normalized_delta
+
+    events = game_state.get("game_events", [])
+    if isinstance(events, list):
+        normalized_events: list[dict[str, Any]] = []
+        for event in events:
+            if not isinstance(event, dict):
+                continue
+            normalized_event = dict(event)
+            resolved = resolve_runtime_player_id(normalized_event.get("player_id"), valid_player_ids)
+            if resolved:
+                normalized_event["player_id"] = resolved
+            normalized_events.append(normalized_event)
+        game_state["game_events"] = normalized_events
+    return game_state
+
+
+def parse_response(raw: str, *, default_tension: int = 5, valid_player_ids: list[str] | None = None) -> tuple[str, dict[str, Any]]:
     narrative = raw.strip()
     game_state: dict[str, Any] = {}
     match = re.search(r"<game_state>\s*(.*?)\s*</game_state>", raw, re.DOTALL)
@@ -207,6 +278,8 @@ def parse_response(raw: str, *, default_tension: int = 5) -> tuple[str, dict[str
         next_scene = normalize_next_scene_query(game_state.get("next_scene_query"), narrative)
         if next_scene:
             game_state["next_scene_query"] = next_scene
+        if valid_player_ids:
+            game_state = reconcile_runtime_player_ids(game_state, valid_player_ids)
     return narrative, game_state
 
 
@@ -544,7 +617,7 @@ async def run_scenario(
                 error = str(exc)
                 break
 
-            narrative, game_state = parse_response(raw_response, default_tension=tension_level)
+            narrative, game_state = parse_response(raw_response, default_tension=tension_level, valid_player_ids=player_ids)
             await state_manager.append_history(conn, str(uuid.uuid4()), turn_idx, "user", action_text)
             await state_manager.append_history(conn, str(uuid.uuid4()), turn_idx, "assistant", narrative)
             await apply_eval_game_state(conn, game_state)

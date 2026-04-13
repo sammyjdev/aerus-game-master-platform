@@ -27,6 +27,20 @@ class Race(str, Enum):
     CORRUPTED = "corrupted"
 
 
+class Subrace(str, Enum):
+    HUMAN_NORTHERNER = "human_northerner"
+    HUMAN_TRADER = "human_trader"
+    HUMAN_KHORATHI = "human_khorathi"
+    HUMAN_DAWNMERE = "human_dawnmere"
+    ELF_TWILIGHT = "elf_twilight"
+    ELF_CORRUPTED_FAE = "elf_corrupted_fae"
+    ELF_MIST = "elf_mist"
+    ELF_WANDERING_FAE = "elf_wandering_fae"
+    FORGER_STONE_GOLIATH = "forger_stone_goliath"
+    FORGER_DEEP_DWARF = "forger_deep_dwarf"
+    FORGER_STENVAARD = "forger_stenvaard"
+
+
 class Element(str, Enum):
     WATER = "water"
     EARTH = "earth"
@@ -113,6 +127,12 @@ class Character:
     magic_proficiency: dict[str, int] = field(default_factory=dict)
     weapon_proficiency: dict[str, int] = field(default_factory=dict)
     passive_milestones: list[str] = field(default_factory=list)
+    # Skills: organic progression tracked per sub-skill key
+    # Format: {"skill_key": {"rank": int, "uses": int, "impact": float}}
+    skills: dict[str, dict] = field(default_factory=dict)
+    attribute_points_available: int = 0
+    proficiency_points_available: int = 0
+    subrace: str | None = None
 
 
 @dataclass
@@ -228,6 +248,22 @@ class CreateCharacterRequest(BaseModel):
     race: Race
     faction: Faction
     backstory: str
+    subrace: str | None = None
+
+
+class AnalyzeBackstoryRequest(BaseModel):
+    backstory: str
+
+
+class SpendAttributePointsRequest(BaseModel):
+    attribute: str  # strength | dexterity | intelligence | vitality | luck | charisma
+    target_value: int
+
+
+class SpendProficiencyPointsRequest(BaseModel):
+    prof_type: str  # "weapon" | "magic"
+    key: str        # e.g. "sword", "fire"
+    target_rank: int
 
 
 class PlayerActionRequest(BaseModel):

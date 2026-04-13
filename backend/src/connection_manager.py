@@ -12,11 +12,24 @@ from dataclasses import dataclass
 from typing import Any, AsyncIterator
 
 from fastapi import WebSocket
+from pydantic import TypeAdapter
 
 from .debug_tools import log_debug, summarize_payload
 from .models import WSMessageType
+from .ws_contracts import OutgoingWSMessage
 
 logger = logging.getLogger(__name__)
+
+_outgoing_adapter: TypeAdapter[OutgoingWSMessage] = TypeAdapter(OutgoingWSMessage)
+
+
+def _validate_and_serialize(message: dict[str, Any]) -> str:
+    try:
+        validated = _outgoing_adapter.validate_python(message)
+        return json.dumps(validated.model_dump(), ensure_ascii=False)
+    except Exception as exc:
+        logger.error("WS contract violation: %s | message_type=%s", exc, message.get("type"))
+        return json.dumps(message, ensure_ascii=False)
 
 
 @dataclass
@@ -62,7 +75,7 @@ class ConnectionManager:
         if conn is None:
             return False
         try:
-            await conn.websocket.send_text(json.dumps(message, ensure_ascii=False))
+            await conn.websocket.send_text(_validate_and_serialize(message))
             log_debug(logger, "ws_send_to", player_id=player_id, message=summarize_payload(message))
             return True
         except Exception as exc:
@@ -93,7 +106,7 @@ class ConnectionManager:
         self, player_id: str, conn: PlayerConnection, message: dict[str, Any]
     ) -> bool:
         try:
-            await conn.websocket.send_text(json.dumps(message, ensure_ascii=False))
+            await conn.websocket.send_text(_validate_and_serialize(message))
             return True
         except Exception as exc:
             logger.warning("Broadcast failed for %s: %s", player_id, exc)

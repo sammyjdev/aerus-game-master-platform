@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # ── Narrative ────────────────────────────────────────────────────────────────
@@ -59,7 +59,7 @@ class HistorySyncMessage(BaseModel):
 class DiceRollMessage(BaseModel):
     type: Literal["dice_roll"]
     player: str
-    die: int
+    die: int = Field(gt=0)
     purpose: str
     result: int
     is_critical: bool = False
@@ -92,7 +92,9 @@ class AudioCueMessage(BaseModel):
 
 class BossMusicMessage(BaseModel):
     type: Literal["boss_music"]
-    url: str
+    url: str | None = None
+    tension_level: int | None = None
+    intensity: Literal["high", "medium"] | None = None
 
 
 class ImageReadyMessage(BaseModel):
@@ -118,9 +120,18 @@ class IsekaiConvocationMessage(BaseModel):
 
 
 class FactionObjectiveUpdateMessage(BaseModel):
-    type: Literal["faction_objective_update"]
+    type: Literal["faction_objective_update"] = "faction_objective_update"
     faction: str
-    hint: str
+    objective: str
+    status: Literal["in_progress", "completed", "failed"]
+    cred_change: float
+
+
+class DiceResultMessage(BaseModel):
+    type: Literal["dice_result"] = "dice_result"
+    player_id: str
+    die: int = Field(gt=0)
+    result: int
 
 
 # ── Errors ───────────────────────────────────────────────────────────────────
@@ -128,6 +139,21 @@ class FactionObjectiveUpdateMessage(BaseModel):
 class ErrorMessage(BaseModel):
     type: Literal["error"]
     message: str
+
+
+class MilestoneMessage(BaseModel):
+    type: Literal["milestone"] = "milestone"
+    player_id: str
+    milestones: list[str]
+
+
+# ── Church Seals ─────────────────────────────────────────────────────────────
+
+class SealEventMessage(BaseModel):
+    type: Literal["seal_event"] = "seal_event"
+    player_id: str
+    action: Literal["granted", "revoked"]
+    seal_type: str | None
 
 
 # ── Union type for all outgoing messages ─────────────────────────────────────
@@ -149,5 +175,8 @@ OutgoingWSMessage = (
     | TokenRefreshMessage
     | IsekaiConvocationMessage
     | FactionObjectiveUpdateMessage
+    | DiceResultMessage
+    | MilestoneMessage
+    | SealEventMessage
     | ErrorMessage
 )

@@ -65,10 +65,10 @@ async def _seed_character(conn, player_id="player-1", username=None):
 # ---------------------------------------------------------------------------
 
 async def test_init_db_creates_all_tables(db):
-    """Todas as 13 tabelas do schema devem existir apÃ³s init_db."""
+    """Core tables must exist after init_db (summaries dropped in migration 011)."""
     expected_tables = {
         "invites", "players", "sessions", "inventory", "conditions",
-        "history", "summaries", "quest_flags", "world_state",
+        "history", "quest_flags", "world_state",
         "character_memory", "world_memory", "arc_memory", "generated_images",
     }
     async with db.execute(
@@ -447,7 +447,7 @@ def test_xp_threshold_scales_with_level():
 def test_apply_xp_and_attrs_no_level_up():
     row = _make_row(experience=0, level=1)
     attrs = {"strength": 10}
-    exp, level = _apply_xp_and_attrs(row, {"experience_gain": 50}, attrs)
+    exp, level, _ap, _pp = _apply_xp_and_attrs(row, {"experience_gain": 50}, attrs)
     assert exp == 50
     assert level == 1
 
@@ -455,25 +455,25 @@ def test_apply_xp_and_attrs_no_level_up():
 def test_apply_xp_and_attrs_triggers_level_up():
     row = _make_row(experience=80, level=1)
     attrs = {}
-    exp, level = _apply_xp_and_attrs(row, {"experience_gain": 50}, attrs)
-    # 80 + 50 = 130 >= 100 (threshold nÃ­vel 1) â†’ level up, residual = 30
+    exp, level, _ap, _pp = _apply_xp_and_attrs(row, {"experience_gain": 50}, attrs)
+    # 80 + 50 = 130 >= 100 (threshold nível 1) → level up, residual = 30
     assert level == 2
     assert exp == 30
 
 
 def test_apply_xp_and_attrs_attribute_floor_is_10():
-    """Atributo nÃ£o pode cair abaixo de 10."""
+    """Atributo não pode cair abaixo de 10."""
     row = _make_row(experience=0, level=1)
     attrs = {"strength": 10}
-    _exp, _lvl = _apply_xp_and_attrs(row, {"attribute_changes": {"strength": -50}}, attrs)
+    _exp, _lvl, _ap, _pp = _apply_xp_and_attrs(row, {"attribute_changes": {"strength": -50}}, attrs)
     assert attrs["strength"] == 10  # clampado
 
 
 def test_apply_xp_and_attrs_ignores_unknown_attributes():
-    """Delta de atributos desconhecidos nÃ£o deve inserir chaves novas."""
+    """Delta de atributos desconhecidos não deve inserir chaves novas."""
     row = _make_row(experience=0, level=1)
     attrs = {"strength": 10}
-    _exp, _lvl = _apply_xp_and_attrs(row, {"attribute_changes": {"luck": 5}}, attrs)
+    _exp, _lvl, _ap, _pp = _apply_xp_and_attrs(row, {"attribute_changes": {"luck": 5}}, attrs)
     assert "luck" not in attrs
 
 

@@ -2,9 +2,11 @@
 main.py - HTTP and WebSocket transport. ZERO business logic.
 Routing, dependency injection, and lifecycle only.
 """
+import asyncio
 import json
 import logging
 import os
+import random
 import re
 import time
 import uuid
@@ -29,6 +31,7 @@ from . import game_master, state_manager, travel_manager, vector_store
 # Canonical maps served as static assets at /maps
 _MAPS_DIR = Path(__file__).parent.parent.parent / "docs" / "maps"
 from .auth import (
+    JWT_EXPIRE_SECONDS,
     create_token,
     decode_token,
     generate_invite_code,
@@ -36,15 +39,19 @@ from .auth import (
     should_refresh_token,
     verify_password,
 )
+from .infrastructure.config.config_loader import get_campaign_value as _get_campaign_value
 from .crypto import encrypt_api_key
 from .debug_tools import clip_text, configure_logging, log_debug, log_flow, mask_secret
 from .local_llm import generate_text
 from .models import (
+    AnalyzeBackstoryRequest,
     CharacterResponse,
     CreateCharacterRequest,
     DiceRollRequestBody,
     DiceRollResolveBody,
     DiceRollSubmitBody,
+    SpendAttributePointsRequest,
+    SpendProficiencyPointsRequest,
     UpdateBackstoryBody,
     UpdateMacrosBody,
     UpdateSpellAliasesBody,
@@ -68,7 +75,9 @@ PLAYER_NOT_FOUND_DETAIL = "Player not found"
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    from .recipe_manager import load_recipes
     await state_manager.init_db()
+    load_recipes()
     bestiary_count = await vector_store.ingest_bestiary()
     world_count = await vector_store.ingest_world_lore()
     logger.info(
@@ -124,7 +133,11 @@ async def log_http_requests(request: Request, call_next):
     )
     return response
 
-_ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",")]
+# CORS: Fail-closed by default. Defaults to localhost:5173 (dev), configurable via env for prod
+_ALLOWED_ORIGINS = [
+    o.strip() 
+    for o in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+]
 
 app.add_middleware(
     CORSMiddleware,
@@ -172,6 +185,28 @@ async def get_current_player(
 PlayerDep = Annotated[dict, Depends(get_current_player)]
 
 
+async def verify_admin_secret(request: Request) -> None:
+    """Dependency to verify X-Admin-Secret header. Always required for admin routes."""
+    admin_secret = os.getenv("ADMIN_SECRET", "")
+    provided_secret = request.headers.get("X-Admin-Secret", "")
+    if not admin_secret or provided_secret != admin_secret:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+
+AdminDep = Annotated[None, Depends(verify_admin_secret)]
+
+
+# ---------------------------------------------------------------------------
+# Health/Status routes
+# ---------------------------------------------------------------------------
+
+@app.get("/health", tags=["health"], responses={200: {"description": "Server is healthy"}})
+async def health_check() -> dict:
+    """Health check endpoint."""
+    lang = _get_campaign_value("campaign.language") or "en"
+    return {"status": "ok", "language": lang}
+
+
 # ---------------------------------------------------------------------------
 # Auth routes
 # ---------------------------------------------------------------------------
@@ -202,6 +237,7 @@ async def redeem_invite(body: RedeemInviteRequest, conn: DbDep) -> TokenResponse
     await state_manager.create_player(conn, player_id, body.username, password_hash)
 
     token = create_token(player_id, body.username)
+    await state_manager.create_session(conn, player_id, token, time.time() + JWT_EXPIRE_SECONDS)
     log_flow(logger, "auth_redeem_success", player_id=player_id, username=body.username)
     return TokenResponse(access_token=token)
 
@@ -223,8 +259,34 @@ async def login(body: LoginRequest, conn: DbDep) -> TokenResponse:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token = create_token(row["player_id"], body.username)
+    await state_manager.create_session(conn, row["player_id"], token, time.time() + JWT_EXPIRE_SECONDS)
     log_flow(logger, "auth_login_success", player_id=row["player_id"], username=body.username)
     return TokenResponse(access_token=token)
+
+
+@app.get("/auth/me", tags=["auth"], responses={401: {"description": "Unauthorized"}})
+async def get_current_user(player: PlayerDep, conn: DbDep) -> dict:
+    """Get the current authenticated player's profile."""
+    row = await state_manager.get_player_by_id(conn, player["player_id"])
+    if row is None:
+        raise HTTPException(status_code=401, detail=PLAYER_NOT_FOUND_DETAIL)
+    
+    return {
+        "player_id": player["player_id"],
+        "username": player["username"],
+        "level": row["level"] if row["level"] else 1,
+        "name": row["name"],
+        "status": row["status"] if row["status"] else "pending",
+    }
+
+
+
+@app.post("/auth/logout", tags=["auth"], responses={200: {"description": "Logged out"}})
+async def logout(player: PlayerDep, conn: DbDep) -> dict:
+    """Logout and revoke all active sessions for the player."""
+    log_flow(logger, "auth_logout", player_id=player["player_id"])
+    await state_manager.revoke_sessions(conn, player["player_id"])
+    return {"status": "logged_out"}
 
 
 # ---------------------------------------------------------------------------
@@ -260,6 +322,7 @@ async def create_character(
         inferred_class=inferred_class,
         secret_objective=secret_objective,
         max_hp=max_hp,
+        subrace=body.subrace,
     )
     await state_manager.seed_starter_inventory(conn, player_id, body.backstory)
     await state_manager.ensure_default_world_state(conn)
@@ -380,6 +443,88 @@ async def update_character_spell_aliases(body: UpdateSpellAliasesBody, player: P
     return {"status": "updated", "aliases": normalized}
 
 
+@app.post("/character/analyze-backstory", tags=["character"])
+async def analyze_backstory(
+    body: AnalyzeBackstoryRequest,
+    player: PlayerDep,
+    conn: DbDep,
+) -> dict:
+    """Analyze a backstory and seed matching skills (ranks 1-2, max 5 skills, max 8 impact total).
+    Called automatically after character creation. Safe to call multiple times — won't overwrite
+    higher racial ranks."""
+    from .local_llm import generate_text
+    backstory = body.backstory.strip()
+    if len(backstory) < 20:
+        return {"skills_granted": {}}
+
+    # Valid sub-skill keys (flat list)
+    from .state_manager import SKILL_CATEGORIES
+    all_skill_keys = [sk for keys in SKILL_CATEGORIES.values() for sk in keys]
+    keys_sample = ", ".join(all_skill_keys[:30])  # abbreviated for prompt
+
+    prompt = (
+        f"A character has this backstory:\n\n{backstory[:600]}\n\n"
+        f"From the list of available skill keys: {keys_sample}, ...\n"
+        f"Return a JSON object with at most 5 skill keys the character would plausibly have "
+        f"practiced based on their backstory. Values are ranks: 1 (basic) or 2 (practiced). "
+        f"Example: {{\"negotiation\": 2, \"history\": 1}}. "
+        f"Return ONLY the JSON object, nothing else."
+    )
+    try:
+        raw = await generate_text(prompt, max_tokens=120)
+        import re
+        match = re.search(r"\{[^}]+\}", raw)
+        if not match:
+            return {"skills_granted": {}}
+        skill_seeds = json.loads(match.group())
+        # Validate and cap
+        valid_seeds = {
+            k: max(1, min(2, int(v)))
+            for k, v in skill_seeds.items()
+            if k in all_skill_keys
+        }
+        valid_seeds = dict(list(valid_seeds.items())[:5])
+    except Exception as e:
+        logger.warning("analyze_backstory: LLM parse failed: %s", e)
+        return {"skills_granted": {}}
+
+    if valid_seeds:
+        await state_manager.apply_backstory_skills(conn, player["player_id"], valid_seeds)
+        log_flow(logger, "backstory_skills_applied", player_id=player["player_id"], skills=valid_seeds)
+
+    return {"skills_granted": valid_seeds}
+
+
+@app.post("/character/attributes/spend", tags=["character"])
+async def spend_attribute_points(
+    body: SpendAttributePointsRequest,
+    player: PlayerDep,
+    conn: DbDep,
+) -> dict:
+    """Spend AP to raise an attribute. 1 AP = +1. Cap per attribute: 250."""
+    result = await state_manager.spend_attribute_points(
+        conn, player["player_id"], body.attribute, body.target_value
+    )
+    if not result.get("ok"):
+        raise HTTPException(status_code=400, detail=result.get("reason", "Cannot spend points"))
+    return result
+
+
+@app.post("/character/proficiencies/spend", tags=["character"])
+async def spend_proficiency_points(
+    body: SpendProficiencyPointsRequest,
+    player: PlayerDep,
+    conn: DbDep,
+) -> dict:
+    """Spend PP to raise a weapon or magic proficiency rank. Cost increases per tier."""
+    result = await state_manager.spend_proficiency_points(
+        conn, player["player_id"], body.prof_type, body.key, body.target_rank
+    )
+    if not result.get("ok"):
+        raise HTTPException(status_code=400, detail=result.get("reason", "Cannot spend points"))
+    return result
+
+
 @app.get("/debug/state", tags=["debug"], responses={404: {"description": PLAYER_NOT_FOUND_DETAIL}})
 async def get_debug_state_snapshot(player: PlayerDep, conn: DbDep) -> dict:
     player_id = player["player_id"]
@@ -494,6 +639,14 @@ async def register_byok(
     return {"message": "Key registered successfully"}
 
 
+@app.delete("/player/api-key", tags=["player"], responses={401: {"description": "Unauthorized"}})
+async def delete_api_key(player: PlayerDep, conn: DbDep) -> dict:
+    """Delete the player's BYOK API key."""
+    await state_manager.delete_byok_key(conn, player["player_id"])
+    log_flow(logger, "byok_deleted", player_id=player["player_id"])
+    return {"status": "deleted"}
+
+
 # ---------------------------------------------------------------------------
 # Admin routes
 # ---------------------------------------------------------------------------
@@ -512,6 +665,77 @@ async def create_invite_code(request: Request, conn: DbDep) -> dict:
     await state_manager.create_invite(conn, code, created_by="admin")
     log_flow(logger, "admin_invite_created", invite_code=mask_secret(code))
     return {"invite_code": code}
+
+
+@app.get(
+    "/admin/players",
+    tags=["admin"],
+    responses={403: {"description": "Access denied"}},
+)
+async def list_admin_players(admin: AdminDep, conn: DbDep) -> dict:
+    """List all players with their profile data. Requires X-Admin-Secret header."""
+    rows = await state_manager.get_all_players(conn)
+    players = [
+        {
+            "player_id": row["player_id"],
+            "username": row["username"],
+            "status": row.get("status", "pending"),
+            "name": row.get("name"),
+            "level": row.get("level", 1),
+        }
+        for row in rows
+    ]
+    log_flow(logger, "admin_list_players", count=len(players))
+    return {"players": players}
+
+
+@app.post(
+    "/admin/pause",
+    tags=["admin"],
+    responses={403: {"description": "Access denied"}},
+)
+async def toggle_campaign_pause(admin: AdminDep, body: dict, conn: DbDep) -> dict:
+    """Toggle campaign pause state. Requires X-Admin-Secret header."""
+    paused = body.get("paused", False)
+    pause_value = "1" if paused else "0"
+    await state_manager.set_world_state(conn, "campaign_paused", pause_value)
+    log_flow(logger, "admin_campaign_paused", paused=paused)
+    return {"campaign_paused": paused}
+
+
+@app.post(
+    "/admin/reload",
+    tags=["admin"],
+    responses={403: {"description": "Access denied"}},
+)
+async def reload_config(admin: AdminDep, conn: DbDep) -> dict:
+    """Reload ChromaDB lore and configuration. Requires X-Admin-Secret header."""
+    bestiary_count = await vector_store.ingest_bestiary()
+    world_count = await vector_store.ingest_world_lore()
+    log_flow(logger, "admin_config_reloaded", bestiary_docs=bestiary_count, world_docs=world_count)
+    return {"status": "reloaded", "bestiary_docs": bestiary_count, "world_docs": world_count}
+
+
+@app.get(
+    "/admin/invites",
+    tags=["admin"],
+    responses={403: {"description": "Access denied"}},
+)
+async def list_admin_invites(admin: AdminDep, conn: DbDep) -> dict:
+    """List all invite codes with metadata. Requires X-Admin-Secret header."""
+    rows = await state_manager.get_all_invites(conn)
+    invites = [
+        {
+            "code": row["code"],
+            "created_by": row["created_by"],
+            "created_at": row["created_at"],
+            "used": row.get("used", False),
+            "used_by": row.get("used_by"),
+        }
+        for row in rows
+    ]
+    log_flow(logger, "admin_list_invites", count=len(invites))
+    return {"invites": invites}
 
 
 @app.post(
@@ -642,6 +866,73 @@ async def resolve_manual_dice_roll(body: DiceRollResolveBody, conn: DbDep) -> di
     return {"status": "resolved", "roll_id": body.roll_id}
 
 
+@app.get(
+    "/game/history",
+    tags=["game"],
+    responses={401: {"description": "Unauthorized"}},
+)
+async def get_game_history(
+    player: PlayerDep,
+    conn: DbDep,
+    limit: int = 10,
+) -> dict:
+    """Retrieve recent narrative history within optional limit (default=10, max=50)."""
+    # Clamp limit to max 50 to prevent abuse
+    limit = min(limit, 50)
+    rows = await state_manager.get_recent_history(conn, limit)
+    history = [
+        {
+            "role": row["role"],
+            "content": row["content"],
+            "turn_number": row["turn_number"],
+        }
+        for row in rows
+    ]
+    log_flow(logger, "game_history_retrieved", player_id=player["player_id"], entries=len(history))
+    return {"history": history}
+
+
+@app.post("/game/roll", tags=["game"])
+async def roll_dice(request: Request, player: PlayerDep) -> dict:
+    """Roll a die and broadcast dice_result over WebSocket."""
+    body = await request.json()
+    die = body.get("die", 20)
+    if not isinstance(die, int) or die < 2:
+        raise HTTPException(status_code=422, detail="Invalid die size")
+    result = random.randint(1, die)
+    player_id = player["player_id"]
+    await cm.manager.broadcast({
+        "type": "dice_result",
+        "player_id": player_id,
+        "die": die,
+        "result": result,
+    })
+    return {"die": die, "result": result}
+
+
+@app.post("/game/craft", tags=["game"])
+async def initiate_craft(request: Request, player: PlayerDep) -> dict:
+    """
+    Initiate a crafting attempt. The GM resolves it narratively.
+    Records the attempt and returns the recipe details so the GM can narrate the result.
+    The actual outcome is applied via a craft_outcome state delta after the GM narrates.
+    """
+    body = await request.json()
+    recipe_name = body.get("recipe", "")
+    if not recipe_name:
+        raise HTTPException(status_code=422, detail="recipe name required")
+
+    from .recipe_manager import find_recipe
+    recipe = find_recipe(recipe_name)
+    if recipe is None:
+        raise HTTPException(status_code=404, detail=f"Recipe '{recipe_name}' not found")
+
+    return {
+        "recipe": recipe,
+        "message": "Crafting attempt submitted. The GM will resolve this narratively.",
+    }
+
+
 # ---------------------------------------------------------------------------
 # WebSocket
 # ---------------------------------------------------------------------------
@@ -692,9 +983,11 @@ async def _load_world_sync_snapshot(conn: aiosqlite.Connection) -> dict:
     tension_level = await state_manager.get_world_state(conn, "tension_level") or "5"
     current_location = await state_manager.get_world_state(conn, "current_location") or state_manager.DEFAULT_START_LOCATION
     campaign_paused = await state_manager.get_world_state(conn, "campaign_paused") or "0"
+    current_turn = await state_manager.get_current_turn_number(conn)
     cooperative = await state_manager.get_cooperative_mission_state(conn)
     travel = await travel_manager.get_travel_state(conn)
     return {
+        "current_turn": current_turn,
         "current_location": current_location,
         "tension_level": int(tension_level) if str(tension_level).isdigit() else 5,
         "campaign_paused": campaign_paused == "1",
@@ -774,6 +1067,10 @@ def _build_player_full_state(row: dict, inv_rows: list, cond_rows: list) -> dict
         "macros": json.loads(row["macros_json"] or "[]"),
         "spell_aliases": json.loads(row["spell_aliases_json"] or "{}"),
         "secret_objective": row["secret_objective"] or "",
+        "skills": json.loads(row["skills_json"] or "{}"),
+        "attribute_points_available": int(row["attribute_points_available"] or 0),
+        "proficiency_points_available": int(row["proficiency_points_available"] or 0),
+        "subrace": row["subrace"],
     }
 
 
@@ -790,7 +1087,14 @@ async def _send_player_history_sync(player_id: str, history_rows: list) -> None:
         return
     await cm.manager.send_to(player_id, {
         "type": WSMessageType.HISTORY_SYNC,
-        "entries": [{"role": r["role"], "content": r["content"]} for r in history_rows],
+        "entries": [
+            {
+                "role": r["role"],
+                "content": r["content"],
+                "turn_number": r["turn_number"],
+            }
+            for r in history_rows
+        ],
     })
 
 
@@ -1048,7 +1352,27 @@ async def _trigger_isekai_on_connect(player_id: str, row: dict) -> None:
         logger.exception("Error in _trigger_isekai_on_connect for %s: %s", player_id, e)
 
 
+# ---------------------------------------------------------------------------
+# SPA fallback — serve the React frontend when built into frontend/dist/
+# Must be registered AFTER all API routes so it doesn't shadow them.
+# ---------------------------------------------------------------------------
+from fastapi.responses import FileResponse  # noqa: E402
 
+_FRONTEND_DIST = Path(__file__).parent.parent.parent / "frontend" / "dist"
 
+if _FRONTEND_DIST.exists():
+    app.mount("/assets", StaticFiles(directory=str(_FRONTEND_DIST / "assets")), name="frontend-assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa_fallback(full_path: str) -> FileResponse:
+        """Serve the React SPA for all non-API routes."""
+        file = _FRONTEND_DIST / full_path
+        if file.is_file():
+            return FileResponse(str(file))
+        # index.html must never be cached — each build produces new asset hashes
+        return FileResponse(
+            str(_FRONTEND_DIST / "index.html"),
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+        )
 
 

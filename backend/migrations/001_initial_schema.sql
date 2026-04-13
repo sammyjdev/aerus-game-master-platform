@@ -122,6 +122,8 @@ CREATE TABLE IF NOT EXISTS arc_memory (
     updated_at  REAL NOT NULL
 );
 
+-- FR-09 DEFERRED (Phase 2): Image generation pipeline not implemented.
+-- Schema preserved for future integration with an image-generation service.
 CREATE TABLE IF NOT EXISTS generated_images (
     image_id    TEXT PRIMARY KEY,
     prompt      TEXT NOT NULL,

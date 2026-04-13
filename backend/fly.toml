@@ -33,6 +33,15 @@ primary_region = "gru"
 [deploy]
   strategy = "immediate"
 
+[[vm.checks]]
+  grace_period = "5s"
+  interval = "15s"
+  method = "GET"
+  path = "/health"
+  port = 8080
+  timeout = "2s"
+  type = "http"
+
 # NUNCA aumentar max_machines sem migrar para PostgreSQL (ADR-002)
 [machines]
   max = 1

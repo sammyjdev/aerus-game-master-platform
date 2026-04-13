@@ -2,7 +2,7 @@
   name: 'The Incomplete Sealing'
   version: '1.0.0'
   max_players: 5
-  language: 'en'
+  language: 'pt'
 
 tone:
   darkness_level: 8 # 1-10, influences GM descriptions

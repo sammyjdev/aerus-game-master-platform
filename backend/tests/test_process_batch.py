@@ -388,9 +388,10 @@ async def test_apply_deltas_triggers_ability_unlock_on_level_multiple_of_five(db
 async def test_apply_deltas_triggers_class_mutation_on_level_25(db):
     """NÃ­vel 25: emite CLASS_MUTATION (mutaÃ§Ã£o formal) alÃ©m do ABILITY_UNLOCK."""
     player_id = await _seed_player(db)
+    # _xp_threshold(24) = 2400; set XP to 2399 so +1 triggers exactly one level-up to 25
     await db.execute(
         "UPDATE players SET inferred_class = ?, level = ?, experience = ? WHERE player_id = ?",
-        ("Warrior", 24, 9999, player_id),
+        ("Warrior", 24, 2399, player_id),
     )
     await db.commit()
 
