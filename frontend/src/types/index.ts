@@ -100,6 +100,10 @@ export interface PlayerState {
   macros: MacroAction[]
   passive_milestones: Milestone[]
   contribution_score: number
+  skills: Record<string, SkillEntry>
+  attribute_points_available: number
+  proficiency_points_available: number
+  subrace: string | null
 }
 
 export interface TravelState {
@@ -115,6 +119,7 @@ export interface TravelState {
 }
 
 export interface WorldState {
+  current_turn?: number
   current_location: string
   quest_flags: Record<string, string>
   tension_level: number
@@ -185,6 +190,12 @@ export interface ManualDiceArgumentSubmittedEvent {
   description: string
 }
 
+export interface SkillEntry {
+  rank: number
+  uses: number
+  impact: number
+}
+
 export interface PlayerDelta {
   hp_change?: number
   mp_change?: number
@@ -198,6 +209,10 @@ export interface PlayerDelta {
   conditions_remove?: string[]
   magic_proficiency_delta?: Record<string, number>
   weapon_proficiency_delta?: Record<string, number>
+  skill_delta?: Record<string, number>
+  skill_use?: { skill_key: string; impact: number }
+  grant_attribute_points?: number
+  grant_proficiency_points?: number
 }
 
 export interface StateUpdateEvent {
@@ -419,6 +434,18 @@ export interface CreateCharacterRequest {
   race: Race
   faction: Faction
   backstory: string
+  subrace?: string | null
+}
+
+export interface SpendAttributePointsRequest {
+  attribute: string
+  target_value: number
+}
+
+export interface SpendProficiencyPointsRequest {
+  prof_type: 'weapon' | 'magic'
+  key: string
+  target_rank: number
 }
 
 export type DebugLevel = 'debug' | 'info' | 'warn' | 'error'

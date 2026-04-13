@@ -18,6 +18,7 @@ import {
   TravelTracker,
   VolumeSettings,
 } from '../features/game';
+import { DebugPanel } from '../components/ui/DebugPanel';
 import { logClient } from '../debug/logger';
 import { useAudio } from '../hooks/useAudio';
 import { useTokenRefresh } from '../hooks/useTokenRefresh';
@@ -89,16 +90,33 @@ export function GamePage() {
         muted
         playsInline
       />
-      <ConnectionStatus />
-      <EventLog />
 
-      <div className='layout-grid'>
+      {/* ── Left sidebar: events, status, travel, map ── */}
+      <aside className='sidebar-left'>
+        <EventLog />
+        <ConnectionStatus />
+        <TravelTracker />
+        <MapViewer />
+      </aside>
+
+      {/* ── Center: narrative + action input ── */}
+      <div className='center-col'>
         <NarrativePanel />
-        <CharacterSheet />
+        <ActionInput onSend={sendAction} />
       </div>
 
-      <ActionInput onSend={sendAction} />
-      <CombatOrder />
+      {/* ── Right sidebar: combat, character sheet, controls ── */}
+      <aside className='sidebar-right'>
+        <div className='sidebar-right-scroll'>
+          <CombatOrder />
+          <CharacterSheet />
+        </div>
+        <div className='controls-tray'>
+          <ByokSettings token={token} />
+          <VolumeSettings />
+          <DebugPanel />
+        </div>
+      </aside>
 
       {gameState.pending_dice_roll && (
         <DiceRoller
@@ -118,10 +136,6 @@ export function GamePage() {
       {isSpectator && (
         <SpectatorOverlay onCreateCharacter={() => navigate('/character')} />
       )}
-      <TravelTracker />
-      <MapViewer />
-      <VolumeSettings />
-      <ByokSettings token={token} />
 
       {showIntro && isekaiEvent && (
         <IsekaiIntro

@@ -1,0 +1,58 @@
+{
+  "combat": {
+    "order_title": "Combat Order",
+    "player_fallback": "Player",
+    "current_turn": "Current turn"
+  },
+  "dice": {
+    "close": "Close",
+    "gm_roll_title": "GM Requested Roll",
+    "rolling": "Rolling...",
+    "roll_d20": "Roll D20",
+    "submit_roll": "Submit roll and argument",
+    "reroll": "Roll again",
+    "circumstance_placeholder": "Circumstance argument (single chance)",
+    "circumstance_hint": "Optional: describe a situational bonus for the GM to evaluate.",
+    "waiting_gm": "Waiting for the GM final decision...",
+    "gm_decision": "GM decision: ",
+    "applied_bonus": "Applied bonus: ",
+    "final_result": " | Final result: ",
+    "reroll_requested": "reroll requested",
+    "no_notes": "No additional notes."
+  },
+  "narrative": {
+    "aria_label": "Game narrative",
+    "close_warning": "Close warning",
+    "narrative_waiting": "The narrative begins when all players submit an action."
+  },
+  "travel": {
+    "in_transit": "In Transit",
+    "day_counter": "Day {{current}}/{{total}}",
+    "arriving_today": "Arriving today",
+    "days_remaining_one": "{{count}} day remaining",
+    "days_remaining_other": "{{count}} days remaining",
+    "encounter": "⚔ Encounter! {{description}}",
+    "terrain": {
+      "road": "Road",
+      "trail": "Trail",
+      "wilderness": "Open land",
+      "sea": "Sea",
+      "mountain": "Mountain",
+      "corrupted": "Corrupted Zone",
+      "arctic": "Arctic"
+    }
+  },
+  "map": {
+    "open_label": "Open map viewer",
+    "button_title": "Open Aerus maps",
+    "title": "Aerus Maps",
+    "close": "Close",
+    "world": "World",
+    "image_alt": "Map: {{label}}"
+  },
+  "events": {
+    "hide": "Hide events",
+    "show": "Show events",
+    "empty": "No events yet."
+  }
+}

@@ -1,16 +1,16 @@
-import { useState } from 'react'
+import { useState } from 'react';
 
-import { useVolume } from '../../hooks/useAudio'
+import { useVolume } from '../../hooks/useAudio';
 
 const CHANNELS = [
   { key: 'music' as const, label: 'Music' },
   { key: 'sfx' as const, label: 'Effects' },
   { key: 'ambient' as const, label: 'Ambient' },
-]
+];
 
 export function VolumeSettings() {
-  const { volume, setVolume } = useVolume()
-  const [open, setOpen] = useState(false)
+  const { volume, setVolume } = useVolume();
+  const [open, setOpen] = useState(false);
 
   return (
     <div className='volume-settings'>
@@ -20,7 +20,9 @@ export function VolumeSettings() {
         aria-label='Volume settings'
         title='Volume'
       >
-        {volume.music === 0 && volume.sfx === 0 ? 'ðŸ”‡' : 'ðŸ”Š'}
+        {volume.music === 0 && volume.sfx === 0
+          ? '\uD83D\uDD07'
+          : '\uD83D\uDD0A'}
       </button>
 
       {open && (
@@ -36,11 +38,13 @@ export function VolumeSettings() {
                 value={volume[key]}
                 onChange={(e) => setVolume({ [key]: Number(e.target.value) })}
               />
-              <span className='volume-value'>{Math.round(volume[key] * 100)}%</span>
+              <span className='volume-value'>
+                {Math.round(volume[key] * 100)}%
+              </span>
             </label>
           ))}
         </div>
       )}
     </div>
-  )
+  );
 }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { submitManualDiceRoll } from '../../api/http';
 import { useGameStore } from '../../store/gameStore';
@@ -29,6 +30,7 @@ export function ManualDiceRoller({
   const [argument, setArgument] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useTranslation();
   const rollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -69,7 +71,8 @@ export function ManualDiceRoller({
     }, 80);
 
     rollTimeoutRef.current = globalThis.setTimeout(() => {
-      if (rollIntervalRef.current) globalThis.clearInterval(rollIntervalRef.current);
+      if (rollIntervalRef.current)
+        globalThis.clearInterval(rollIntervalRef.current);
       rollIntervalRef.current = null;
       setRolledValue(Math.floor(Math.random() * 20) + 1);
       setRolling(false);
@@ -104,7 +107,7 @@ export function ManualDiceRoller({
         aria-labelledby='manual-dice-title'
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 id='manual-dice-title'>Rolagem Solicitada pelo GM</h3>
+        <h3 id='manual-dice-title'>{t('dice.gm_roll_title')}</h3>
         <p>
           <strong>{request.roll_type.toUpperCase()}</strong> • DC {request.dc}
         </p>
@@ -115,42 +118,50 @@ export function ManualDiceRoller({
         </div>
 
         {rolledValue === null && (
-          <button type='button' onClick={startRoll} disabled={rolling} autoFocus>
-            {rolling ? 'Rolando...' : 'Rolar D20'}
+          <button
+            type='button'
+            onClick={startRoll}
+            disabled={rolling}
+            autoFocus
+          >
+            {rolling ? t('dice.rolling') : t('dice.roll_d20')}
           </button>
         )}
 
         {rolledValue !== null && !submitted && (
           <>
             <label>
-              <span>Circumstance argument (single chance)</span>
+              <span>{t('dice.circumstance_placeholder')}</span>
               <textarea
                 value={argument}
                 onChange={(event) => setArgument(event.target.value)}
                 maxLength={300}
-                placeholder='Optional: describe a situational bonus for the GM to evaluate.'
+                placeholder={t('dice.circumstance_hint')}
               />
             </label>
             <button type='button' onClick={submit} disabled={rolling}>
-              Enviar rolagem e argumento
+              {t('dice.submit_roll')}
             </button>
           </>
         )}
 
         {submitted && !finalResolution && (
-          <p className='muted'>Waiting for the GM final decision...</p>
+          <p className='muted'>{t('dice.waiting_gm')}</p>
         )}
 
         {finalResolution && (
           <div className='manual-resolution'>
-            <h4>GM decision: {finalResolution.verdict}</h4>
+            <h4>
+              {t('dice.gm_decision')}
+              {finalResolution.verdict}
+            </h4>
             <p>
-              Applied bonus: {finalResolution.circumstance_bonus} | Result
-              final: {finalResolution.final_result ?? 'rerrolagem solicitada'}
+              {t('dice.applied_bonus')}
+              {finalResolution.circumstance_bonus}
+              {t('dice.final_result')}
+              {finalResolution.final_result ?? t('dice.reroll_requested')}
             </p>
-            <p>
-              {finalResolution.explanation || 'No additional notes.'}
-            </p>
+            <p>{finalResolution.explanation || t('dice.no_notes')}</p>
             {finalResolution.verdict === 'reroll_requested' ? (
               <button
                 type='button'
@@ -161,11 +172,11 @@ export function ManualDiceRoller({
                   setManualRollResolution(null);
                 }}
               >
-                Rolar novamente
+                {t('dice.reroll')}
               </button>
             ) : (
               <button type='button' onClick={closeResolved} autoFocus>
-                Fechar
+                {t('dice.close')}
               </button>
             )}
           </div>

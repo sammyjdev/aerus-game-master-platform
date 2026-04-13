@@ -1,38 +1,52 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+function getApiBase(): string {
+  const env = import.meta.env.VITE_API_URL;
+  if (env && !env.includes('localhost')) return env;
+  if (
+    typeof window !== 'undefined' &&
+    !window.location.hostname.includes('localhost')
+  ) {
+    return window.location.origin;
+  }
+  return env ?? 'http://localhost:8000';
+}
+
+const API_BASE = getApiBase();
 
 const MAPS = [
-  { label: 'Mundo',    file: 'Aerus_Mapa_Mundi.png' },
-  { label: 'Myr',      file: 'Aerus_IslandOfMyr_Map.png' },
-  { label: 'Valdoria', file: 'Areus_Valdoria_Map.png' },
-  { label: 'Shaleth',  file: 'Aerus_Shaleth_Map.png' },
-  { label: 'Estravar', file: 'Aerus_Estravar_Map.png' },
-  { label: 'Khorrath', file: 'Aerus_Khorrath_Map.png' },
-  { label: 'Veth',     file: 'Aerus_Veth_Map.png' },
-]
+  { label: 'map.world', file: 'Aerus_Mapa_Mundi.png', translatable: true },
+  { label: 'Myr', file: 'Aerus_IslandOfMyr_Map.png', translatable: false },
+  { label: 'Valdoria', file: 'Areus_Valdoria_Map.png', translatable: false },
+  { label: 'Shaleth', file: 'Aerus_Shaleth_Map.png', translatable: false },
+  { label: 'Estravar', file: 'Aerus_Estravar_Map.png', translatable: false },
+  { label: 'Khorrath', file: 'Aerus_Khorrath_Map.png', translatable: false },
+  { label: 'Veth', file: 'Aerus_Veth_Map.png', translatable: false },
+];
 
 export function MapViewer() {
-  const [open, setOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState(0)
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
 
   // Close on Escape
   useEffect(() => {
-    if (!open) return
+    if (!open) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [open])
+      if (e.key === 'Escape') setOpen(false);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [open]);
 
   return (
     <>
       <button
         className='map-viewer-toggle'
         onClick={() => setOpen((v) => !v)}
-        title='Ver mapas de Aerus'
-        aria-label='Abrir visualizador de mapas'
+        title={t('map.button_title')}
+        aria-label={t('map.open_label')}
       >
         🗺
       </button>
@@ -44,14 +58,14 @@ export function MapViewer() {
             onClick={(e) => e.stopPropagation()}
             role='dialog'
             aria-modal='true'
-            aria-label='Mapas de Aerus'
+            aria-label={t('map.title')}
           >
             <div className='map-viewer-header'>
-              <span className='map-viewer-title'>Mapas de Aerus</span>
+              <span className='map-viewer-title'>{t('map.title')}</span>
               <button
                 className='map-viewer-close'
                 onClick={() => setOpen(false)}
-                aria-label='Fechar'
+                aria-label={t('map.close')}
               >
                 ×
               </button>
@@ -66,7 +80,7 @@ export function MapViewer() {
                   className={`map-tab ${activeTab === i ? 'map-tab--active' : ''}`}
                   onClick={() => setActiveTab(i)}
                 >
-                  {m.label}
+                  {m.translatable ? t(m.label) : m.label}
                 </button>
               ))}
             </div>
@@ -75,7 +89,11 @@ export function MapViewer() {
               <img
                 key={MAPS[activeTab].file}
                 src={`${API_BASE}/maps/${MAPS[activeTab].file}`}
-                alt={`Mapa: ${MAPS[activeTab].label}`}
+                alt={t('map.image_alt', {
+                  label: MAPS[activeTab].translatable
+                    ? t(MAPS[activeTab].label)
+                    : MAPS[activeTab].label,
+                })}
                 className='map-viewer-image'
                 draggable={false}
               />
@@ -84,5 +102,5 @@ export function MapViewer() {
         </div>
       )}
     </>
-  )
+  );
 }

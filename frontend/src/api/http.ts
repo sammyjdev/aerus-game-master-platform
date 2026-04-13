@@ -4,11 +4,23 @@ import type {
   DebugStateSnapshot,
   MacroAction,
   RedeemLoginRequest,
+  SkillEntry,
+  SpendAttributePointsRequest,
+  SpendProficiencyPointsRequest,
   TokenResponse,
 } from '../types'
 import { logClient } from '../debug/logger'
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+function getApiBase(): string {
+  const env = import.meta.env.VITE_API_URL
+  if (env && !env.includes('localhost')) return env
+  if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
+    return window.location.origin
+  }
+  return env ?? 'http://localhost:8000'
+}
+
+const API_BASE = getApiBase()
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const startedAt = performance.now()
@@ -84,13 +96,6 @@ export function getCharacter(token: string): Promise<CharacterResponse> {
   })
 }
 
-export function getCharacterMacros(token: string): Promise<{ macros: MacroAction[] }> {
-  return request<{ macros: MacroAction[] }>('/character/macros', {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
-  })
-}
-
 export function updateCharacterMacros(
   token: string,
   macros: MacroAction[],
@@ -110,15 +115,6 @@ export function updateCharacterBackstory(
     method: 'PUT',
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify({ backstory }),
-  })
-}
-
-export function getCharacterSpellAliases(
-  token: string,
-): Promise<{ aliases: Record<string, string> }> {
-  return request<{ aliases: Record<string, string> }>('/character/spell-aliases', {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
   })
 }
 
@@ -166,6 +162,40 @@ export function getDebugStateSnapshot(token: string): Promise<DebugStateSnapshot
   return request<DebugStateSnapshot>('/debug/state', {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
+  })
+}
+
+export interface AnalyzeBackstoryResponse {
+  granted_skills: Record<string, SkillEntry>
+  message: string
+}
+
+export function analyzeBackstory(token: string): Promise<AnalyzeBackstoryResponse> {
+  return request<AnalyzeBackstoryResponse>('/character/analyze-backstory', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+}
+
+export function spendAttributePoints(
+  token: string,
+  payload: SpendAttributePointsRequest,
+): Promise<{ status: string; attribute: string; new_value: number; points_remaining: number }> {
+  return request('/character/attributes/spend', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  })
+}
+
+export function spendProficiencyPoints(
+  token: string,
+  payload: SpendProficiencyPointsRequest,
+): Promise<{ status: string; prof_type: string; key: string; new_rank: number; points_remaining: number }> {
+  return request('/character/proficiencies/spend', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
   })
 }
 

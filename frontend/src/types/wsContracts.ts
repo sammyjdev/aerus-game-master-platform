@@ -51,6 +51,7 @@ export const HistorySyncSchema = z.object({
   entries: z.array(z.object({
     role: z.enum(['user', 'assistant']),
     content: z.string(),
+    turn_number: z.number().int().optional(),
   })),
 })
 
@@ -92,7 +93,9 @@ export const AudioCueSchema = z.object({
 
 export const BossMusicSchema = z.object({
   type: z.literal('boss_music'),
-  url: z.string().url(),
+  tension_level: z.number().int().optional(),
+  intensity: z.enum(['high', 'medium']).optional(),
+  url: z.string().optional(),
 })
 
 export const ImageReadySchema = z.object({
@@ -120,7 +123,9 @@ export const IsekaiConvocationSchema = z.object({
 export const FactionObjectiveUpdateSchema = z.object({
   type: z.literal('faction_objective_update'),
   faction: z.string(),
-  hint: z.string(),
+  objective: z.string(),
+  status: z.enum(['in_progress', 'completed', 'failed']),
+  cred_change: z.number(),
 })
 
 // ── Errors ───────────────────────────────────────────────────────────────────

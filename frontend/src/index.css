@@ -10,13 +10,13 @@
   background: #0f1015;
 
   /* ── Z-index scale ───────────────────────────────────────────────────── */
-  --z-panels:    10;  /* layout panels */
-  --z-fixed-ui:  30;  /* event-log, combat-order, travel-tracker, etc. */
-  --z-buttons:   40;  /* floating corner buttons (volume, byok, map) */
-  --z-modals:    50;  /* map-viewer modal, info panels */
-  --z-dice:      60;  /* dice roll overlays (during gameplay) */
-  --z-overlays:  70;  /* full-screen overlays (campfire, spectator, isekai) */
-  --z-critical:  90;  /* debug panel, always on top */
+  --z-panels: 10; /* layout panels */
+  --z-fixed-ui: 30; /* event-log, combat-order, travel-tracker, etc. */
+  --z-buttons: 40; /* floating corner buttons (volume, byok, map) */
+  --z-modals: 50; /* map-viewer modal, info panels */
+  --z-dice: 60; /* dice roll overlays (during gameplay) */
+  --z-overlays: 70; /* full-screen overlays (campfire, spectator, isekai) */
+  --z-critical: 90; /* debug panel, always on top */
 }
 
 * {
@@ -114,9 +114,12 @@ button:disabled {
 }
 
 .game-page {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   position: relative;
-  padding: 20px;
+  display: grid;
+  grid-template-columns: 270px 1fr 300px;
+  grid-template-areas: 'left center right';
 }
 
 .game-bg-video {
@@ -134,11 +137,52 @@ button:disabled {
   z-index: 1;
 }
 
-.layout-grid {
-  display: grid;
-  grid-template-columns: 1.8fr 1fr;
-  gap: 14px;
-  margin-top: 40px;
+/* ── Three-column game layout ──────────────────────────────────────────── */
+.sidebar-left {
+  grid-area: left;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 12px;
+  overflow-y: auto;
+}
+
+.center-col {
+  grid-area: center;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sidebar-right {
+  grid-area: right;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 12px;
+  overflow: visible;
+  min-height: 0;
+}
+
+.sidebar-right-scroll {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  overflow-x: visible;
+  padding-right: 4px;
+}
+
+/* CharSheet fills remaining right-sidebar space and scrolls */
+.sidebar-right-scroll .panel.sheet {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .panel {
@@ -150,17 +194,91 @@ button:disabled {
 }
 
 .narrative {
-  min-height: 65vh;
-  max-height: 65vh;
+  flex: 1;
+  min-height: 300px;
   overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.turn-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.turn-divider::before,
+.turn-divider::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  background: rgba(124, 141, 255, 0.16);
+}
+
+.turn-divider span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: #7f8dbb;
+}
+
+.entry {
+  animation: entry-fade-in 0.15s ease forwards;
+  border: 1px solid #20263a;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.entry-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.entry-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
 }
 
 .entry.user {
+  background: rgba(17, 25, 40, 0.92);
+  border-color: #26314c;
   color: #d4d8ec;
 }
 
 .entry.assistant {
+  background: rgba(11, 15, 24, 0.96);
+  border-color: #2c334a;
   color: #f2f4ff;
+}
+
+.entry.user .entry-label {
+  color: #8db0ff;
+}
+
+.entry.assistant .entry-label {
+  color: #c9d1ff;
+}
+
+.entry p,
+.entry-action,
+.entry :where(h1, h2, h3, h4, h5, h6, ul, ol, blockquote) {
+  margin: 0;
+}
+
+.entry + .entry {
+  margin-top: -2px;
+}
+
+.entry-action {
+  white-space: pre-wrap;
+  color: #dbe4ff;
 }
 
 .sheet h2 {
@@ -168,22 +286,46 @@ button:disabled {
 }
 
 .sheet-tabs {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-  margin: 10px 0 14px;
+  display: flex;
+  margin: 10px 0 0;
+  border-bottom: 1px solid #1e2438;
 }
 
 .sheet-tabs button {
-  padding: 8px 6px;
-  font-size: 12px;
-  background: #1b2132;
-  border: 1px solid #3a4054;
+  flex: 1;
+  padding: 7px 4px;
+  font-size: 11.5px;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  margin-bottom: -1px;
+  color: #6b78a8;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.sheet-tabs button:hover:not(.active) {
+  color: #a0aad0;
+  background: rgba(139, 150, 214, 0.07);
 }
 
 .sheet-tabs button.active {
-  background: #3f4a7a;
-  border-color: #8896d6;
+  color: #d4daff;
+  font-weight: 600;
+  border-bottom-color: #7c8dff;
+  background: transparent;
+}
+
+.sheet [role='tabpanel'] {
+  padding-top: 12px;
 }
 
 .faction-badge {
@@ -241,6 +383,63 @@ button:disabled {
   gap: 6px;
   padding: 0;
   list-style: none;
+  margin: 8px 0 0;
+}
+
+.attributes li {
+  background: #131925;
+  border: 1px solid #1e2438;
+  border-radius: 6px;
+  padding: 6px 4px;
+  text-align: center;
+  font-size: 12px;
+  color: #c8ceea;
+}
+
+.sheet section + section {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #171c2e;
+}
+
+.sheet h3 {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #7080b0;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.backstory-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.backstory-footer .backstory-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.backstory-footer button {
+  padding: 5px 11px;
+  font-size: 12px;
+  font-weight: 500;
+  background: #1e2d52;
+  border: 1px solid #3a4e7a;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.backstory-footer button:hover:not(:disabled) {
+  background: #283d6e;
+  border-color: #4e6598;
 }
 
 .chips {
@@ -288,16 +487,12 @@ button:disabled {
 }
 
 .event-log {
-  position: fixed;
-  top: 16px;
-  left: 16px;
-  width: 260px;
-  max-height: 60vh;
-  overflow: auto;
   border: 1px solid #2d3142;
   border-radius: 10px;
-  background: #111522;
-  z-index: var(--z-fixed-ui);
+  background: rgba(17, 21, 34, 0.95);
+  max-height: 40vh;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
 .event-toggle {
@@ -314,28 +509,34 @@ button:disabled {
 }
 
 .combat-order {
-  position: fixed;
-  right: 16px;
-  top: 70px;
-  width: 220px;
   border: 1px solid #2d3142;
   border-radius: 10px;
-  background: #111522;
+  background: rgba(17, 21, 34, 0.95);
   padding: 12px;
+  max-height: 35vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.combat-order ol {
+  overflow-y: auto;
+  flex: 1;
+  margin: 6px 0 0;
+  padding: 0 0 0 18px;
+  list-style: decimal;
 }
 
 .connection-status {
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  padding: 8px 10px;
+  padding: 7px 12px;
   border-radius: 999px;
   border: 1px solid #2d3142;
-  background: #101421;
+  background: rgba(16, 20, 33, 0.95);
   display: flex;
   align-items: center;
   gap: 8px;
-  z-index: var(--z-buttons);
+  width: fit-content;
 }
 
 .connection-status .dot {
@@ -356,9 +557,7 @@ button:disabled {
 }
 
 .debug-panel-shell {
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
+  position: relative;
   z-index: var(--z-critical);
 }
 
@@ -368,9 +567,11 @@ button:disabled {
 }
 
 .debug-panel {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
   width: min(520px, calc(100vw - 32px));
   max-height: min(70vh, 720px);
-  margin-top: 8px;
   display: grid;
   gap: 12px;
   overflow: hidden;
@@ -487,8 +688,12 @@ button:disabled {
 }
 
 @keyframes intro-fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .intro-overlay,
@@ -550,9 +755,15 @@ button:disabled {
 }
 
 @keyframes dice-spin {
-  0%   { transform: rotate(0deg) scale(1); }
-  50%  { transform: rotate(180deg) scale(1.2); }
-  100% { transform: rotate(360deg) scale(1); }
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.2);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
 }
 
 .manual-dice-value.rolling {
@@ -589,13 +800,23 @@ button:disabled {
 }
 
 @keyframes dice-card-enter {
-  from { transform: scale(0.75) rotate(-18deg); opacity: 0; }
-  to   { transform: scale(1) rotate(0deg); opacity: 1; }
+  from {
+    transform: scale(0.75) rotate(-18deg);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
 }
 
 @keyframes dice-value-spin {
-  from { transform: rotateX(0deg); }
-  to   { transform: rotateX(720deg); }
+  from {
+    transform: rotateX(0deg);
+  }
+  to {
+    transform: rotateX(720deg);
+  }
 }
 
 .dice-card-enter {
@@ -754,11 +975,21 @@ button:disabled {
 }
 
 /* ── Volume settings ──────────────────────────────────────────────────── */
-.volume-settings {
-  position: fixed;
-  bottom: 16px;
-  right: 16px;
+.controls-tray {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+  position: relative;
   z-index: var(--z-buttons);
+  overflow: visible;
+}
+
+.volume-settings {
+  position: relative;
 }
 
 .volume-toggle {
@@ -778,13 +1009,14 @@ button:disabled {
   position: absolute;
   bottom: 48px;
   right: 0;
-  width: 220px;
+  width: 232px;
   background: #111522;
   border: 1px solid #2d3142;
   border-radius: 10px;
   padding: 14px;
   display: grid;
   gap: 10px;
+  z-index: var(--z-modals);
 }
 
 .volume-row {
@@ -811,10 +1043,7 @@ button:disabled {
 
 /* ── BYOK settings ────────────────────────────────────────────────────── */
 .byok-settings {
-  position: fixed;
-  bottom: 16px;
-  right: 64px;
-  z-index: var(--z-buttons);
+  position: relative;
 }
 
 .byok-toggle {
@@ -841,6 +1070,7 @@ button:disabled {
   padding: 14px;
   display: grid;
   gap: 10px;
+  z-index: var(--z-modals);
 }
 
 .byok-title {
@@ -883,8 +1113,12 @@ button:disabled {
 
 /* ── Streaming word animation (replaces Framer Motion spans) ─────────── */
 @keyframes word-fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .streaming-word {
@@ -896,12 +1130,14 @@ button:disabled {
 
 /* ── Narrative entry appear animation ────────────────────────────────── */
 @keyframes entry-fade-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.entry {
-  animation: entry-fade-in 0.15s ease forwards;
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ── Server error banner ─────────────────────────────────────────────── */
@@ -965,39 +1201,30 @@ textarea:focus-visible {
 }
 
 @media (max-width: 980px) {
-  .layout-grid {
+  .game-page {
     grid-template-columns: 1fr;
+    grid-template-areas: 'center';
   }
 
-  .combat-order {
+  .sidebar-left,
+  .sidebar-right {
     display: none;
   }
 
-  .event-log {
-    position: static;
-    width: 100%;
-    margin-bottom: 10px;
-  }
-
-  .connection-status {
-    position: static;
-    width: fit-content;
+  .center-col {
+    padding: 12px;
   }
 }
 
 /* ── Travel Tracker ──────────────────────────────────────────────────── */
 .travel-tracker {
-  position: fixed;
-  bottom: 64px;
-  left: 16px;
-  width: 240px;
   background: rgba(16, 20, 32, 0.92);
   border: 1px solid #2d3142;
   border-radius: 10px;
   padding: 12px 14px;
-  z-index: var(--z-fixed-ui);
   backdrop-filter: blur(8px);
   transition: border-color 0.3s ease;
+  flex-shrink: 0;
 }
 
 .travel-tracker.travel-encounter-flash {
@@ -1091,16 +1318,19 @@ textarea:focus-visible {
 }
 
 @keyframes encounter-fade {
-  0%   { opacity: 1; }
-  70%  { opacity: 1; }
-  100% { opacity: 0; }
+  0% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 /* ── Map Viewer ──────────────────────────────────────────────────────── */
 .map-viewer-toggle {
-  position: fixed;
-  bottom: 16px;
-  left: 16px;
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -1111,8 +1341,11 @@ textarea:focus-visible {
   place-items: center;
   cursor: pointer;
   padding: 0;
-  z-index: var(--z-buttons);
-  transition: border-color 0.2s, background 0.2s;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
+  margin-top: auto;
+  align-self: flex-start;
 }
 
 .map-viewer-toggle:hover {
@@ -1133,8 +1366,12 @@ textarea:focus-visible {
 }
 
 @keyframes backdrop-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .map-viewer-modal {
@@ -1150,8 +1387,14 @@ textarea:focus-visible {
 }
 
 @keyframes modal-in {
-  from { transform: scale(0.96); opacity: 0; }
-  to   { transform: scale(1);    opacity: 1; }
+  from {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .map-viewer-header {
@@ -1208,7 +1451,9 @@ textarea:focus-visible {
   font-size: 12px;
   cursor: pointer;
   white-space: nowrap;
-  transition: color 0.15s, background 0.15s;
+  transition:
+    color 0.15s,
+    background 0.15s;
 }
 
 .map-tab:hover {

@@ -1,13 +1,24 @@
 import { useCallback, useEffect, useRef } from 'react'
 
 import { logClient, summarizeServerEvent } from '../debug/logger'
+import { safeParseWSMessage } from '../types/wsContracts'
 import { useAudio } from './useAudio'
 import { useGameState } from './useGameState'
 import { useGameStore } from '../store/gameStore'
-import type { ServerEvent } from '../types'
+import type { AudioCueKey, IsekaiConvocationEvent, PlayerDelta, ServerEvent } from '../types'
 
 
-const WS_BASE = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8000'
+function getWsBase(): string {
+  const env = import.meta.env.VITE_WS_URL
+  if (env && !env.includes('localhost')) return env
+  if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
+    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    return `${proto}//${window.location.host}`
+  }
+  return env ?? 'ws://localhost:8000'
+}
+
+const WS_BASE = getWsBase()
 const BACKOFF = [2000, 4000, 8000, 16000, 30000]
 
 export function useWebSocket(token: string | null) {
@@ -22,7 +33,7 @@ export function useWebSocket(token: string | null) {
   const setConnectionStatus = useGameStore((state) => state.setConnectionStatus)
   const setToken = useGameStore((state) => state.setToken)
   const setIsekaiEvent = useGameStore((state) => state.setIsekaiEvent)
-  const setIsStreaming = useGameStore((state) => state.setIsStreaming)
+  const completeNarrativeStream = useGameStore((state) => state.completeNarrativeStream)
   const setGmThinking = useGameStore((state) => state.setGmThinking)
   const setServerError = useGameStore((state) => state.setServerError)
   const {
@@ -38,8 +49,13 @@ export function useWebSocket(token: string | null) {
   const { playSound, playMusic } = useAudio()
 
   const onMessage = useCallback((event: MessageEvent<string>) => {
-    const data = JSON.parse(event.data) as ServerEvent
-    logClient('debug', 'ws', 'Mensagem recebida', summarizeServerEvent(data))
+    const raw = JSON.parse(event.data) as Record<string, unknown>
+    const data = safeParseWSMessage(raw)
+    if (data === null) {
+      logClient('warn', 'ws', 'Unknown or malformed WS message', { raw })
+      return
+    }
+    logClient('debug', 'ws', 'Mensagem recebida', summarizeServerEvent(data as unknown as ServerEvent))
     switch (data.type) {
       case 'narrative_token':
         appendNarrativeToken(data.token)
@@ -58,25 +74,38 @@ export function useWebSocket(token: string | null) {
         }
         break
       case 'state_update':
-        Object.entries(data.delta).forEach(([playerId, delta]) => applyDelta(playerId, delta))
+        Object.entries(data.delta).forEach(([playerId, delta]) => applyDelta(playerId, delta as PlayerDelta))
         break
       case 'full_state_sync':
-        applyFullSync({ state: data.state, world_state: data.world_state })
+        applyFullSync({ state: data.state as Parameters<typeof applyFullSync>[0]['state'], world_state: data.world_state as Parameters<typeof applyFullSync>[0]['world_state'] })
         break
       case 'game_event':
-        handleGameEvent(data)
+        handleGameEvent(data as unknown as Parameters<typeof handleGameEvent>[0])
         break
       case 'token_refresh':
         setToken(data.access_token)
         break
       case 'audio_cue':
-        playSound(data.cue)
+        playSound(data.cue as AudioCueKey)
         break
       case 'boss_music':
-        playMusic(data.url)
+        if (data.url) {
+          playMusic(data.url)
+        } else {
+          // Play based on intensity from emit
+          playMusic(data.intensity === 'high' ? 'boss_high' : 'boss_medium')
+        }
+        break
+      case 'image_ready':
+        // No-op for now: FR-09 deferred
+        logClient('debug', 'ws', 'image_ready received (deferred)', {})
+        break
+      case 'faction_objective_update':
+        // No-op for now: W-03 pending
+        logClient('debug', 'ws', 'faction_objective_update received', { faction: data.faction })
         break
       case 'stream_end':
-        setIsStreaming(false)
+        completeNarrativeStream()
         if (lastActionSentAtRef.current !== null) {
           const durationMs = Number((performance.now() - lastActionSentAtRef.current).toFixed(2))
           logClient('info', 'turn-metrics', 'Turn completed (stream_end)', {
@@ -88,7 +117,7 @@ export function useWebSocket(token: string | null) {
         break
       case 'isekai_convocation':
         setGmThinking(null)
-        setIsekaiEvent(data)
+        setIsekaiEvent(data as unknown as IsekaiConvocationEvent)
         break
       case 'gm_thinking':
         setGmThinking(data.message)
@@ -103,7 +132,7 @@ export function useWebSocket(token: string | null) {
       default:
         break
     }
-  }, [appendNarrativeToken, applyDelta, applyFullSync, handleGameEvent, loadHistory, playMusic, playSound, setGmThinking, setIsekaiEvent, setIsStreaming, setManualRollResolution, setPendingDiceRoll, setPendingManualRoll, setServerError, setToken])
+  }, [appendNarrativeToken, applyDelta, applyFullSync, completeNarrativeStream, handleGameEvent, loadHistory, playMusic, playSound, setGmThinking, setIsekaiEvent, setManualRollResolution, setPendingDiceRoll, setPendingManualRoll, setServerError, setToken])
 
   const clearTimers = useCallback(() => {
     if (heartbeatRef.current) {

@@ -1,7 +1,7 @@
 import { Suspense, lazy, useEffect, type ReactElement } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import i18n from 'i18next';
 
-import { DebugPanel } from './components/ui/DebugPanel';
 import { logClient } from './debug/logger';
 import { useGameStore } from './store/gameStore';
 
@@ -40,6 +40,20 @@ function App() {
     logClient('info', 'router', 'Navigation', { path: location.pathname });
   }, [location.pathname]);
 
+  useEffect(() => {
+    const apiBase =
+      typeof window !== 'undefined' &&
+      !window.location.hostname.includes('localhost')
+        ? window.location.origin
+        : (import.meta.env.VITE_API_URL ?? 'http://localhost:8000');
+    fetch(`${apiBase}/health`)
+      .then((r) => r.json())
+      .then((data: { language?: string }) => {
+        if (data.language) void i18n.changeLanguage(data.language);
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <>
       <Suspense fallback={<main className='auth-page'>Loading...</main>}>
@@ -64,7 +78,6 @@ function App() {
           <Route path='/admin' element={<AdminPage />} />
         </Routes>
       </Suspense>
-      <DebugPanel />
     </>
   );
 }

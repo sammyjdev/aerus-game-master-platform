@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { useGameStore } from '../../store/gameStore';
 
 export function EventLog() {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(true);
   const events = useGameStore((state) => state.eventLog);
 
@@ -15,11 +17,11 @@ export function EventLog() {
         className='event-toggle'
         onClick={() => setOpen((current) => !current)}
       >
-        {open ? 'Ocultar eventos' : 'Mostrar eventos'}
+        {open ? t('events.hide') : t('events.show')}
       </button>
       {open && (
         <ul>
-          {list.length === 0 && <li>Nenhum evento ainda.</li>}
+          {list.length === 0 && <li>{t('events.empty')}</li>}
           {list.map((event, index) => (
             <li key={`${event.event}-${index}`}>
               <strong>{event.event}</strong>

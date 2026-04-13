@@ -75,6 +75,10 @@ const defaultPlayer: PlayerState = {
   macros: [],
   passive_milestones: [],
   contribution_score: 0,
+  skills: {},
+  attribute_points_available: 0,
+  proficiency_points_available: 0,
+  subrace: null,
 }
 
 function createInitialGameState(): GameState {
@@ -115,12 +119,15 @@ interface GameStore {
   faction_reputations: Record<string, Record<string, number>> // player_id → faction_id → score
   lastTravelEncounter: { terrain: string; description: string; tier: number } | null
   serverError: string | null
+  initiative_order: Array<{ player_id: string; name: string; initiative: number }>
+  current_actor_id: string | null
   setToken: (token: string | null) => void
   setConnectionStatus: (status: ConnectionStatus) => void
   setDebugEnabled: (enabled: boolean) => void
   pushDebugEntry: (entry: DebugEntry) => void
   clearDebugEntries: () => void
   appendNarrativeToken: (token: string) => void
+  completeNarrativeStream: () => void
   addHistoryEntry: (entry: HistoryEntry) => void
   setPendingDiceRoll: (roll: DiceRollEvent | null) => void
   setPendingManualRoll: (roll: ManualDiceRequestEvent | null) => void
@@ -133,7 +140,8 @@ interface GameStore {
   setIsekaiEvent: (event: IsekaiConvocationEvent | null) => void
   setGmThinking: (message: string | null) => void
   setServerError: (message: string | null) => void
-  loadHistory: (entries: { role: string; content: string }[]) => void
+  loadHistory: (entries: { role: string; content: string; turn_number?: number }[]) => void
+  setInitiativeOrder: (order: Array<{ player_id: string; name: string; initiative: number }>, currentActorId?: string | null) => void
 }
 
 function applyPlayerGameEvent(player: PlayerState, event: GameEvent): PlayerState {
@@ -227,6 +235,8 @@ export const useGameStore = create<GameStore>((set) => ({
   faction_reputations: {},
   lastTravelEncounter: null,
   serverError: null,
+  initiative_order: [],
+  current_actor_id: null,
   setToken: (token) => {
     if (token) {
       localStorage.setItem('aerus_token', token)
@@ -258,7 +268,7 @@ export const useGameStore = create<GameStore>((set) => ({
       const history = [...state.gameState.history]
       const gmThinking = null
       const last = history.at(-1)
-      if (last?.role === 'assistant') {
+      if (state.gameState.is_streaming && last?.role === 'assistant') {
         last.content = `${last.content}${token}`
       } else {
         history.push({
@@ -277,6 +287,17 @@ export const useGameStore = create<GameStore>((set) => ({
         },
       }
     }),
+  completeNarrativeStream: () =>
+    set((state) => ({
+      gameState: {
+        ...state.gameState,
+        is_streaming: false,
+        turn_number: Math.max(
+          state.gameState.turn_number,
+          state.gameState.history.at(-1)?.turn_number ?? 0,
+        ) + 1,
+      },
+    })),
   addHistoryEntry: (entry) =>
     set((state) => ({
       gameState: {
@@ -354,6 +375,29 @@ export const useGameStore = create<GameStore>((set) => ({
         return state
       }
 
+      // Compute updated skills: first apply skill_use accumulation, then skill_delta overrides
+      let updatedSkills = target.skills ?? {}
+
+      if (delta.skill_use) {
+        const { skill_key, impact } = delta.skill_use
+        const current = updatedSkills[skill_key] ?? { rank: 0, uses: 0, impact: 0 }
+        const newUses = current.uses + 1
+        const newImpact = current.impact + impact
+        let newRank = current.rank
+        while (newImpact >= (newRank + 1) ** 2 * 2.0) {
+          newRank += 1
+        }
+        updatedSkills = { ...updatedSkills, [skill_key]: { rank: newRank, uses: newUses, impact: newImpact } }
+      }
+
+      if (delta.skill_delta) {
+        const merged = { ...updatedSkills }
+        for (const [k, rank] of Object.entries(delta.skill_delta)) {
+          merged[k] = { ...(merged[k] ?? { uses: 0, impact: 0 }), rank }
+        }
+        updatedSkills = merged
+      }
+
       const updated: PlayerState = {
         ...target,
         current_hp: Math.max(0, target.current_hp + (delta.hp_change ?? 0)),
@@ -384,6 +428,9 @@ export const useGameStore = create<GameStore>((set) => ({
           ? { ...target.weapon_proficiency, ...delta.weapon_proficiency_delta }
           : target.weapon_proficiency,
         macros: target.macros,
+        skills: updatedSkills,
+        attribute_points_available: target.attribute_points_available + (delta.grant_attribute_points ?? 0),
+        proficiency_points_available: target.proficiency_points_available + (delta.grant_proficiency_points ?? 0),
       }
 
       if (isCurrentPlayer) {
@@ -410,6 +457,9 @@ export const useGameStore = create<GameStore>((set) => ({
       return {
         gameState: {
           ...state.gameState,
+          turn_number: typeof world_state?.current_turn === 'number'
+            ? world_state.current_turn
+            : state.gameState.turn_number,
           secret_objective: secret_objective ?? state.gameState.secret_objective,
           world_state: world_state ?? state.gameState.world_state,
           current_player: {
@@ -540,16 +590,24 @@ export const useGameStore = create<GameStore>((set) => ({
   setGmThinking: (gmThinking) => set({ gmThinking }),
   setServerError: (serverError) => set({ serverError }),
   loadHistory: (entries) =>
-    set((state) => ({
-      gameState: {
-        ...state.gameState,
-        history: entries.map((e, i) => ({
-          role: e.role as 'user' | 'assistant',
-          content: e.content,
-          turn_number: i,
-        })),
-      },
-    })),
+    set((state) => {
+      const history = entries.map((entry, index) => ({
+        role: entry.role as 'user' | 'assistant',
+        content: entry.content,
+        turn_number: entry.turn_number ?? index,
+      }))
+      const maxTurn = history.reduce(
+        (currentMax, entry) => Math.max(currentMax, entry.turn_number),
+        state.gameState.turn_number,
+      )
+      return {
+        gameState: {
+          ...state.gameState,
+          history,
+          turn_number: maxTurn,
+        },
+      }
+    }),
   setIsekaiEvent: (isekaiEvent) =>
     set((state) => ({
       isekaiEvent,
@@ -558,5 +616,11 @@ export const useGameStore = create<GameStore>((set) => ({
         isekai_narrative: isekaiEvent?.narrative ?? null,
         secret_objective: isekaiEvent?.secret_objective ?? state.gameState.secret_objective,
       },
+    })),
+  setInitiativeOrder: (order, currentActorId = null) =>
+    set((state) => ({
+      ...state,
+      initiative_order: order,
+      current_actor_id: currentActorId ?? state.current_actor_id,
     })),
 }))

@@ -1,0 +1,58 @@
+{
+  "combat": {
+    "order_title": "Ordem de Combate",
+    "player_fallback": "Jogador",
+    "current_turn": "Turno atual"
+  },
+  "dice": {
+    "close": "Fechar",
+    "gm_roll_title": "Rolagem Solicitada pelo GM",
+    "rolling": "Rolando...",
+    "roll_d20": "Rolar D20",
+    "submit_roll": "Enviar rolagem e argumento",
+    "reroll": "Rolar novamente",
+    "circumstance_placeholder": "Argumento de circunstância (chance única)",
+    "circumstance_hint": "Opcional: descreva um bônus situacional para o GM avaliar.",
+    "waiting_gm": "Aguardando a decisão final do GM...",
+    "gm_decision": "Decisão do GM: ",
+    "applied_bonus": "Bônus aplicado: ",
+    "final_result": " | Resultado final: ",
+    "reroll_requested": "rerrolagem solicitada",
+    "no_notes": "Sem observações adicionais."
+  },
+  "narrative": {
+    "aria_label": "Narrativa do jogo",
+    "close_warning": "Fechar aviso",
+    "narrative_waiting": "A narrativa começa quando todos os jogadores enviarem uma ação."
+  },
+  "travel": {
+    "in_transit": "Em Viagem",
+    "day_counter": "Dia {{current}}/{{total}}",
+    "arriving_today": "Chegando hoje",
+    "days_remaining_one": "{{count}} dia restante",
+    "days_remaining_other": "{{count}} dias restantes",
+    "encounter": "⚔ Encontro! {{description}}",
+    "terrain": {
+      "road": "Estrada",
+      "trail": "Trilha",
+      "wilderness": "Descampado",
+      "sea": "Mar",
+      "mountain": "Montanha",
+      "corrupted": "Zona Corrompida",
+      "arctic": "Ártico"
+    }
+  },
+  "map": {
+    "open_label": "Abrir visualizador de mapas",
+    "button_title": "Ver mapas de Aerus",
+    "title": "Mapas de Aerus",
+    "close": "Fechar",
+    "world": "Mundo",
+    "image_alt": "Mapa: {{label}}"
+  },
+  "events": {
+    "hide": "Ocultar eventos",
+    "show": "Mostrar eventos",
+    "empty": "Nenhum evento ainda."
+  }
+}

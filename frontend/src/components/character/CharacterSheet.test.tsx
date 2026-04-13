@@ -47,7 +47,7 @@ describe('CharacterSheet', () => {
     const user = userEvent.setup();
     render(<CharacterSheet />);
 
-    await user.click(screen.getByRole('button', { name: 'Spells' }));
+    await user.click(screen.getByRole('tab', { name: 'Spells' }));
     await user.selectOptions(screen.getByRole('combobox'), 'fogo');
     await user.type(
       screen.getByPlaceholderText('Example: Aurora Ember Slash'),
@@ -65,7 +65,7 @@ describe('CharacterSheet', () => {
     const user = userEvent.setup();
     render(<CharacterSheet />);
 
-    await user.click(screen.getByRole('button', { name: 'Macros' }));
+    await user.click(screen.getByRole('tab', { name: 'Macros' }));
     await user.type(screen.getByPlaceholderText('/name-macro'), '/strike');
     await user.type(
       screen.getByPlaceholderText(

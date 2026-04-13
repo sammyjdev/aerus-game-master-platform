@@ -52,7 +52,7 @@ export function ByokSettings({ token }: Readonly<ByokSettingsProps>) {
         aria-label='BYOK settings'
         title='BYOK'
       >
-        ðŸ”‘
+        🔑
       </button>
 
       {open && (

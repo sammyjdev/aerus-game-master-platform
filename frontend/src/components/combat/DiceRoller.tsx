@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import type { DiceRollEvent } from '../../types';
 
@@ -8,6 +9,7 @@ interface DiceRollerProps {
 }
 
 export function DiceRoller({ roll, onDone }: DiceRollerProps) {
+  const { t } = useTranslation();
   useEffect(() => {
     const timeout = globalThis.setTimeout(onDone, 2500);
     return () => globalThis.clearTimeout(timeout);
@@ -31,13 +33,11 @@ export function DiceRoller({ roll, onDone }: DiceRollerProps) {
           type='button'
           className='dice-close'
           onClick={onDone}
-          aria-label='Fechar'
+          aria-label={t('dice.close')}
         >
           ×
         </button>
-        <div className='dice-value dice-value-spin'>
-          {roll.result}
-        </div>
+        <div className='dice-value dice-value-spin'>{roll.result}</div>
         <p>{`${roll.player} - ${roll.purpose}`}</p>
       </div>
     </div>
