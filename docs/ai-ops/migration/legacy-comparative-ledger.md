@@ -66,4 +66,7 @@ Workflow reference:
 
 | File | Justification | Approved by | Date |
 | --- | --- | --- | --- |
-| - | - | - | - |
+| `docs/ARD-001-v3.docx` | superseded by canonical markdown architecture/ARD docs | Tech Lead + Narrative Lead | 2026-04-13 |
+| `docs/SDD-001-v2.docx` | superseded by canonical markdown SDD/ADR docs | Tech Lead + Narrative Lead | 2026-04-13 |
+| `docs/ADR-001-011.docx` | superseded by canonical markdown ADR/SDD docs | Tech Lead + Narrative Lead | 2026-04-13 |
+| `docs/CLAUDE-v2.docx` | superseded by canonical operational instructions in markdown | Tech Lead + Narrative Lead | 2026-04-13 |

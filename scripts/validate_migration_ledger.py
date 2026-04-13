@@ -16,7 +16,8 @@ from pathlib import Path
 
 
 def _normalize(path: str) -> str:
-    return path.strip().replace("\\", "/")
+    cleaned = path.strip().strip("`").strip()
+    return cleaned.replace("\\", "/")
 
 
 def _parse_table_rows(lines: list[str], header_prefix: str) -> tuple[int, list[list[str]]]:
