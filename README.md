@@ -55,6 +55,12 @@ The main flow already covers invite-based authentication, character creation, is
 - `lore/` is the canonical source of truth.
 - `backend/config/` is the operational copy used by runtime services.
 
+## AI documentation operations
+
+For task-oriented AI workflows (Specs, Rules, Agent playbooks, Skills, Harness, and non-destructive migration controls), start from:
+
+- `docs/ai-ops/README.md`
+
 ## Requirements
 
 - Python 3.11+
@@ -197,27 +203,33 @@ Use `backend/eval/gm_eval.py` as a layered evaluation suite instead of a single 
 Recommended operating flow:
 
 - Daily GM/runtime changes:
+
   ```powershell
   cd backend
   $env:AERUS_EVAL_PROFILE="default"
   .venv\Scripts\python eval/gm_eval.py
   ```
+
   This runs the fast `critical path` subset of the core tier: onboarding, combat, reputation, coop gating, healing, multiplayer delta behavior, missing inventory handling, and lore grounding.
 
 - Full core regression gate:
+
   ```powershell
   cd backend
   $env:AERUS_EVAL_PROFILE="core-full"
   .venv\Scripts\python eval/gm_eval.py
   ```
+
   This runs the entire `core` tier when you want broader contract and progression coverage.
 
 - Behavior expansion or narrative tuning:
+
   ```powershell
   cd backend
   $env:AERUS_EVAL_PROFILE="extended"
   .venv\Scripts\python eval/gm_eval.py
   ```
+
   This focuses on richer edge cases, lore pressure, disputes, morally heavy actions, and other extended behavior scenarios.
 
 - Full manual baseline:
