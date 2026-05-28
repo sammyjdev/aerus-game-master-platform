@@ -334,6 +334,8 @@ class WSMessageType(str, Enum):
     STATE_UPDATE = "state_update"
     FULL_STATE_SYNC = "full_state_sync"
     HISTORY_SYNC = "history_sync"
+    PLAYER_JOINED = "player_joined"
+    PLAYER_LEFT = "player_left"
     # Server → client: dice
     DICE_ROLL = "dice_roll"
     REQUEST_DICE_ROLL = "request_dice_roll"

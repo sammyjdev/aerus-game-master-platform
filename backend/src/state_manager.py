@@ -245,6 +245,32 @@ async def get_all_alive_players(conn: aiosqlite.Connection) -> list[aiosqlite.Ro
         return await cursor.fetchall()
 
 
+async def get_player_campaign(
+    conn: aiosqlite.Connection, player_id: str
+) -> str:
+    """Return the campaign_id for a player. Falls back to 'default' if unset/missing."""
+    async with conn.execute(
+        "SELECT campaign_id FROM players WHERE player_id = ?", (player_id,)
+    ) as cursor:
+        row = await cursor.fetchone()
+    if row is None or row["campaign_id"] is None:
+        return "default"
+    return str(row["campaign_id"])
+
+
+async def get_players_in_campaign(
+    conn: aiosqlite.Connection, campaign_id: str
+) -> list[aiosqlite.Row]:
+    """Return roster fields for every player attached to a campaign."""
+    async with conn.execute(
+        """SELECT player_id, username, name, race, faction, inferred_class,
+                  level, status
+           FROM players WHERE campaign_id = ?""",
+        (campaign_id,),
+    ) as cursor:
+        return await cursor.fetchall()
+
+
 async def set_character(
     conn: aiosqlite.Connection,
     player_id: str,

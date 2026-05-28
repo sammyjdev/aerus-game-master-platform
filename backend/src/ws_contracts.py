@@ -47,6 +47,18 @@ class FullStateSyncMessage(BaseModel):
     type: Literal["full_state_sync"]
     state: dict[str, Any]
     world_state: dict[str, Any] | None = None
+    roster: list[dict[str, Any]] | None = None
+
+
+class PlayerJoinedMessage(BaseModel):
+    type: Literal["player_joined"]
+    player: dict[str, Any]
+
+
+class PlayerLeftMessage(BaseModel):
+    type: Literal["player_left"]
+    player_id: str
+    username: str
 
 
 class HistorySyncMessage(BaseModel):
@@ -166,6 +178,8 @@ OutgoingWSMessage = (
     | StateUpdateMessage
     | FullStateSyncMessage
     | HistorySyncMessage
+    | PlayerJoinedMessage
+    | PlayerLeftMessage
     | DiceRollMessage
     | RequestDiceRollMessage
     | DiceRollResolvedMessage
