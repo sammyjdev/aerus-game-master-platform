@@ -40,10 +40,35 @@ export const StateUpdateSchema = z.object({
   delta: z.record(z.string(), z.unknown()),
 })
 
+export const RosterEntrySchema = z.object({
+  player_id: z.string(),
+  username: z.string(),
+  name: z.string().optional(),
+  race: z.string().optional(),
+  faction: z.string().optional(),
+  inferred_class: z.string().optional(),
+  level: z.number().int().optional(),
+  status: z.string().optional(),
+  online: z.boolean().optional(),
+})
+export type RosterEntry = z.infer<typeof RosterEntrySchema>
+
 export const FullStateSyncSchema = z.object({
   type: z.literal('full_state_sync'),
   state: z.record(z.string(), z.unknown()),
   world_state: z.record(z.string(), z.unknown()).optional(),
+  roster: z.array(RosterEntrySchema).optional(),
+})
+
+export const PlayerJoinedSchema = z.object({
+  type: z.literal('player_joined'),
+  player: RosterEntrySchema,
+})
+
+export const PlayerLeftSchema = z.object({
+  type: z.literal('player_left'),
+  player_id: z.string(),
+  username: z.string(),
 })
 
 export const HistorySyncSchema = z.object({
@@ -145,6 +170,8 @@ export const WSMessageSchema = z.discriminatedUnion('type', [
   StateUpdateSchema,
   FullStateSyncSchema,
   HistorySyncSchema,
+  PlayerJoinedSchema,
+  PlayerLeftSchema,
   DiceRollSchema,
   RequestDiceRollSchema,
   DiceRollResolvedSchema,

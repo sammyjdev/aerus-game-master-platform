@@ -135,13 +135,39 @@ interface GameStore {
   patchCurrentPlayer: (patch: Partial<PlayerState>) => void
   setIsStreaming: (value: boolean) => void
   applyDelta: (playerId: string, delta: PlayerDelta) => void
-  applyFullSync: (payload: { state: FullStateSyncEvent['state']; world_state?: FullStateSyncEvent['world_state'] }) => void
+  applyFullSync: (payload: { state: FullStateSyncEvent['state']; world_state?: FullStateSyncEvent['world_state']; roster?: RosterEntryInput[] }) => void
   handleGameEvent: (event: GameEvent) => void
   setIsekaiEvent: (event: IsekaiConvocationEvent | null) => void
   setGmThinking: (message: string | null) => void
   setServerError: (message: string | null) => void
   loadHistory: (entries: { role: string; content: string; turn_number?: number }[]) => void
   setInitiativeOrder: (order: Array<{ player_id: string; name: string; initiative: number }>, currentActorId?: string | null) => void
+  addOtherPlayer: (entry: RosterEntryInput) => void
+  removeOtherPlayer: (playerId: string) => void
+}
+
+interface RosterEntryInput {
+  player_id: string
+  username?: string
+  name?: string
+  race?: string
+  faction?: string
+  inferred_class?: string
+  level?: number
+  status?: string
+}
+
+function rosterEntryToPlayer(entry: RosterEntryInput): PlayerState {
+  return {
+    ...defaultPlayer,
+    player_id: entry.player_id,
+    name: entry.name ?? entry.username ?? entry.player_id,
+    race: (entry.race ?? defaultPlayer.race) as PlayerState['race'],
+    faction: (entry.faction ?? defaultPlayer.faction) as PlayerState['faction'],
+    inferred_class: entry.inferred_class ?? defaultPlayer.inferred_class,
+    level: entry.level ?? defaultPlayer.level,
+    status: (entry.status ?? defaultPlayer.status) as PlayerState['status'],
+  }
 }
 
 function applyPlayerGameEvent(player: PlayerState, event: GameEvent): PlayerState {
@@ -451,9 +477,12 @@ export const useGameStore = create<GameStore>((set) => ({
         },
       }
     }),
-  applyFullSync: ({ state: statePayload, world_state }) =>
+  applyFullSync: ({ state: statePayload, world_state, roster }) =>
     set((state) => {
       const { secret_objective, ...playerFields } = statePayload as typeof statePayload & { secret_objective?: string }
+      const other_players = roster
+        ? roster.map((entry) => rosterEntryToPlayer(entry as RosterEntryInput))
+        : state.gameState.other_players
       return {
         gameState: {
           ...state.gameState,
@@ -467,9 +496,38 @@ export const useGameStore = create<GameStore>((set) => ({
             ...playerFields,
             contribution_score: 0,
           },
+          other_players,
         },
       }
     }),
+  addOtherPlayer: (entry) =>
+    set((state) => {
+      if (entry.player_id === state.gameState.current_player.player_id) return state
+      const existing = state.gameState.other_players.find((p) => p.player_id === entry.player_id)
+      if (existing) {
+        return {
+          gameState: {
+            ...state.gameState,
+            other_players: state.gameState.other_players.map((p) =>
+              p.player_id === entry.player_id ? { ...p, ...rosterEntryToPlayer(entry) } : p,
+            ),
+          },
+        }
+      }
+      return {
+        gameState: {
+          ...state.gameState,
+          other_players: [...state.gameState.other_players, rosterEntryToPlayer(entry)],
+        },
+      }
+    }),
+  removeOtherPlayer: (playerId) =>
+    set((state) => ({
+      gameState: {
+        ...state.gameState,
+        other_players: state.gameState.other_players.filter((p) => p.player_id !== playerId),
+      },
+    })),
   handleGameEvent: (event) =>
     set((state) => {
       const updatedLog = [...state.eventLog, event].slice(-50)

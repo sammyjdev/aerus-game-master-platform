@@ -46,6 +46,8 @@ export function useWebSocket(token: string | null) {
     handleGameEvent,
   } = useGameState()
   const loadHistory = useGameStore((state) => state.loadHistory)
+  const addOtherPlayer = useGameStore((state) => state.addOtherPlayer)
+  const removeOtherPlayer = useGameStore((state) => state.removeOtherPlayer)
   const { playSound, playMusic } = useAudio()
 
   const onMessage = useCallback((event: MessageEvent<string>) => {
@@ -77,7 +79,17 @@ export function useWebSocket(token: string | null) {
         Object.entries(data.delta).forEach(([playerId, delta]) => applyDelta(playerId, delta as PlayerDelta))
         break
       case 'full_state_sync':
-        applyFullSync({ state: data.state as Parameters<typeof applyFullSync>[0]['state'], world_state: data.world_state as Parameters<typeof applyFullSync>[0]['world_state'] })
+        applyFullSync({
+          state: data.state as Parameters<typeof applyFullSync>[0]['state'],
+          world_state: data.world_state as Parameters<typeof applyFullSync>[0]['world_state'],
+          roster: data.roster as Parameters<typeof applyFullSync>[0]['roster'],
+        })
+        break
+      case 'player_joined':
+        addOtherPlayer(data.player)
+        break
+      case 'player_left':
+        removeOtherPlayer(data.player_id)
         break
       case 'game_event':
         handleGameEvent(data as unknown as Parameters<typeof handleGameEvent>[0])
@@ -132,7 +144,7 @@ export function useWebSocket(token: string | null) {
       default:
         break
     }
-  }, [appendNarrativeToken, applyDelta, applyFullSync, completeNarrativeStream, handleGameEvent, loadHistory, playMusic, playSound, setGmThinking, setIsekaiEvent, setManualRollResolution, setPendingDiceRoll, setPendingManualRoll, setServerError, setToken])
+  }, [addOtherPlayer, appendNarrativeToken, applyDelta, applyFullSync, completeNarrativeStream, handleGameEvent, loadHistory, playMusic, playSound, removeOtherPlayer, setGmThinking, setIsekaiEvent, setManualRollResolution, setPendingDiceRoll, setPendingManualRoll, setServerError, setToken])
 
   const clearTimers = useCallback(() => {
     if (heartbeatRef.current) {
