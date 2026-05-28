@@ -16,7 +16,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent.parent / ".env", override=True)
-from typing import Annotated
+from typing import Annotated, Any
 
 import aiosqlite
 from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, status
@@ -947,8 +947,10 @@ async def websocket_endpoint(websocket: WebSocket, token: str) -> None:
         return
 
     log_flow(logger, "ws_connect_attempt", player_id=player_id, username=username)
-    await cm.manager.connect(websocket, player_id, username)
-    await _post_connect_setup(player_id, username, token)
+    async with state_manager.db_context() as conn:
+        campaign_id = await state_manager.get_player_campaign(conn, player_id)
+    await cm.manager.connect(websocket, player_id, username, campaign_id=campaign_id)
+    await _post_connect_setup(player_id, username, token, campaign_id)
 
     try:
         while True:
@@ -956,7 +958,11 @@ async def websocket_endpoint(websocket: WebSocket, token: str) -> None:
             await _handle_ws_message(data, player_id, username)
     except WebSocketDisconnect:
         cm.manager.disconnect(player_id)
-        log_flow(logger, "ws_disconnected", player_id=player_id, username=username)
+        await cm.manager.broadcast_player_left(campaign_id, player_id, username)
+        log_flow(
+            logger, "ws_disconnected",
+            player_id=player_id, username=username, campaign_id=campaign_id,
+        )
 
 
 def _validate_ws_token(token: str) -> tuple[str, str]:
@@ -1074,12 +1080,51 @@ def _build_player_full_state(row: dict, inv_rows: list, cond_rows: list) -> dict
     }
 
 
-async def _send_player_full_sync(player_id: str, state: dict, world_state: dict) -> None:
-    await cm.manager.send_to(player_id, {
+async def _send_player_full_sync(
+    player_id: str,
+    state: dict,
+    world_state: dict,
+    roster: list[dict] | None = None,
+) -> None:
+    payload: dict[str, Any] = {
         "type": "full_state_sync",
         "state": state,
         "world_state": world_state,
-    })
+    }
+    if roster is not None:
+        payload["roster"] = roster
+    await cm.manager.send_to(player_id, payload)
+
+
+async def _build_campaign_roster(
+    campaign_id: str, exclude_player_id: str
+) -> list[dict[str, Any]]:
+    """Build a roster of other players in the campaign for full_state_sync.
+
+    Combines DB profile (name, faction, class, level) with live connection state.
+    """
+    async with state_manager.db_context() as conn:
+        rows = await state_manager.get_players_in_campaign(conn, campaign_id)
+    connected = set(cm.manager.connected_player_ids_in_campaign(campaign_id))
+    roster: list[dict[str, Any]] = []
+    for row in rows:
+        pid = row["player_id"]
+        if pid == exclude_player_id:
+            continue
+        if not row["name"]:
+            continue
+        roster.append({
+            "player_id": pid,
+            "username": row["username"],
+            "name": row["name"],
+            "race": row["race"],
+            "faction": row["faction"],
+            "inferred_class": row["inferred_class"],
+            "level": row["level"],
+            "status": row["status"],
+            "online": pid in connected,
+        })
+    return roster
 
 
 async def _send_player_history_sync(player_id: str, history_rows: list) -> None:
@@ -1103,7 +1148,9 @@ def _schedule_isekai_convocation(player_id: str, row: dict) -> None:
     task.add_done_callback(lambda t: t.exception() if not t.cancelled() else None)
 
 
-async def _post_connect_setup(player_id: str, username: str, token: str) -> None:
+async def _post_connect_setup(
+    player_id: str, username: str, token: str, campaign_id: str
+) -> None:
     """Refresh token, sync state, and trigger the isekai convocation on connect."""
     await _maybe_refresh_ws_token(player_id, username, token)
 
@@ -1112,8 +1159,27 @@ async def _post_connect_setup(player_id: str, username: str, token: str) -> None
         return
 
     full_state = _build_player_full_state(row, inv_rows, cond_rows)
-    await _send_player_full_sync(player_id, full_state, world_state)
+    roster = await _build_campaign_roster(campaign_id, exclude_player_id=player_id)
+    await _send_player_full_sync(player_id, full_state, world_state, roster=roster)
     await _send_player_history_sync(player_id, history_rows)
+
+    # Announce the joiner to everyone else in the campaign. Players without a
+    # character yet (no `name`) are skipped — they're not "in the world" yet.
+    if row["name"]:
+        await cm.manager.broadcast_player_joined(
+            campaign_id,
+            {
+                "player_id": player_id,
+                "username": username,
+                "name": row["name"],
+                "race": row["race"],
+                "faction": row["faction"],
+                "inferred_class": row["inferred_class"],
+                "level": row["level"],
+                "status": row["status"],
+                "online": True,
+            },
+        )
 
     log_flow(
         logger,
