@@ -26,13 +26,27 @@ logger = logging.getLogger(__name__)
 _outgoing_adapter: TypeAdapter[OutgoingWSMessage] = TypeAdapter(OutgoingWSMessage)
 
 
+class WSContractViolation(Exception):
+    """Raised when an outbound WS payload fails Pydantic contract validation.
+
+    Per ADR-014, the runtime path is fail-closed: the offending message is
+    dropped (not sent) and logged. Callers must catch this exception and
+    continue serving other clients/messages rather than tearing down the
+    connection or broadcast loop.
+    """
+
+
 def _validate_and_serialize(message: dict[str, Any]) -> str:
     try:
         validated = _outgoing_adapter.validate_python(message)
         return json.dumps(validated.model_dump(), ensure_ascii=False)
     except Exception as exc:
-        logger.error("WS contract violation: %s | message_type=%s", exc, message.get("type"))
-        return json.dumps(message, ensure_ascii=False)
+        logger.error(
+            "WS contract violation (dropping message): %s | message_type=%s",
+            exc,
+            message.get("type"),
+        )
+        raise WSContractViolation(str(exc)) from exc
 
 
 @dataclass
@@ -103,7 +117,12 @@ class ConnectionManager:
         if conn is None:
             return False
         try:
-            await conn.websocket.send_text(_validate_and_serialize(message))
+            serialized = _validate_and_serialize(message)
+        except WSContractViolation:
+            # Fail-closed (ADR-014): drop the offending message; keep the connection alive.
+            return False
+        try:
+            await conn.websocket.send_text(serialized)
             log_debug(logger, "ws_send_to", player_id=player_id, message=summarize_payload(message))
             return True
         except Exception as exc:
@@ -132,6 +151,13 @@ class ConnectionManager:
             recipients = [(pid, c) for pid, c in recipients if pid != exclude_player_id]
         if not recipients:
             return
+        # Fail-closed (ADR-014): validate once before fan-out. If the contract
+        # is violated, drop the message for all recipients and keep connections
+        # alive. The error is already logged inside _validate_and_serialize.
+        try:
+            serialized = _validate_and_serialize(message)
+        except WSContractViolation:
+            return
         log_debug(
             logger,
             "ws_broadcast",
@@ -140,7 +166,7 @@ class ConnectionManager:
             message=summarize_payload(message),
         )
         disconnected: list[str] = []
-        tasks = [self._send_safe(pid, conn, message) for pid, conn in recipients]
+        tasks = [self._send_safe(pid, conn, serialized) for pid, conn in recipients]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         for (pid, _), result in zip(recipients, results):
             if isinstance(result, Exception) or result is False:
@@ -149,10 +175,10 @@ class ConnectionManager:
             self.disconnect(pid)
 
     async def _send_safe(
-        self, player_id: str, conn: PlayerConnection, message: dict[str, Any]
+        self, player_id: str, conn: PlayerConnection, serialized: str
     ) -> bool:
         try:
-            await conn.websocket.send_text(_validate_and_serialize(message))
+            await conn.websocket.send_text(serialized)
             return True
         except Exception as exc:
             logger.warning("Broadcast failed for %s: %s", player_id, exc)

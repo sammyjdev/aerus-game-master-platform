@@ -180,12 +180,11 @@ Rationale: in a cooperative RPG with faction loyalty mechanics, information asym
 
 **Status:** Accepted (March 2026)
 
-Backend: `ws_contracts.py` with Pydantic typed models for every outgoing WS message.
-Frontend: `wsContracts.ts` with Zod discriminated union schemas mirroring the backend.
+**Decision.** Backend: `ws_contracts.py` with Pydantic typed models for every outgoing WS message. Frontend: `wsContracts.ts` with Zod discriminated union schemas mirroring the backend. Any new WS event type must be added to both files simultaneously. The runtime path in `connection_manager._validate_and_serialize` is **fail-closed**: a payload that does not match the Pydantic contract raises `WSContractViolation`, the offending message is dropped (not sent to any recipient), the error is logged server-side, and the WebSocket connection and broadcast loop continue serving other messages.
 
-Any new WS event type must be added to both files simultaneously.
+**Rationale.** WS message shape mismatches are silent failures in production. Typed contracts at both ends catch these at development time, and the fail-closed runtime path prevents an un-validated payload from ever reaching the client when a contract regression slips through.
 
-Rationale: WS message shape mismatches are silent failures in production. Typed contracts at both ends catch these at development time.
+**Consequences.** A contract regression now manifests as a single missing message in the client's view (e.g. a dropped `narrative_token` or `state_update`) rather than as a malformed payload reaching the frontend and crashing Zod parsing or corrupting state. The drop is logged server-side with the offending `message_type`, so the regression is observable to operators even though it is invisible to players. This is the intended trade-off: a dropped message is recoverable (subsequent state syncs reconcile the client), while an unvalidated payload is not.
 
 ---
 
