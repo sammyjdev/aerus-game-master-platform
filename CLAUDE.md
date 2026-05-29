@@ -170,3 +170,25 @@ Modules: `gm_eval.py` (orchestrator) → `gm_eval_runtime.py` (scenario executio
 - Architecture + ARD: `docs/PROJECT_CONTEXT_architecture_ard.md`
 - ADRs + SDD: `docs/PROJECT_CONTEXT_adrs_sdd.md`
 - Rules + roadmap: `docs/PROJECT_CONTEXT_rules_roadmap.md`
+
+
+## AXON MCP (memory & context)
+
+AXON está disponível globalmente via MCP (`mcp__axon__*` tools). Antes
+de explorar este repo com `read`/`grep`, use:
+
+```
+mcp__axon__search_code(query="...")            # busca semântica indexada
+mcp__axon__get_session_memory(project="aerus")  # contexto de sessões anteriores
+mcp__axon__get_adrs(project="aerus")            # decisões arquiteturais registradas
+mcp__axon__ask("dúvida sobre domínio/decisão")
+```
+
+Para registrar uma decisão arquitetural durante o trabalho, prefira:
+- Commit com prefix `arch:` ou `decision:` → captura automática via hook
+  post-commit (NIM 3.3-70B classifica, gates dec-111 filtram, vai pra
+  vault ou draft pool)
+- Ou `mcp__axon__save_adr(project="aerus", title=..., context=...,
+  decision=..., rationale=...)` para registrar manual.
+
+Indexação one-shot: `pb index .` (recomendado após mudanças estruturais).
