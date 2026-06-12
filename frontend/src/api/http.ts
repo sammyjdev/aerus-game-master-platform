@@ -180,7 +180,15 @@ export function analyzeBackstory(token: string): Promise<AnalyzeBackstoryRespons
 export function spendAttributePoints(
   token: string,
   payload: SpendAttributePointsRequest,
-): Promise<{ status: string; attribute: string; new_value: number; points_remaining: number }> {
+): Promise<{
+  status: string
+  attribute: string
+  new_value: number
+  points_remaining: number
+  max_mp?: number
+  current_mp?: number
+  magic_level?: number
+}> {
   return request('/character/attributes/spend', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
@@ -191,7 +199,17 @@ export function spendAttributePoints(
 export function spendProficiencyPoints(
   token: string,
   payload: SpendProficiencyPointsRequest,
-): Promise<{ status: string; prof_type: string; key: string; new_rank: number; points_remaining: number }> {
+): Promise<{
+  status: string
+  prof_type: string
+  key: string
+  new_rank: number
+  points_remaining: number
+  max_mp?: number
+  current_mp?: number
+  magic_rank_cap?: number
+  magic_damage_bonus?: number
+}> {
   return request('/character/proficiencies/spend', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
@@ -221,6 +239,34 @@ export interface AdminPlayer {
   is_alive: boolean
 }
 
+export interface AdminPlayerDetail extends AdminPlayer {
+  race?: string | null
+  subrace?: string | null
+  backstory?: string | null
+  secret_objective?: string | null
+  flame_seal?: string | null
+  experience: number
+  current_mp: number
+  max_mp: number
+  current_stamina: number
+  max_stamina: number
+  magic_level?: number
+  attribute_points_available?: number
+  proficiency_points_available?: number
+  attributes: Record<string, number>
+  currency: Record<string, number>
+  inventory: Array<Record<string, unknown>>
+  conditions: Array<Record<string, unknown>>
+  skills: Record<string, unknown>
+  magic_proficiency: Record<string, number>
+  weapon_proficiency: Record<string, number>
+  passive_milestones?: string[]
+  macros?: Array<Record<string, unknown>>
+  spell_aliases?: Record<string, unknown>
+}
+
+export type AdminPlayerUpdatePayload = Partial<AdminPlayerDetail> & Record<string, unknown>
+
 export interface AdminStatus {
   paused: boolean
   players: AdminPlayer[]
@@ -228,11 +274,36 @@ export interface AdminStatus {
 }
 
 export function adminGetPlayers(adminSecret: string): Promise<AdminPlayer[]> {
-  return adminRequest<AdminPlayer[]>('/admin/players', adminSecret)
+  return adminRequest<{ players: AdminPlayer[] }>('/admin/players', adminSecret).then((data) => data.players)
 }
 
-export function adminPauseCampaign(adminSecret: string, paused: boolean): Promise<{ status: string }> {
-  return adminRequest<{ status: string }>('/admin/pause', adminSecret, {
+export function adminGetPlayerDetail(
+  adminSecret: string,
+  playerId: string,
+): Promise<{ player: AdminPlayerDetail; world_state: Record<string, unknown> }> {
+  return adminRequest<{ player: AdminPlayerDetail; world_state: Record<string, unknown> }>(
+    `/admin/players/${playerId}`,
+    adminSecret,
+  )
+}
+
+export function adminUpdatePlayer(
+  adminSecret: string,
+  playerId: string,
+  payload: AdminPlayerUpdatePayload,
+): Promise<{ status: string; player: AdminPlayerDetail }> {
+  return adminRequest<{ status: string; player: AdminPlayerDetail }>(
+    `/admin/players/${playerId}`,
+    adminSecret,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    },
+  )
+}
+
+export function adminPauseCampaign(adminSecret: string, paused: boolean): Promise<{ campaign_paused: boolean }> {
+  return adminRequest<{ campaign_paused: boolean }>('/admin/pause', adminSecret, {
     method: 'POST',
     body: JSON.stringify({ paused }),
   })

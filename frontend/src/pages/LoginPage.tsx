@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 import { getCharacter, login, redeemInvite } from '../api/http';
+import { LanguageSwitcher } from '../components/ui/LanguageSwitcher';
 import { logClient } from '../debug/logger';
 import { useGameStore } from '../store/gameStore';
 
 export function LoginPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const token = useGameStore((state) => state.token);
   const setToken = useGameStore((state) => state.setToken);
@@ -72,7 +75,9 @@ export function LoginPage() {
         }
       } catch (error_) {
         const message =
-          error_ instanceof Error ? error_.message : 'Failed to sign in';
+          error_ instanceof Error
+            ? error_.message
+            : t('auth.errors.sign_in_failed');
         logClient('error', 'auth', 'Authentication failed', {
           username,
           mode,
@@ -93,7 +98,11 @@ export function LoginPage() {
 
   return (
     <main className='auth-page'>
-      <h1>Aerus Game Master Platform</h1>
+      <div className='page-tools'>
+        <LanguageSwitcher />
+      </div>
+
+      <h1>{t('auth.title')}</h1>
 
       <div className='auth-tabs'>
         <button
@@ -101,21 +110,21 @@ export function LoginPage() {
           className={mode === 'redeem' ? 'active' : ''}
           onClick={() => switchMode('redeem')}
         >
-          First access
+          {t('auth.tabs.first_access')}
         </button>
         <button
           type='button'
           className={mode === 'login' ? 'active' : ''}
           onClick={() => switchMode('login')}
         >
-          I already have an account
+          {t('auth.tabs.have_account')}
         </button>
       </div>
 
       <form onSubmit={handleSubmit} className='auth-form'>
         {mode === 'redeem' && (
           <label>
-            <span>Invite code</span>
+            <span>{t('auth.fields.invite_code')}</span>
             <input
               value={inviteCode}
               onChange={(event) => setInviteCode(event.target.value)}
@@ -124,7 +133,7 @@ export function LoginPage() {
           </label>
         )}
         <label>
-          <span>Username</span>
+          <span>{t('auth.fields.username')}</span>
           <input
             value={username}
             onChange={(event) => setUsername(event.target.value)}
@@ -132,7 +141,7 @@ export function LoginPage() {
           />
         </label>
         <label>
-          <span>Password</span>
+          <span>{t('auth.fields.password')}</span>
           <input
             type='password'
             value={password}
@@ -142,7 +151,9 @@ export function LoginPage() {
         </label>
         {error && <p className='error'>{error}</p>}
         <button type='submit' disabled={loading}>
-          {mode === 'redeem' ? 'Enter the world' : 'Sign in'}
+          {mode === 'redeem'
+            ? t('auth.actions.enter_world')
+            : t('auth.actions.sign_in')}
         </button>
       </form>
     </main>

@@ -1,14 +1,12 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { useVolume } from '../../hooks/useAudio';
 
-const CHANNELS = [
-  { key: 'music' as const, label: 'Music' },
-  { key: 'sfx' as const, label: 'Effects' },
-  { key: 'ambient' as const, label: 'Ambient' },
-];
+const CHANNELS = ['music', 'sfx', 'ambient'] as const;
 
 export function VolumeSettings() {
+  const { t } = useTranslation();
   const { volume, setVolume } = useVolume();
   const [open, setOpen] = useState(false);
 
@@ -17,8 +15,8 @@ export function VolumeSettings() {
       <button
         className='volume-toggle'
         onClick={() => setOpen((v) => !v)}
-        aria-label='Volume settings'
-        title='Volume'
+        aria-label={t('game_ui.volume.aria_label')}
+        title={t('game_ui.volume.title')}
       >
         {volume.music === 0 && volume.sfx === 0
           ? '\uD83D\uDD07'
@@ -27,9 +25,9 @@ export function VolumeSettings() {
 
       {open && (
         <div className='volume-panel'>
-          {CHANNELS.map(({ key, label }) => (
+          {CHANNELS.map((key) => (
             <label key={key} className='volume-row'>
-              <span>{label}</span>
+              <span>{t(`game_ui.volume.channels.${key}`)}</span>
               <input
                 type='range'
                 min={0}

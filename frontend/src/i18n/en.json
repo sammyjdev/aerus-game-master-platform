@@ -1,4 +1,213 @@
 {
+  "common": {
+    "language": "Language"
+  },
+  "auth": {
+    "title": "Aerus Game Master Platform",
+    "tabs": {
+      "first_access": "First access",
+      "have_account": "I already have an account"
+    },
+    "fields": {
+      "invite_code": "Invite code",
+      "username": "Username",
+      "password": "Password"
+    },
+    "actions": {
+      "enter_world": "Enter the world",
+      "sign_in": "Sign in"
+    },
+    "errors": {
+      "sign_in_failed": "Failed to sign in"
+    }
+  },
+  "character": {
+    "title": "Character Creation",
+    "fields": {
+      "name": "Name",
+      "race": "Race",
+      "subrace": "Subrace",
+      "backstory": "Backstory"
+    },
+    "actions": {
+      "creating": "Creating character...",
+      "enter_world": "Enter the world"
+    },
+    "errors": {
+      "create_failed": "Failed to create character"
+    },
+    "skills_seeded": "Skills from backstory: {{skills}}. Entering the world...",
+    "backstory_counter": "{{count}}/3000",
+    "backstory_help": "Recommended: 150-800 chars. Maximum: 3000 chars."
+  },
+  "sheet": {
+    "no_character": "No character",
+    "saved": "Saved!",
+    "failed": "Failed",
+    "failed_to_save": "Failed to save",
+    "select": "Select",
+    "status": "Status",
+    "progress": "Progress",
+    "shared_location": "Shared location",
+    "secret_objective_unavailable": "Secret objective unavailable.",
+    "no_conditions": "No conditions",
+    "no_milestones": "No milestones unlocked",
+    "no_magic_proficiency": "No magic proficiency recorded",
+    "no_weapon_proficiency": "No weapon proficiency recorded",
+    "inventory_empty": "Inventory is empty",
+    "attribute_points": "attribute points",
+    "proficiency_points": "proficiency points",
+    "level_label": "level",
+    "rank": "rank",
+    "max": "MAX",
+    "need_pp": "need {{count}} PP",
+    "need_magic_level": "need magic level {{level}} for rank {{rank}}",
+    "need_character_level_for_magic": "need character level {{level}} for magic level {{magicLevel}}",
+    "usable_now": "usable now",
+    "proficiency_usage_hint": "AP and PP improve the sheet. Narrative use and talent-based unlocks still work without spending PP.",
+    "proficiency_upgrade_hint": "PP improves mastery. If a proficiency already appears on the sheet, it is already usable.",
+    "magic_usage_hint": "Elements used and unlocked in play count as magic. PP only increases mastery and does not unlock basic use.",
+    "magic_level_hint": "Magic level is your general magical aptitude. It defines max MP, spell damage bonus, and the elemental rank ceiling.",
+    "magic_level_rule_hint": "Every 10 magic levels raises elemental cap by 2. Magic level is gated by character level (current: lvl {{level}} -> cap {{cap}}).",
+    "magic_level_title": "General magical aptitude",
+    "elemental_cap_hint": "Current elemental cap {{cap}}/20 at magic level {{level}} with +{{bonus}}% spell damage.",
+    "upgrade_only_with_pp": "PP is only for improving mastery.",
+    "skills_hint": "Skills grow through use - no points to spend.",
+    "no_skills": "No skills developed yet.",
+    "ap_available": "{{count}} AP available - click +1 to spend (cap 250)",
+    "no_macros": "No macros created.",
+    "backstory_counter": "{{count}}/3000",
+    "backstory_help": "You can revise your backstory here (at least once). Keep it between 50 and 3000 chars.",
+    "current_load": "Current load",
+    "sections": {
+      "attributes": "Attributes",
+      "backstory": "Backstory",
+      "secret_objective": "Secret Objective",
+      "coop_mission": "Initial Cooperative Mission",
+      "conditions": "Conditions",
+      "reputation": "Reputation",
+      "passive_milestones": "Passive Milestones",
+      "magic_proficiency": "Magic Proficiency",
+      "magic_level": "Magic Level",
+      "elemental_proficiency": "Elemental Proficiency",
+      "weight": "Weight",
+      "currency": "Currency",
+      "inventory": "Inventory",
+      "points_available": "Points Available",
+      "weapon_proficiency": "Weapon Proficiency",
+      "skills": "Skills",
+      "hot_actions": "Hot Actions"
+    },
+    "actions": {
+      "saving": "Saving...",
+      "save_backstory": "Save backstory",
+      "save_alias": "Save alias",
+      "save_macro": "Save macro"
+    },
+    "mission": {
+      "inactive": "Inactive",
+      "completed": "Completed",
+      "active_blocking": "Active (blocking)"
+    },
+    "spells": {
+      "spell_base": "Spell base",
+      "custom_name": "Custom name (cosmetic)",
+      "custom_name_placeholder": "Example: Aurora Ember Slash",
+      "alias_hint": "The alias only changes the displayed name; damage and effects still follow the base rules.",
+      "unlocked_hint": "If an element appears here, it is already available for use. Your current magic level is {{level}}, with an elemental cap of {{cap}}/20."
+    },
+    "magic_stats": {
+      "max_mp": "max MP",
+      "damage_bonus": "spell damage bonus",
+      "element_cap": "element cap"
+    },
+    "elements": {
+      "air": "Air",
+      "fire": "Fire",
+      "water": "Water",
+      "earth": "Earth",
+      "energy": "Energy",
+      "spirit": "Spirit"
+    },
+    "currency": {
+      "copper": "Copper",
+      "silver": "Silver",
+      "gold": "Gold",
+      "platinum": "Platinum",
+      "total_copper": "Total in copper"
+    },
+    "reputation_labels": {
+      "enemies": "Enemies",
+      "hostile": "Hostile",
+      "neutral": "Neutral",
+      "friendly": "Friendly",
+      "allied": "Allied"
+    },
+    "factions": {
+      "church_pure_flame": "Church of the Pure Flame",
+      "empire_valdrek": "Empire of Valdrek",
+      "guild_of_threads": "Guild of Threads",
+      "children_of_broken_thread": "Children of the Broken Thread",
+      "myr_council": "Myr Council"
+    },
+    "macros": {
+      "command": "Command (example: /wind-slash)",
+      "command_placeholder": "/name-macro",
+      "template": "Action template",
+      "template_placeholder": "Describe the action that will be expanded when the command is used"
+    },
+    "tabs": {
+      "aria_label": "Character sheet tabs",
+      "summary": "Stats",
+      "spells": "Spells",
+      "items": "Items",
+      "proficiencies": "Skills",
+      "macros": "Macros"
+    }
+  },
+  "admin": {
+    "title": "GM Admin",
+    "subtitle": "Enter admin secret to access dashboard",
+    "dashboard_title": "GM Admin Dashboard",
+    "autorefresh": "Auto-refreshes every 10s",
+    "players": "Players",
+    "no_players": "No players registered.",
+    "invite_code": "Invite Code",
+    "fields": {
+      "secret_placeholder": "Admin secret"
+    },
+    "actions": {
+      "authenticating": "Authenticating...",
+      "access_dashboard": "Access Dashboard",
+      "resume_campaign": "Resume Campaign",
+      "pause_campaign": "Pause Campaign",
+      "generate_invite": "Generate Invite",
+      "reload_config": "Reload Config",
+      "refresh_players": "Refresh Players",
+      "copy": "Copy"
+    },
+    "status": {
+      "paused": "Campaign paused.",
+      "resumed": "Campaign resumed.",
+      "reloaded": "Configuration reloaded.",
+      "copied": "Copied!"
+    },
+    "errors": {
+      "invalid_secret": "Invalid admin secret or server unreachable.",
+      "refresh_failed": "Failed to refresh player list.",
+      "toggle_failed": "Failed to change campaign state.",
+      "invite_failed": "Failed to generate invite.",
+      "reload_failed": "Failed to reload config."
+    },
+    "table": {
+      "name": "Name",
+      "class": "Class",
+      "faction": "Faction",
+      "level": "Level",
+      "hp": "HP",
+      "status": "Status"
+    }
+  },
   "combat": {
     "order_title": "Combat Order",
     "player_fallback": "Player",
@@ -23,7 +232,12 @@
   "narrative": {
     "aria_label": "Game narrative",
     "close_warning": "Close warning",
-    "narrative_waiting": "The narrative begins when all players submit an action."
+    "narrative_waiting": "The narrative begins when all players submit an action.",
+    "turn": "Turn {{turn}}",
+    "action": "Action",
+    "narration": "Narration",
+    "gm_roll_label": "GM roll:",
+    "gm_roll_detail": "{{player}} | d{{die}} | {{purpose}} | result {{result}}"
   },
   "travel": {
     "in_transit": "In Transit",
@@ -54,5 +268,76 @@
     "hide": "Hide events",
     "show": "Show events",
     "empty": "No events yet."
+  },
+  "game_ui": {
+    "action_input": {
+      "placeholder": "Action... (up/down history · Ctrl+Enter to send)",
+      "aria_label": "Player action",
+      "send": "Send",
+      "waiting": "Waiting for other players... ({{seconds}}s)"
+    },
+    "connection": {
+      "disconnected": "Disconnected",
+      "connecting": "Connecting...",
+      "connected": "Connected",
+      "reconnecting": "Reconnecting..."
+    },
+    "volume": {
+      "aria_label": "Volume settings",
+      "title": "Volume",
+      "channels": {
+        "music": "Music",
+        "sfx": "Effects",
+        "ambient": "Ambient"
+      }
+    },
+    "byok": {
+      "aria_label": "BYOK settings",
+      "title": "Your OpenRouter key",
+      "placeholder": "sk-or-v1-...",
+      "actions": {
+        "saving": "Saving...",
+        "save": "Save key"
+      },
+      "status": {
+        "saved": "Key registered successfully."
+      },
+      "errors": {
+        "invalid_key": "Enter a valid key.",
+        "save_failed": "Failed to register key."
+      }
+    },
+    "spectator": {
+      "badge": "SPECTATOR",
+      "create_title": "Create New Character",
+      "go_to_creation": "Go to creation",
+      "other_players": "Other players",
+      "hp": "HP"
+    },
+    "isekai": {
+      "secret_objective": "Secret Objective:",
+      "enter": "Enter Aerus"
+    },
+    "debug": {
+      "toggle": "Debug",
+      "title": "Debug Console",
+      "connection": "connection",
+      "player": "player",
+      "on": "Debug on",
+      "off": "Debug off",
+      "loading": "Loading...",
+      "snapshot": "Snapshot",
+      "clear": "Clear",
+      "compare": "Backend vs frontend comparison",
+      "backend": "Backend",
+      "frontend": "Frontend",
+      "snapshot_hint": "Click Snapshot to load backend state.",
+      "consistent": "Local state is consistent with the backend snapshot.",
+      "no_logs": "No logs captured.",
+      "errors": {
+        "no_token": "No authenticated token available to fetch the snapshot.",
+        "snapshot_failed": "Failed to load snapshot."
+      }
+    }
   }
 }

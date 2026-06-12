@@ -5,6 +5,8 @@ import i18n from 'i18next';
 import { logClient } from './debug/logger';
 import { useGameStore } from './store/gameStore';
 
+const LANGUAGE_STORAGE_KEY = 'aerus_language';
+
 const LoginPage = lazy(async () => {
   const module = await import('./pages/LoginPage');
   return { default: module.LoginPage };
@@ -41,6 +43,16 @@ function App() {
   }, [location.pathname]);
 
   useEffect(() => {
+    const savedLanguage =
+      typeof window !== 'undefined'
+        ? window.localStorage.getItem(LANGUAGE_STORAGE_KEY)
+        : null;
+
+    if (savedLanguage === 'pt' || savedLanguage === 'en') {
+      void i18n.changeLanguage(savedLanguage);
+      return;
+    }
+
     const apiBase =
       typeof window !== 'undefined' &&
       !window.location.hostname.includes('localhost')

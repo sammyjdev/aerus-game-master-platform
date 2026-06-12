@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { registerByokKey } from '../../api/http';
 import { logClient } from '../../debug/logger';
@@ -8,6 +9,7 @@ interface ByokSettingsProps {
 }
 
 export function ByokSettings({ token }: Readonly<ByokSettingsProps>) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,7 +19,7 @@ export function ByokSettings({ token }: Readonly<ByokSettingsProps>) {
   async function handleSave() {
     if (!token || !apiKey.trim()) {
       logClient('warn', 'byok', 'Attempted to save an invalid key');
-      setError('Enter a valid key.');
+      setError(t('game_ui.byok.errors.invalid_key'));
       return;
     }
 
@@ -27,11 +29,13 @@ export function ByokSettings({ token }: Readonly<ByokSettingsProps>) {
     try {
       await registerByokKey(token, apiKey.trim());
       logClient('info', 'byok', 'BYOK key registered successfully');
-      setMessage('Key registered successfully.');
+      setMessage(t('game_ui.byok.status.saved'));
       setApiKey('');
     } catch (err) {
       const msg =
-        err instanceof Error ? err.message : 'Failed to register key.';
+        err instanceof Error
+          ? err.message
+          : t('game_ui.byok.errors.save_failed');
       logClient('error', 'byok', 'Failed to register BYOK key', {
         message: msg,
       });
@@ -49,7 +53,7 @@ export function ByokSettings({ token }: Readonly<ByokSettingsProps>) {
           setOpen((v) => !v);
           logClient('debug', 'byok', 'BYOK panel toggled', { open: !open });
         }}
-        aria-label='BYOK settings'
+        aria-label={t('game_ui.byok.aria_label')}
         title='BYOK'
       >
         🔑
@@ -57,17 +61,19 @@ export function ByokSettings({ token }: Readonly<ByokSettingsProps>) {
 
       {open && (
         <div className='byok-panel'>
-          <div className='byok-title'>Your OpenRouter key</div>
+          <div className='byok-title'>{t('game_ui.byok.title')}</div>
           <input
             className='byok-input'
             type='password'
-            placeholder='sk-or-v1-...'
+            placeholder={t('game_ui.byok.placeholder')}
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             disabled={loading}
           />
           <button className='byok-save' onClick={handleSave} disabled={loading}>
-            {loading ? 'Saving...' : 'Save key'}
+            {loading
+              ? t('game_ui.byok.actions.saving')
+              : t('game_ui.byok.actions.save')}
           </button>
           {message && <div className='byok-message'>{message}</div>}
           {error && <div className='byok-error'>{error}</div>}

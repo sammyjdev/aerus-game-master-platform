@@ -38,6 +38,7 @@ export function useWebSocket(token: string | null) {
   const setServerError = useGameStore((state) => state.setServerError)
   const {
     appendNarrativeToken,
+    addHistoryEntry,
     setPendingDiceRoll,
     setPendingManualRoll,
     setManualRollResolution,
@@ -248,9 +249,15 @@ export function useWebSocket(token: string | null) {
       preview: text.slice(0, 180),
       length: text.length,
     })
+    const turnNumber = useGameStore.getState().gameState.turn_number
+    addHistoryEntry({
+      role: 'user',
+      content: text,
+      turn_number: turnNumber,
+    })
     lastActionSentAtRef.current = performance.now()
     socket.send(JSON.stringify({ action: text }))
-  }, [])
+  }, [addHistoryEntry])
 
   return { sendAction }
 }

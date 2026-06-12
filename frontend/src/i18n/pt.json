@@ -1,4 +1,213 @@
 {
+  "common": {
+    "language": "Idioma"
+  },
+  "auth": {
+    "title": "Aerus Game Master Platform",
+    "tabs": {
+      "first_access": "Primeiro acesso",
+      "have_account": "Eu ja tenho uma conta"
+    },
+    "fields": {
+      "invite_code": "Codigo de convite",
+      "username": "Usuario",
+      "password": "Senha"
+    },
+    "actions": {
+      "enter_world": "Entrar no mundo",
+      "sign_in": "Entrar"
+    },
+    "errors": {
+      "sign_in_failed": "Falha ao autenticar"
+    }
+  },
+  "character": {
+    "title": "Criacao de Personagem",
+    "fields": {
+      "name": "Nome",
+      "race": "Raca",
+      "subrace": "Sub-raca",
+      "backstory": "Historia"
+    },
+    "actions": {
+      "creating": "Criando personagem...",
+      "enter_world": "Entrar no mundo"
+    },
+    "errors": {
+      "create_failed": "Falha ao criar personagem"
+    },
+    "skills_seeded": "Habilidades da historia: {{skills}}. Entrando no mundo...",
+    "backstory_counter": "{{count}}/3000",
+    "backstory_help": "Recomendado: 150-800 caracteres. Maximo: 3000 caracteres."
+  },
+  "sheet": {
+    "no_character": "Sem personagem",
+    "saved": "Salvo!",
+    "failed": "Falhou",
+    "failed_to_save": "Falha ao salvar",
+    "select": "Selecionar",
+    "status": "Status",
+    "progress": "Progresso",
+    "shared_location": "Local compartilhado",
+    "secret_objective_unavailable": "Objetivo secreto indisponivel.",
+    "no_conditions": "Sem condicoes",
+    "no_milestones": "Nenhum marco desbloqueado",
+    "no_magic_proficiency": "Nenhuma proficiencia magica registrada",
+    "no_weapon_proficiency": "Nenhuma proficiencia de arma registrada",
+    "inventory_empty": "Inventario vazio",
+    "attribute_points": "pontos de atributo",
+    "proficiency_points": "pontos de proficiencia",
+    "level_label": "nivel",
+    "rank": "rank",
+    "max": "MAX",
+    "need_pp": "precisa de {{count}} PP",
+    "need_magic_level": "precisa de nivel de magia {{level}} para rank {{rank}}",
+    "need_character_level_for_magic": "precisa de nivel de personagem {{level}} para magia {{magicLevel}}",
+    "usable_now": "uso liberado",
+    "proficiency_usage_hint": "AP e PP servem para evoluir a ficha. Uso narrativo e desbloqueios por talento continuam funcionando sem gastar PP.",
+    "proficiency_upgrade_hint": "PP melhora a maestria. Se a proficiencia ja apareceu na ficha, ela ja pode ser usada.",
+    "magic_usage_hint": "Elementos usados e desbloqueados em jogo contam como magia. PP so aumenta dominio, nao libera o uso basico.",
+    "magic_level_hint": "Nivel de magia e sua aptidao geral. Ele define MP maximo, bonus de dano magico e o teto de rank elemental.",
+    "magic_level_rule_hint": "A cada 10 niveis de magia, o limite elemental sobe em 2. Nivel de magia e travado por nivel de personagem (atual: lvl {{level}} -> cap {{cap}}).",
+    "magic_level_title": "Aptidao magica geral",
+    "elemental_cap_hint": "Cap elemental atual {{cap}}/20 com nivel de magia {{level}} e bonus de dano +{{bonus}}%.",
+    "upgrade_only_with_pp": "PP apenas para aprimorar maestria.",
+    "skills_hint": "Pericias crescem com uso - sem pontos para gastar.",
+    "no_skills": "Nenhuma pericia desenvolvida ainda.",
+    "ap_available": "{{count}} AP disponivel - clique +1 para gastar (limite 250)",
+    "no_macros": "Nenhuma macro criada.",
+    "backstory_counter": "{{count}}/3000",
+    "backstory_help": "Voce pode revisar sua historia aqui (pelo menos uma vez). Mantenha entre 50 e 3000 caracteres.",
+    "current_load": "Carga atual",
+    "sections": {
+      "attributes": "Atributos",
+      "backstory": "Historia",
+      "secret_objective": "Objetivo secreto",
+      "coop_mission": "Missao cooperativa inicial",
+      "conditions": "Condicoes",
+      "reputation": "Reputacao",
+      "passive_milestones": "Marcos passivos",
+      "magic_proficiency": "Proficiencia magica",
+      "magic_level": "Nivel de magia",
+      "elemental_proficiency": "Aptidao elemental",
+      "weight": "Peso",
+      "currency": "Moeda",
+      "inventory": "Inventario",
+      "points_available": "Pontos disponiveis",
+      "weapon_proficiency": "Proficiencia de arma",
+      "skills": "Pericias",
+      "hot_actions": "Acoes rapidas"
+    },
+    "actions": {
+      "saving": "Salvando...",
+      "save_backstory": "Salvar historia",
+      "save_alias": "Salvar alias",
+      "save_macro": "Salvar macro"
+    },
+    "mission": {
+      "inactive": "Inativa",
+      "completed": "Concluida",
+      "active_blocking": "Ativa (bloqueando)"
+    },
+    "spells": {
+      "spell_base": "Base da magia",
+      "custom_name": "Nome customizado (cosmetico)",
+      "custom_name_placeholder": "Exemplo: Aurora Ember Slash",
+      "alias_hint": "O alias muda apenas o nome exibido; dano e efeitos seguem as regras base.",
+      "unlocked_hint": "Se um elemento aparece aqui, ele ja esta disponivel para uso. Seu nivel de magia atual e {{level}}, com cap elemental {{cap}}/20."
+    },
+    "magic_stats": {
+      "max_mp": "MP maximo",
+      "damage_bonus": "bonus de dano magico",
+      "element_cap": "teto elemental"
+    },
+    "elements": {
+      "air": "Ar",
+      "fire": "Fogo",
+      "water": "Agua",
+      "earth": "Terra",
+      "energy": "Energia",
+      "spirit": "Espirito"
+    },
+    "currency": {
+      "copper": "Cobre",
+      "silver": "Prata",
+      "gold": "Ouro",
+      "platinum": "Platina",
+      "total_copper": "Total em cobre"
+    },
+    "reputation_labels": {
+      "enemies": "Inimigos",
+      "hostile": "Hostil",
+      "neutral": "Neutro",
+      "friendly": "Amigavel",
+      "allied": "Aliado"
+    },
+    "factions": {
+      "church_pure_flame": "Igreja da Chama Pura",
+      "empire_valdrek": "Imperio de Valdrek",
+      "guild_of_threads": "Guilda dos Fios",
+      "children_of_broken_thread": "Filhos do Fio Quebrado",
+      "myr_council": "Conselho de Myr"
+    },
+    "macros": {
+      "command": "Comando (exemplo: /wind-slash)",
+      "command_placeholder": "/nome-macro",
+      "template": "Template de acao",
+      "template_placeholder": "Descreva a acao que sera expandida quando o comando for usado"
+    },
+    "tabs": {
+      "aria_label": "Abas da ficha de personagem",
+      "summary": "Status",
+      "spells": "Magias",
+      "items": "Itens",
+      "proficiencies": "Pericias",
+      "macros": "Macros"
+    }
+  },
+  "admin": {
+    "title": "Admin do GM",
+    "subtitle": "Digite o segredo admin para acessar o painel",
+    "dashboard_title": "Painel Admin do GM",
+    "autorefresh": "Atualiza automaticamente a cada 10s",
+    "players": "Jogadores",
+    "no_players": "Nenhum jogador registrado.",
+    "invite_code": "Codigo de convite",
+    "fields": {
+      "secret_placeholder": "Segredo admin"
+    },
+    "actions": {
+      "authenticating": "Autenticando...",
+      "access_dashboard": "Entrar no painel",
+      "resume_campaign": "Retomar campanha",
+      "pause_campaign": "Pausar campanha",
+      "generate_invite": "Gerar convite",
+      "reload_config": "Recarregar config",
+      "refresh_players": "Atualizar jogadores",
+      "copy": "Copiar"
+    },
+    "status": {
+      "paused": "Campanha pausada.",
+      "resumed": "Campanha retomada.",
+      "reloaded": "Configuracao recarregada.",
+      "copied": "Copiado!"
+    },
+    "errors": {
+      "invalid_secret": "Segredo admin invalido ou servidor indisponivel.",
+      "refresh_failed": "Falha ao atualizar lista de jogadores.",
+      "toggle_failed": "Falha ao alterar estado da campanha.",
+      "invite_failed": "Falha ao gerar convite.",
+      "reload_failed": "Falha ao recarregar configuracao."
+    },
+    "table": {
+      "name": "Nome",
+      "class": "Classe",
+      "faction": "Faccao",
+      "level": "Nivel",
+      "hp": "HP",
+      "status": "Status"
+    }
+  },
   "combat": {
     "order_title": "Ordem de Combate",
     "player_fallback": "Jogador",
@@ -23,7 +232,12 @@
   "narrative": {
     "aria_label": "Narrativa do jogo",
     "close_warning": "Fechar aviso",
-    "narrative_waiting": "A narrativa começa quando todos os jogadores enviarem uma ação."
+    "narrative_waiting": "A narrativa começa quando todos os jogadores enviarem uma ação.",
+    "turn": "Turno {{turn}}",
+    "action": "Acao",
+    "narration": "Narracao",
+    "gm_roll_label": "Rolagem do GM:",
+    "gm_roll_detail": "{{player}} | d{{die}} | {{purpose}} | resultado {{result}}"
   },
   "travel": {
     "in_transit": "Em Viagem",
@@ -54,5 +268,76 @@
     "hide": "Ocultar eventos",
     "show": "Mostrar eventos",
     "empty": "Nenhum evento ainda."
+  },
+  "game_ui": {
+    "action_input": {
+      "placeholder": "Acao... (historico cima/baixo · Ctrl+Enter para enviar)",
+      "aria_label": "Acao do jogador",
+      "send": "Enviar",
+      "waiting": "Aguardando outros jogadores... ({{seconds}}s)"
+    },
+    "connection": {
+      "disconnected": "Desconectado",
+      "connecting": "Conectando...",
+      "connected": "Conectado",
+      "reconnecting": "Reconectando..."
+    },
+    "volume": {
+      "aria_label": "Configuracoes de volume",
+      "title": "Volume",
+      "channels": {
+        "music": "Musica",
+        "sfx": "Efeitos",
+        "ambient": "Ambiente"
+      }
+    },
+    "byok": {
+      "aria_label": "Configuracoes BYOK",
+      "title": "Sua chave OpenRouter",
+      "placeholder": "sk-or-v1-...",
+      "actions": {
+        "saving": "Salvando...",
+        "save": "Salvar chave"
+      },
+      "status": {
+        "saved": "Chave registrada com sucesso."
+      },
+      "errors": {
+        "invalid_key": "Digite uma chave valida.",
+        "save_failed": "Falha ao registrar chave."
+      }
+    },
+    "spectator": {
+      "badge": "ESPECTADOR",
+      "create_title": "Criar novo personagem",
+      "go_to_creation": "Ir para criacao",
+      "other_players": "Outros jogadores",
+      "hp": "HP"
+    },
+    "isekai": {
+      "secret_objective": "Objetivo secreto:",
+      "enter": "Entrar em Aerus"
+    },
+    "debug": {
+      "toggle": "Debug",
+      "title": "Console de debug",
+      "connection": "conexao",
+      "player": "jogador",
+      "on": "Debug ligado",
+      "off": "Debug desligado",
+      "loading": "Carregando...",
+      "snapshot": "Snapshot",
+      "clear": "Limpar",
+      "compare": "Comparacao backend vs frontend",
+      "backend": "Backend",
+      "frontend": "Frontend",
+      "snapshot_hint": "Clique em Snapshot para carregar estado do backend.",
+      "consistent": "Estado local consistente com snapshot do backend.",
+      "no_logs": "Nenhum log capturado.",
+      "errors": {
+        "no_token": "Nenhum token autenticado disponivel para buscar snapshot.",
+        "snapshot_failed": "Falha ao carregar snapshot."
+      }
+    }
   }
 }

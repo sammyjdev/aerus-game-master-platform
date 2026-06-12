@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 import { analyzeBackstory, createCharacter } from '../api/http';
+import { LanguageSwitcher } from '../components/ui/LanguageSwitcher';
 import { logClient } from '../debug/logger';
 import { useGameStore } from '../store/gameStore';
 import type { Faction, Race } from '../types';
@@ -49,25 +51,32 @@ const RACE_LABELS: Record<Race, string> = {
 
 const SUBRACES: Partial<Record<Race, Array<{ id: string; label: string }>>> = {
   human: [
-    { id: 'human_northerner', label: 'Northerner — STR/INT focused, ash memory' },
-    { id: 'human_trader',     label: 'Trader — LUK/DEX focused, negotiation' },
-    { id: 'human_khorathi',   label: 'Khorathi — VIT focused, endurance' },
-    { id: 'human_dawnmere',   label: 'Dawnmere — balanced, thread-sensitive' },
+    {
+      id: 'human_northerner',
+      label: 'Northerner — STR/INT focused, ash memory',
+    },
+    { id: 'human_trader', label: 'Trader — LUK/DEX focused, negotiation' },
+    { id: 'human_khorathi', label: 'Khorathi — VIT focused, endurance' },
+    { id: 'human_dawnmere', label: 'Dawnmere — balanced, thread-sensitive' },
   ],
   elf: [
-    { id: 'elf_twilight',       label: 'Twilight Elf — high INT, arcane focus' },
-    { id: 'elf_corrupted_fae',  label: 'Corrupted Fae — INT/LUK, void-touched' },
-    { id: 'elf_mist',           label: 'Mist Elf — LUK/DEX, elusive nature' },
-    { id: 'elf_wandering_fae',  label: 'Wandering Fae — high DEX, swift' },
+    { id: 'elf_twilight', label: 'Twilight Elf — high INT, arcane focus' },
+    { id: 'elf_corrupted_fae', label: 'Corrupted Fae — INT/LUK, void-touched' },
+    { id: 'elf_mist', label: 'Mist Elf — LUK/DEX, elusive nature' },
+    { id: 'elf_wandering_fae', label: 'Wandering Fae — high DEX, swift' },
   ],
   dwarf: [
     { id: 'forger_stone_goliath', label: 'Stone Goliath — high STR, smithing' },
-    { id: 'forger_deep_dwarf',    label: 'Deep Dwarf — INT/VIT, ruin reader' },
-    { id: 'forger_stenvaard',     label: 'Stenvaard — STR/VIT, battle-hardened' },
+    { id: 'forger_deep_dwarf', label: 'Deep Dwarf — INT/VIT, ruin reader' },
+    { id: 'forger_stenvaard', label: 'Stenvaard — STR/VIT, battle-hardened' },
   ],
 };
 
+const BACKSTORY_MIN = 50;
+const BACKSTORY_MAX = 3000;
+
 export function CharacterCreationPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const token = useGameStore((state) => state.token);
 
@@ -88,7 +97,12 @@ export function CharacterCreationPage() {
     setSubrace(options ? options[0].id : '');
   };
 
-  const canSubmit = useMemo(() => backstory.trim().length >= 50, [backstory]);
+  const canSubmit = useMemo(
+    () =>
+      backstory.trim().length >= BACKSTORY_MIN &&
+      backstory.trim().length <= BACKSTORY_MAX,
+    [backstory],
+  );
 
   const submit = (event: { preventDefault: () => void }) => {
     event.preventDefault();
@@ -114,7 +128,12 @@ export function CharacterCreationPage() {
           backstory,
           subrace: subrace || null,
         });
-        logClient('info', 'character', 'Character creation completed', { name, race, subrace, faction });
+        logClient('info', 'character', 'Character creation completed', {
+          name,
+          race,
+          subrace,
+          faction,
+        });
 
         // Analyze backstory to seed initial skills
         try {
@@ -122,7 +141,9 @@ export function CharacterCreationPage() {
           const skillNames = Object.keys(analysis.granted_skills);
           if (skillNames.length > 0) {
             setSkillsGranted(skillNames);
-            logClient('info', 'character', 'Backstory skills seeded', { skills: skillNames });
+            logClient('info', 'character', 'Backstory skills seeded', {
+              skills: skillNames,
+            });
             // Brief delay so user can read the message, then navigate
             await new Promise((r) => setTimeout(r, 2500));
           }
@@ -134,7 +155,9 @@ export function CharacterCreationPage() {
         navigate('/game');
       } catch (error_) {
         const message =
-          error_ instanceof Error ? error_.message : 'Failed to create character';
+          error_ instanceof Error
+            ? error_.message
+            : t('character.errors.create_failed');
         logClient('error', 'character', 'Character creation failed', {
           message,
           name,
@@ -150,10 +173,14 @@ export function CharacterCreationPage() {
 
   return (
     <main className='character-page'>
-      <h1>Character Creation</h1>
+      <div className='page-tools'>
+        <LanguageSwitcher />
+      </div>
+
+      <h1>{t('character.title')}</h1>
       <form onSubmit={submit} className='character-form'>
         <label>
-          <span>Name</span>
+          <span>{t('character.fields.name')}</span>
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
@@ -162,7 +189,7 @@ export function CharacterCreationPage() {
         </label>
 
         <label>
-          <span>Race</span>
+          <span>{t('character.fields.race')}</span>
           <select
             value={race}
             onChange={(event) => handleRaceChange(event.target.value as Race)}
@@ -177,7 +204,7 @@ export function CharacterCreationPage() {
 
         {subraceOptions.length > 0 && (
           <label>
-            <span>Subrace</span>
+            <span>{t('character.fields.subrace')}</span>
             <select
               value={subrace}
               onChange={(event) => setSubrace(event.target.value)}
@@ -207,26 +234,33 @@ export function CharacterCreationPage() {
         </div>
 
         <label>
-          <span>Backstory</span>
+          <span>{t('character.fields.backstory')}</span>
           <textarea
             value={backstory}
             onChange={(event) => setBackstory(event.target.value)}
-            minLength={50}
+            minLength={BACKSTORY_MIN}
+            maxLength={BACKSTORY_MAX}
             rows={5}
             required
           />
+          <small className='muted'>
+            {t('character.backstory_counter', { count: backstory.length })} •{' '}
+            {t('character.backstory_help')}
+          </small>
         </label>
 
         {error && <p className='error'>{error}</p>}
 
         {skillsGranted && skillsGranted.length > 0 && (
           <p className='save-ok'>
-            Skills from backstory: {skillsGranted.join(', ')}. Entering the world…
+            {t('character.skills_seeded', { skills: skillsGranted.join(', ') })}
           </p>
         )}
 
         <button type='submit' disabled={!canSubmit || loading}>
-          {loading ? 'Creating character…' : 'Enter the world'}
+          {loading
+            ? t('character.actions.creating')
+            : t('character.actions.enter_world')}
         </button>
       </form>
     </main>

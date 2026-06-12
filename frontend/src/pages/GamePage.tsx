@@ -11,6 +11,7 @@ import {
   DiceRoller,
   EventLog,
   IsekaiIntro,
+  LanguageSwitcher,
   MapViewer,
   ManualDiceRoller,
   NarrativePanel,
@@ -112,6 +113,7 @@ export function GamePage() {
           <CharacterSheet />
         </div>
         <div className='controls-tray'>
+          <LanguageSwitcher />
           <ByokSettings token={token} />
           <VolumeSettings />
           <DebugPanel />

@@ -84,6 +84,9 @@ export interface PlayerState {
   current_hp: number
   max_mp: number
   current_mp: number
+  magic_level: number
+  magic_rank_cap: number
+  magic_damage_bonus: number
   max_stamina: number
   current_stamina: number
   status: PlayerStatus
@@ -443,7 +446,7 @@ export interface SpendAttributePointsRequest {
 }
 
 export interface SpendProficiencyPointsRequest {
-  prof_type: 'weapon' | 'magic'
+  prof_type: 'weapon' | 'magic' | 'magic_level'
   key: string
   target_rank: number
 }

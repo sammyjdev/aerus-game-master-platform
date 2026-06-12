@@ -64,6 +64,9 @@ const StreamingWords = memo(function StreamingWords({
 export const NarrativePanel = memo(function NarrativePanel() {
   const { t } = useTranslation();
   const history = useGameStore((state) => state.gameState.history);
+  const pendingDiceRoll = useGameStore(
+    (state) => state.gameState.pending_dice_roll,
+  );
   const isStreaming = useGameStore((state) => state.gameState.is_streaming);
   const gmThinking = useGameStore((state) => state.gmThinking);
   const serverError = useGameStore((state) => state.serverError);
@@ -85,15 +88,24 @@ export const NarrativePanel = memo(function NarrativePanel() {
   }, [history, isStreaming]);
 
   const renderedHistory = useMemo(
-    () => history.map((entry) => ({
-      ...entry,
-      content:
-        entry.role === 'user'
-          ? formatUserAction(entry.content)
-          : sanitizeEntryContent(entry.content),
-    })),
+    () =>
+      history.map((entry) => ({
+        ...entry,
+        content:
+          entry.role === 'user'
+            ? formatUserAction(entry.content)
+            : sanitizeEntryContent(entry.content),
+      })),
     [history],
   );
+
+  const rollOutcome = pendingDiceRoll
+    ? pendingDiceRoll.is_critical
+      ? 'critical'
+      : pendingDiceRoll.is_fumble
+        ? 'fumble'
+        : 'normal'
+    : null;
 
   return (
     <section
@@ -118,27 +130,58 @@ export const NarrativePanel = memo(function NarrativePanel() {
         </div>
       )}
 
+      {pendingDiceRoll && (
+        <div
+          className={`narrative-roll-indicator ${rollOutcome}`}
+          role='status'
+          aria-live='polite'
+        >
+          <div className='narrative-roll-head'>
+            <strong>{t('narrative.gm_roll_label')}</strong>
+            <span className={`narrative-roll-pill ${rollOutcome}`}>
+              {t(`narrative.roll_outcome_${rollOutcome}`)}
+            </span>
+          </div>
+          <div>
+            {t('narrative.gm_roll_detail', {
+              player: pendingDiceRoll.player,
+              die: pendingDiceRoll.die,
+              purpose: pendingDiceRoll.purpose,
+              result: pendingDiceRoll.result,
+            })}
+          </div>
+        </div>
+      )}
+
+      {gmThinking && !isStreaming && (
+        <div className='narrative-thinking-indicator' role='status'>
+          {gmThinking}
+        </div>
+      )}
+
       {renderedHistory.map((entry, index) => {
         const isLastAssistant =
           isStreaming &&
           entry.role === 'assistant' &&
           index === renderedHistory.length - 1;
-        const previousTurn = index > 0 ? renderedHistory[index - 1].turn_number : null;
-        const showTurnDivider = index === 0 || previousTurn !== entry.turn_number;
+        const previousTurn =
+          index > 0 ? renderedHistory[index - 1].turn_number : null;
+        const showTurnDivider =
+          index === 0 || previousTurn !== entry.turn_number;
 
         return (
           <Fragment key={`${entry.turn_number}-${entry.role}-${index}`}>
             {showTurnDivider && (
               <div className='turn-divider'>
-                <span>Turn {entry.turn_number}</span>
+                <span>{t('narrative.turn', { turn: entry.turn_number })}</span>
               </div>
             )}
-            <article
-              className={`entry ${entry.role}`}
-            >
+            <article className={`entry ${entry.role}`}>
               <div className='entry-header'>
                 <span className='entry-label'>
-                  {entry.role === 'user' ? 'Action' : 'Narration'}
+                  {entry.role === 'user'
+                    ? t('narrative.action')
+                    : t('narrative.narration')}
                 </span>
               </div>
               {isLastAssistant ? (

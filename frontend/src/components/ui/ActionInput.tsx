@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { useGameStore } from '../../store/gameStore';
 
@@ -7,6 +8,7 @@ interface ActionInputProps {
 }
 
 export function ActionInput({ onSend }: ActionInputProps) {
+  const { t } = useTranslation();
   const [value, setValue] = useState('');
   const [locked, setLocked] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -77,7 +79,10 @@ export function ActionInput({ onSend }: ActionInputProps) {
       if (historyIndexRef.current === -1) {
         draftRef.current = value;
       }
-      const nextIndex = Math.min(historyIndexRef.current + 1, historyRef.current.length - 1);
+      const nextIndex = Math.min(
+        historyIndexRef.current + 1,
+        historyRef.current.length - 1,
+      );
       historyIndexRef.current = nextIndex;
       setValue(historyRef.current[nextIndex]);
       return;
@@ -87,7 +92,9 @@ export function ActionInput({ onSend }: ActionInputProps) {
       e.preventDefault();
       const nextIndex = historyIndexRef.current - 1;
       historyIndexRef.current = nextIndex;
-      setValue(nextIndex === -1 ? draftRef.current : historyRef.current[nextIndex]);
+      setValue(
+        nextIndex === -1 ? draftRef.current : historyRef.current[nextIndex],
+      );
     }
   };
 
@@ -102,13 +109,13 @@ export function ActionInput({ onSend }: ActionInputProps) {
           historyIndexRef.current = -1;
         }}
         onKeyDown={onKeyDown}
-        placeholder='Action... (↑↓ history · Ctrl+Enter to send)'
-        aria-label='Player action'
+        placeholder={t('game_ui.action_input.placeholder')}
+        aria-label={t('game_ui.action_input.aria_label')}
         aria-describedby={countdown !== null ? 'action-countdown' : undefined}
         disabled={locked}
       />
       <button type='submit' disabled={locked || value.trim().length === 0}>
-        Send
+        {t('game_ui.action_input.send')}
       </button>
       {countdown !== null && (
         <p
@@ -117,7 +124,7 @@ export function ActionInput({ onSend }: ActionInputProps) {
           role='status'
           aria-live='polite'
         >
-          Waiting for other players... ({countdown}s)
+          {t('game_ui.action_input.waiting', { seconds: countdown })}
         </p>
       )}
     </form>

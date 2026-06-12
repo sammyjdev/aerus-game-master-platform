@@ -5,6 +5,24 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useGameStore } from '../../store/gameStore';
 import { CharacterSheet } from './CharacterSheet';
 
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      const labels: Record<string, string> = {
+        'sheet.tabs.spells': 'Spells',
+        'sheet.tabs.macros': 'Macros',
+        'sheet.spells.custom_name_placeholder': 'Example: Aurora Ember Slash',
+        'sheet.actions.save_alias': 'Save alias',
+        'sheet.macros.command_placeholder': '/name-macro',
+        'sheet.macros.template_placeholder':
+          'Describe the action that will be expanded when the command is used',
+        'sheet.actions.save_macro': 'Save macro',
+      };
+      return labels[key] ?? key;
+    },
+  }),
+}));
+
 const apiMocks = vi.hoisted(() => ({
   updateCharacterBackstory: vi.fn().mockResolvedValue({ status: 'updated' }),
   updateCharacterMacros: vi
@@ -13,12 +31,16 @@ const apiMocks = vi.hoisted(() => ({
   updateCharacterSpellAliases: vi
     .fn()
     .mockResolvedValue({ status: 'updated', aliases: {} }),
+  spendAttributePoints: vi.fn(),
+  spendProficiencyPoints: vi.fn(),
 }));
 
 vi.mock('../../api/http', () => ({
   updateCharacterBackstory: apiMocks.updateCharacterBackstory,
   updateCharacterMacros: apiMocks.updateCharacterMacros,
   updateCharacterSpellAliases: apiMocks.updateCharacterSpellAliases,
+  spendAttributePoints: apiMocks.spendAttributePoints,
+  spendProficiencyPoints: apiMocks.spendProficiencyPoints,
 }));
 
 describe('CharacterSheet', () => {
@@ -26,6 +48,8 @@ describe('CharacterSheet', () => {
     apiMocks.updateCharacterBackstory.mockClear();
     apiMocks.updateCharacterMacros.mockClear();
     apiMocks.updateCharacterSpellAliases.mockClear();
+    apiMocks.spendAttributePoints.mockClear();
+    apiMocks.spendProficiencyPoints.mockClear();
     useGameStore.setState((state) => ({
       ...state,
       token: 'token',
@@ -36,6 +60,9 @@ describe('CharacterSheet', () => {
           name: 'Kael',
           backstory: 'Former mercenary summoned to Aerus.',
           magic_proficiency: { fogo: 2 },
+          magic_level: 12,
+          magic_rank_cap: 4,
+          magic_damage_bonus: 2,
           spell_aliases: {},
           macros: [],
         },

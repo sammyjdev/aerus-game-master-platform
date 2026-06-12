@@ -10,6 +10,7 @@ export { ActionInput } from '../../components/ui/ActionInput';
 export { ByokSettings } from '../../components/ui/ByokSettings';
 export { ConnectionStatus } from '../../components/ui/ConnectionStatus';
 export { EventLog } from '../../components/ui/EventLog';
+export { LanguageSwitcher } from '../../components/ui/LanguageSwitcher';
 export { VolumeSettings } from '../../components/ui/VolumeSettings';
 export { TravelTracker } from '../../components/travel/TravelTracker';
 export { MapViewer } from '../../components/travel/MapViewer';

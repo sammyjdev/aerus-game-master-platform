@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface IsekaiIntroProps {
   readonly narrative: string;
@@ -9,34 +10,42 @@ interface IsekaiIntroProps {
 const NarrativeWords = memo(function NarrativeWords({
   text,
 }: Readonly<{ text: string }>) {
-  const words = useMemo(() => text.split(/(\s+)/).filter(Boolean), [text])
-  let offset = 0
+  const words = useMemo(() => text.split(/(\s+)/).filter(Boolean), [text]);
+  let offset = 0;
   return (
     <>
       {words.map((word) => {
-        const key = offset
-        offset += word.length
+        const key = offset;
+        offset += word.length;
         return (
           <span
             key={key}
             className='streaming-word'
-            style={{ animationDelay: `${key * 0.015}s`, opacity: 0, animationFillMode: 'forwards' }}
+            style={{
+              animationDelay: `${key * 0.015}s`,
+              opacity: 0,
+              animationFillMode: 'forwards',
+            }}
           >
             {word}
           </span>
-        )
+        );
       })}
     </>
-  )
-})
+  );
+});
 
 export function IsekaiIntro({
   narrative,
   secretObjective,
   onEnter,
 }: IsekaiIntroProps) {
-  const words = useMemo(() => narrative.split(/(\s+)/).filter(Boolean), [narrative])
-  const narrativeDuration = words.length * 0.015 + 0.3
+  const { t } = useTranslation();
+  const words = useMemo(
+    () => narrative.split(/(\s+)/).filter(Boolean),
+    [narrative],
+  );
+  const narrativeDuration = words.length * 0.015 + 0.3;
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -64,7 +73,7 @@ export function IsekaiIntro({
             animationFillMode: 'forwards',
           }}
         >
-          <h3>Secret Objective:</h3>
+          <h3>{t('game_ui.isekai.secret_objective')}</h3>
           <p>{secretObjective}</p>
         </div>
 
@@ -79,9 +88,9 @@ export function IsekaiIntro({
             animationFillMode: 'forwards',
           }}
         >
-          Enter Aerus
+          {t('game_ui.isekai.enter')}
         </button>
       </div>
     </div>
-  )
+  );
 }

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { getDebugStateSnapshot } from '../../api/http';
 import { setClientDebugEnabled } from '../../debug/logger';
@@ -74,6 +75,7 @@ function buildStateDiff(
 }
 
 export function DebugPanel() {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [loadingSnapshot, setLoadingSnapshot] = useState(false);
   const [snapshotError, setSnapshotError] = useState<string | null>(null);
@@ -99,7 +101,7 @@ export function DebugPanel() {
 
   async function refreshSnapshot() {
     if (!token) {
-      setSnapshotError('No authenticated token available to fetch the snapshot.');
+      setSnapshotError(t('game_ui.debug.errors.no_token'));
       return;
     }
     setLoadingSnapshot(true);
@@ -109,7 +111,9 @@ export function DebugPanel() {
       setSnapshot(data);
     } catch (error) {
       setSnapshotError(
-        error instanceof Error ? error.message : 'Failed to load snapshot.',
+        error instanceof Error
+          ? error.message
+          : t('game_ui.debug.errors.snapshot_failed'),
       );
     } finally {
       setLoadingSnapshot(false);
@@ -123,17 +127,18 @@ export function DebugPanel() {
         className='debug-toggle'
         onClick={() => setOpen((value) => !value)}
       >
-        Debug
+        {t('game_ui.debug.toggle')}
       </button>
 
       {open && (
         <section className='debug-panel panel'>
           <header className='debug-panel-header'>
             <div>
-              <strong>Debug Console</strong>
+              <strong>{t('game_ui.debug.title')}</strong>
               <div className='muted'>
-                connection: {connectionStatus} | player:{' '}
-                {currentPlayer.name || 'anon'} | turn: {turnNumber}
+                {t('game_ui.debug.connection')}: {connectionStatus} |{' '}
+                {t('game_ui.debug.player')}: {currentPlayer.name || 'anon'} |
+                turn: {turnNumber}
               </div>
             </div>
             <div className='debug-panel-actions'>
@@ -142,34 +147,34 @@ export function DebugPanel() {
                 className={debugEnabled ? 'active' : ''}
                 onClick={() => setClientDebugEnabled(!debugEnabled)}
               >
-                {debugEnabled ? 'Debug on' : 'Debug off'}
+                {debugEnabled ? t('game_ui.debug.on') : t('game_ui.debug.off')}
               </button>
               <button
                 type='button'
                 disabled={loadingSnapshot}
                 onClick={() => void refreshSnapshot()}
               >
-                {loadingSnapshot ? 'Loading...' : 'Snapshot'}
+                {loadingSnapshot
+                  ? t('game_ui.debug.loading')
+                  : t('game_ui.debug.snapshot')}
               </button>
               <button type='button' onClick={() => clearDebugEntries()}>
-                Clear
+                {t('game_ui.debug.clear')}
               </button>
             </div>
           </header>
 
           <section className='debug-state-compare'>
-            <strong>Backend vs frontend comparison</strong>
+            <strong>{t('game_ui.debug.compare')}</strong>
             {snapshotError && <div className='error'>{snapshotError}</div>}
             {!snapshot && !snapshotError && (
-              <div className='muted'>
-                Click Snapshot to load backend state.
-              </div>
+              <div className='muted'>{t('game_ui.debug.snapshot_hint')}</div>
             )}
             {snapshot && (
               <>
                 <div className='debug-state-grid'>
                   <div>
-                    <div className='muted'>Backend</div>
+                    <div className='muted'>{t('game_ui.debug.backend')}</div>
                     <div>turn: {snapshot.world_state.current_turn}</div>
                     <div>class: {snapshot.player.inferred_class || 'n/a'}</div>
                     <div>
@@ -180,7 +185,7 @@ export function DebugPanel() {
                     <div>connected: {snapshot.runtime.connected_players}</div>
                   </div>
                   <div>
-                    <div className='muted'>Frontend</div>
+                    <div className='muted'>{t('game_ui.debug.frontend')}</div>
                     <div>turn: {gameState.turn_number}</div>
                     <div>
                       class: {gameState.current_player.inferred_class || 'n/a'}
@@ -195,9 +200,7 @@ export function DebugPanel() {
                 </div>
 
                 {stateDiff.length === 0 ? (
-                  <div className='save-ok'>
-                    Local state is consistent with the backend snapshot.
-                  </div>
+                  <div className='save-ok'>{t('game_ui.debug.consistent')}</div>
                 ) : (
                   <ul className='debug-diff-list'>
                     {stateDiff.map((diff) => (
@@ -211,7 +214,7 @@ export function DebugPanel() {
 
           <div className='debug-log-list'>
             {visibleEntries.length === 0 && (
-              <div className='muted'>No logs captured.</div>
+              <div className='muted'>{t('game_ui.debug.no_logs')}</div>
             )}
             {visibleEntries.map((entry) => (
               <article

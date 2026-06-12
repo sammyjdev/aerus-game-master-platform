@@ -1,19 +1,20 @@
 import { useGameStore } from '../../store/gameStore';
-
-const LABELS = {
-  disconnected: 'Disconnected',
-  connecting: 'Connecting...',
-  connected: 'Connected',
-  reconnecting: 'Reconnecting...',
-} as const;
+import { useTranslation } from 'react-i18next';
 
 export function ConnectionStatus() {
+  const { t } = useTranslation();
   const status = useGameStore((state) => state.connectionStatus);
+  const labels = {
+    disconnected: t('game_ui.connection.disconnected'),
+    connecting: t('game_ui.connection.connecting'),
+    connected: t('game_ui.connection.connected'),
+    reconnecting: t('game_ui.connection.reconnecting'),
+  } as const;
 
   return (
     <div className={`connection-status ${status}`}>
       <span className='dot' />
-      {LABELS[status]}
+      {labels[status]}
     </div>
   );
 }
