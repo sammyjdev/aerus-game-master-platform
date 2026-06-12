@@ -44,6 +44,7 @@ from .crypto import encrypt_api_key
 from .debug_tools import clip_text, configure_logging, log_debug, log_flow, mask_secret
 from .local_llm import generate_text
 from .models import (
+    AdminPlayerUpdateRequest,
     AnalyzeBackstoryRequest,
     CharacterResponse,
     CreateCharacterRequest,
@@ -67,6 +68,8 @@ from .state_manager import get_db
 configure_logging()
 logger = logging.getLogger(__name__)
 PLAYER_NOT_FOUND_DETAIL = "Player not found"
+BACKSTORY_MIN_CHARS = 50
+BACKSTORY_MAX_CHARS = 3000
 
 # ---------------------------------------------------------------------------
 # App
@@ -307,8 +310,14 @@ async def create_character(
     if row and row["name"]:
         raise HTTPException(status_code=400, detail="Character already created")
 
+    backstory = body.backstory.strip()
+    if len(backstory) < BACKSTORY_MIN_CHARS:
+        raise HTTPException(status_code=400, detail=f"Backstory too short (min {BACKSTORY_MIN_CHARS} chars)")
+    if len(backstory) > BACKSTORY_MAX_CHARS:
+        raise HTTPException(status_code=400, detail=f"Backstory too long (max {BACKSTORY_MAX_CHARS} chars)")
+
     # GM infers class and generates a secret objective (Phase 1: simplified)
-    inferred_class = await _infer_class_from_backstory_local(body.backstory, body.faction.value)
+    inferred_class = await _infer_class_from_backstory_local(backstory, body.faction.value)
     secret_objective = _generate_secret_objective(body.faction.value)
     max_hp = 100  # base VIT=10
 
@@ -318,13 +327,13 @@ async def create_character(
         name=body.name,
         race=body.race.value,
         faction=body.faction.value,
-        backstory=body.backstory,
+        backstory=backstory,
         inferred_class=inferred_class,
         secret_objective=secret_objective,
         max_hp=max_hp,
         subrace=body.subrace,
     )
-    await state_manager.seed_starter_inventory(conn, player_id, body.backstory)
+    await state_manager.seed_starter_inventory(conn, player_id, backstory)
     await state_manager.ensure_default_world_state(conn)
     mission_state = await state_manager.initialize_or_refresh_cooperative_mission(conn)
     log_flow(
@@ -405,8 +414,10 @@ async def update_character_macros(body: UpdateMacrosBody, player: PlayerDep, con
 @app.put("/character/backstory", tags=["character"], responses={400: {"description": "Invalid backstory"}})
 async def update_character_backstory(body: UpdateBackstoryBody, player: PlayerDep, conn: DbDep) -> dict:
     backstory = body.backstory.strip()
-    if len(backstory) < 10:
-        raise HTTPException(status_code=400, detail="Invalid backstory")
+    if len(backstory) < BACKSTORY_MIN_CHARS:
+        raise HTTPException(status_code=400, detail=f"Backstory too short (min {BACKSTORY_MIN_CHARS} chars)")
+    if len(backstory) > BACKSTORY_MAX_CHARS:
+        raise HTTPException(status_code=400, detail=f"Backstory too long (max {BACKSTORY_MAX_CHARS} chars)")
     await state_manager.update_backstory(conn, player["player_id"], backstory)
     log_flow(
         logger,
@@ -507,7 +518,16 @@ async def spend_attribute_points(
     )
     if not result.get("ok"):
         raise HTTPException(status_code=400, detail=result.get("reason", "Cannot spend points"))
-    return result
+    return {
+        "status": "ok",
+        "attribute": body.attribute,
+        "new_value": result["new_value"],
+        "points_remaining": result["ap_remaining"],
+        "max_mp": result.get("max_mp"),
+        "current_mp": result.get("current_mp"),
+        "magic_level": result.get("magic_level"),
+        "milestones_unlocked": result.get("milestones_unlocked", []),
+    }
 
 
 @app.post("/character/proficiencies/spend", tags=["character"])
@@ -522,7 +542,17 @@ async def spend_proficiency_points(
     )
     if not result.get("ok"):
         raise HTTPException(status_code=400, detail=result.get("reason", "Cannot spend points"))
-    return result
+    return {
+        "status": "ok",
+        "prof_type": body.prof_type,
+        "key": body.key,
+        "new_rank": result["new_rank"],
+        "points_remaining": result["pp_remaining"],
+        "max_mp": result.get("max_mp"),
+        "current_mp": result.get("current_mp"),
+        "magic_rank_cap": result.get("magic_rank_cap"),
+        "magic_damage_bonus": result.get("magic_damage_bonus"),
+    }
 
 
 @app.get("/debug/state", tags=["debug"], responses={404: {"description": PLAYER_NOT_FOUND_DETAIL}})
@@ -577,6 +607,11 @@ async def get_debug_state_snapshot(player: PlayerDep, conn: DbDep) -> dict:
             "faction": row["faction"],
             "inferred_class": row["inferred_class"],
             "level": row["level"],
+            "magic_level": state_manager.get_effective_magic_level(
+                row["magic_level"],
+                json.loads(row["magic_prof_json"] or "{}"),
+                character_level=row["level"],
+            ),
             "status": row["status"],
             "current_hp": row["current_hp"],
             "max_hp": row["max_hp"],
@@ -679,14 +714,67 @@ async def list_admin_players(admin: AdminDep, conn: DbDep) -> dict:
         {
             "player_id": row["player_id"],
             "username": row["username"],
-            "status": row.get("status", "pending"),
-            "name": row.get("name"),
-            "level": row.get("level", 1),
+            "status": row["status"] or "pending",
+            "name": row["name"],
+            "level": int(row["level"] or 1),
+            "faction": row["faction"],
+            "inferred_class": row["inferred_class"],
+            "current_hp": int(row["current_hp"] or 0),
+            "max_hp": int(row["max_hp"] or 1),
+            "is_alive": (row["status"] or "alive") != "dead",
         }
         for row in rows
     ]
     log_flow(logger, "admin_list_players", count=len(players))
     return {"players": players}
+
+
+@app.get(
+    "/admin/players/{player_id}",
+    tags=["admin"],
+    responses={403: {"description": "Access denied"}, 404: {"description": "Player not found"}},
+)
+async def get_admin_player_detail(player_id: str, admin: AdminDep, conn: DbDep) -> dict:
+    """Return the full editable state for a single player."""
+    row = await state_manager.get_player_by_id(conn, player_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail=PLAYER_NOT_FOUND_DETAIL)
+
+    inv_rows = await state_manager.get_player_inventory(conn, player_id)
+    cond_rows = await state_manager.get_player_conditions(conn, player_id)
+    world_state = await _load_world_sync_snapshot(conn)
+    player = _build_player_full_state(dict(row), inv_rows, cond_rows)
+    log_flow(logger, "admin_player_detail", player_id=player_id)
+    return {"player": player, "world_state": world_state}
+
+
+@app.patch(
+    "/admin/players/{player_id}",
+    tags=["admin"],
+    responses={403: {"description": "Access denied"}, 404: {"description": "Player not found"}},
+)
+async def update_admin_player(
+    player_id: str,
+    body: AdminPlayerUpdateRequest,
+    admin: AdminDep,
+    conn: DbDep,
+) -> dict:
+    """Admin can correct any persisted player data from the dashboard."""
+    updated = await state_manager.admin_update_player(
+        conn,
+        player_id,
+        body.model_dump(exclude_unset=True),
+    )
+    if updated is None:
+        raise HTTPException(status_code=404, detail=PLAYER_NOT_FOUND_DETAIL)
+
+    inv_rows = await state_manager.get_player_inventory(conn, player_id)
+    cond_rows = await state_manager.get_player_conditions(conn, player_id)
+    world_state = await _load_world_sync_snapshot(conn)
+    player = _build_player_full_state(dict(updated), inv_rows, cond_rows)
+    await _send_player_full_sync(player_id, player, world_state)
+    log_flow(logger, "admin_player_updated", player_id=player_id, fields=list(body.model_dump(exclude_unset=True).keys()))
+    return {"status": "updated", "player": player}
 
 
 @app.post(
@@ -1018,6 +1106,12 @@ async def _load_player_sync_snapshot(player_id: str) -> tuple[dict | None, list,
 
 def _build_player_full_state(row: dict, inv_rows: list, cond_rows: list) -> dict:
     attrs = json.loads(row["attributes_json"] or "{}")
+    magic_proficiency = json.loads(row["magic_prof_json"] or "{}")
+    effective_magic_level = state_manager.get_effective_magic_level(
+        row.get("magic_level", 0),
+        magic_proficiency,
+        character_level=row.get("level", 1),
+    )
     currency = json.loads(
         row["currency_json"] or '{"copper":0,"silver":5,"gold":0,"platinum":0}'
     )
@@ -1046,6 +1140,7 @@ def _build_player_full_state(row: dict, inv_rows: list, cond_rows: list) -> dict
 
     return {
         "player_id": row["player_id"],
+        "username": row.get("username"),
         "name": row["name"],
         "race": row["race"],
         "faction": row["faction"],
@@ -1058,6 +1153,9 @@ def _build_player_full_state(row: dict, inv_rows: list, cond_rows: list) -> dict
         "max_hp": row["max_hp"],
         "current_mp": row["current_mp"],
         "max_mp": row["max_mp"],
+        "magic_level": effective_magic_level,
+        "magic_rank_cap": state_manager.get_magic_rank_cap(effective_magic_level),
+        "magic_damage_bonus": state_manager.get_magic_damage_bonus(effective_magic_level),
         "current_stamina": row["current_stamina"],
         "max_stamina": row["max_stamina"],
         "status": row["status"],
@@ -1068,7 +1166,7 @@ def _build_player_full_state(row: dict, inv_rows: list, cond_rows: list) -> dict
         "inventory_weight": row["inventory_weight"],
         "weight_capacity": row["weight_capacity"],
         "passive_milestones": json.loads(row["milestones_json"] or "[]"),
-        "magic_proficiency": json.loads(row["magic_prof_json"] or "{}"),
+        "magic_proficiency": magic_proficiency,
         "weapon_proficiency": json.loads(row["weapon_prof_json"] or "{}"),
         "macros": json.loads(row["macros_json"] or "[]"),
         "spell_aliases": json.loads(row["spell_aliases_json"] or "{}"),
@@ -1077,6 +1175,8 @@ def _build_player_full_state(row: dict, inv_rows: list, cond_rows: list) -> dict
         "attribute_points_available": int(row["attribute_points_available"] or 0),
         "proficiency_points_available": int(row["proficiency_points_available"] or 0),
         "subrace": row["subrace"],
+        "flame_seal": row.get("flame_seal"),
+        "created_at": row.get("created_at"),
     }
 
 

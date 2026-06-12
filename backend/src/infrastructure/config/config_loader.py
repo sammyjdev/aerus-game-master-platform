@@ -44,6 +44,14 @@ def load_world_kernel() -> str:
 
 
 @lru_cache(maxsize=1)
+def load_narration_bible_kernel() -> str:
+    """Load narration_bible_kernel.md, injected into the L1 layer every turn.
+    Also used as the base system prompt for the teacher in aerum_dataset_generator_v2.py."""
+    path = CONFIG_DIR / "narration_bible_kernel.md"
+    return path.read_text(encoding="utf-8")
+
+
+@lru_cache(maxsize=1)
 def load_bestiary_md() -> str:
     """Load and concatenate all tiered bestiary_tN.md files."""
     parts: list[str] = []

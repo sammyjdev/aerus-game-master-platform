@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from typing import Any
 
 import aiosqlite
@@ -15,15 +16,50 @@ import aiosqlite
 _TRUNCATED = "\n[truncated]"
 
 from . import rumor_manager, state_manager, travel_manager, vector_store
-from .infrastructure.config.config_loader import load_campaign, load_world_kernel
+from .infrastructure.config.config_loader import load_campaign, load_narration_bible_kernel, load_world_kernel
 from .models import ActionBatch, ContextLayers, LoreResult, MemoryLayers
 from .time_manager import get_current_date
 
 logger = logging.getLogger(__name__)
 
+_SLM_SKIP_LINES = {
+    "PRINCÍPIO DE DENSIDADE:",
+    "ESTRUTURA POR CENA:",
+    "Regras adicionais obrigatórias:",
+    "REGRAS DE MECÂNICA — narrar o efeito, nunca o rótulo:",
+    "COMBATE:",
+    "CONDIÇÕES DE ESTADO:",
+    "MAGIA E BACKFIRE:",
+    "MORTE E QUEDA:",
+    "PROGRESSÃO:",
+}
+
+_SLM_PREFIX_REPLACEMENTS = {
+    "PROIBIDO:": "Evite:",
+    "OBRIGATÓRIO:": "Use:",
+    "EVITE SINAIS DE TEXTO DE IA:": "Evite marcas de texto artificial:",
+    "CTA format:": "CTA:",
+}
+
+
+def _sanitize_slm_kernel(text: str) -> str:
+    cleaned_lines: list[str] = []
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or line in _SLM_SKIP_LINES:
+            continue
+        for old, new in _SLM_PREFIX_REPLACEMENTS.items():
+            if line.startswith(old):
+                line = f"{new} {line[len(old):].strip()}"
+                break
+        line = re.sub(r"\s+", " ", line).strip()
+        if line:
+            cleaned_lines.append(line)
+    return "\n".join(cleaned_lines)
+
 # Approximate token budget per layer (1 token ~= 4 chars in English)
 _L0_CHAR_LIMIT = 1_000   # ~250 tokens (compact kernel)
-_L1_CHAR_LIMIT = 800     # ~200 tokens
+_L1_CHAR_LIMIT = 1_600   # ~400 tokens (campaign config + narration_bible_kernel)
 _L2_CHAR_LIMIT = 1_600   # ~400 tokens
 _L3_CHAR_LIMIT = 6_000   # ~1500 tokens
 _MEM_CHAR_LIMIT = 800    # ~200 tokens
@@ -42,10 +78,10 @@ LANGUAGE_DISPLAY_NAMES: dict[str, str] = {
 
 _ROOTING_STAGE_NAMES: dict[int, str] = {
     0: "Unrooted",
-    1: "Anchored — 365+ days in Aerus",
-    2: "Resonant — 730+ days in Aerus",
-    3: "Merged — 1095+ days in Aerus",
-    4: "Sovereign — 1825+ days in Aerus",
+    1: "Anchored, 365+ days in Aerus",
+    2: "Resonant, 730+ days in Aerus",
+    3: "Merged, 1095+ days in Aerus",
+    4: "Sovereign, 1825+ days in Aerus",
 }
 
 
@@ -184,6 +220,8 @@ def _build_l1_campaign(tension_level: int = 5) -> str:
         f"Permadeath: {'yes' if campaign.get('difficulty', {}).get('permadeath', True) else 'no'}",
         f"Current tension: {tension_level}/10",
         f"Narrative directive: {_get_tension_directive(tension_level)}",
+        "",
+        load_narration_bible_kernel(),
     ]
     return "\n".join(parts)
 
@@ -229,6 +267,11 @@ def _build_l2_state(
         attrs = json.loads(p["attributes_json"] or "{}")
         magic_prof = json.loads(p["magic_prof_json"] or "{}")
         weapon_prof = json.loads(p["weapon_prof_json"] or "{}")
+        magic_level = state_manager.get_effective_magic_level(
+            p["magic_level"],
+            magic_prof,
+            character_level=p["level"],
+        )
         skills_raw = json.loads(p["skills_json"] or "{}")
         magic_text = _format_proficiency(magic_prof)
         weapon_text = _format_proficiency(weapon_prof)
@@ -247,6 +290,8 @@ def _build_l2_state(
             f"LUK:{attrs.get('luck',10)} CHA:{attrs.get('charisma',10)} | "
             f"Languages:{_format_languages(p['languages_json'])} | "
             f"Wallet:{_format_currency_wallet(p['currency_json'])} | "
+            f"Magic Lv:{magic_level} | Magic Dmg:+{state_manager.get_magic_damage_bonus(magic_level)}% | "
+            f"Elem Cap:{state_manager.get_magic_rank_cap(magic_level)}/{state_manager.ELEMENTAL_PROFICIENCY_CAP} | "
             f"Magic Prof.:{magic_text} | Weapon Prof.:{weapon_text} | "
             f"Skills:{skills_text} | "
             f"Inventory:[{inv_text}] | "
@@ -283,7 +328,7 @@ def _build_l2_state(
             "common": "Common Seal (low-tier elemental use authorized)",
             "trade": "Trade Seal (professional licensed use)",
             "high_flame": "High Flame Seal (advanced magic authorized)",
-            "null_seal": "NULL SEAL — magic is suppressed by Church authority",
+            "null_seal": "NULL SEAL, magic is suppressed by Church authority",
             "conclave": "Conclave Authorization (unrestricted Guild-internal status)",
         }
         if seal:
@@ -481,7 +526,7 @@ GM_SYSTEM_PROMPT_TEMPLATE = """You are the Game Master (GM) of Aerus RPG - a dar
 
 ABSOLUTE RULES:
 1. Always respond in {language_name}, using the specified literary tone.
-2. Be cinematic, visceral, and consequential. Death carries real weight.
+2. Be natural, immersive, and consequential. Outside combat, prefer clear human phrasing over ornate prose. In combat, keep the tone serious, dark, and weighty. Death carries real weight.
 3. Never ignore player actions - every action must have a consequence.
 4. Return structured JSON after the narrative.
 5. Current tension: {tension_level}/10 - scale danger and epic weight accordingly.
@@ -504,24 +549,34 @@ ABSOLUTE RULES:
 22. CELEBRATION AND AFTERMATH: If the scene is post-objective relief or celebration, keep tension between 2 and 4 and give the narrative emotional payoff with explicit relief, earned quiet, shared victory, gratitude, rest, or sober togetherness. Name that payoff directly instead of only implying it.
 23. DESPERATE ESCAPE: If the scene begins near death, under pursuit, or in a desperate retreat, tension must stay at 7 or higher until clear safety is reached. Use urgency words like desperate, blood, panic, crushing, breathless, or terror.
 24. COMBAT CAUSALITY: If a hostile strike lands, a dangerous creature connects, or a heavy action backfires, at least one affected player should usually have negative `hp_change` unless the narrative clearly explains a miss, block, or harmless glancing blow.
-25. HEALING VISIBILITY: If any player has positive `hp_change`, the narrative must explicitly describe visible healing, relief, warmth, closed wounds, restored breath, or pain easing.
+25. HEALING VISIBILITY: If any player has positive `hp_change`, the narrative must explicitly describe the source of recovery: rest, bandaging, medicine, potion, or healing magic. Show the bodily effect clearly.
 26. PROGRESSION SIGNALING: When `ABILITY_UNLOCK`, `LEVELUP`, or `CLASS_MUTATION` is emitted, the narrative should also mention awakening, growth, a new technique, or transformation in natural language.
 27. LOOT SIGNALING: When meaningful loot is earned, name the reward in the narrative and emit a `LOOT` event with at least one concrete item. Rare victories should not default to common loot.
 28. CREATIVE SPECIFICITY: Avoid generic fantasy phrasing. Use at least one concrete sensory detail and one Aerus-specific proper noun when the scene depends on lore, place, faction, or aftermath.
 29. ONBOARDING GROUNDING: In Isles of Myr onboarding or dockside scenes, explicitly name Port Myr, the harbor, the docks, or the quay so the player is clearly grounded in place.
 30. EXPLICIT DENIAL WORDING: For blocked departures or missing items, use unmistakable wording such as `halt`, `no departures without clearance`, `refused passage`, `cannot find`, `finds no potion`, or `it is not there`.
-31. HEALING WORDING: When healing succeeds, explicitly mention wounds knitting closed, warmth flooding the body, pain receding, breath steadying, or strength returning.
-32. BREAKTHROUGH PAYOFF: If the action clearly describes a breakthrough, boss finish, limit break, or claimed reward, emit the earned progression or loot signal instead of only narrating mood.
-33. ACTIVE COMBAT COST: In an unresolved combat exchange against a living threat, include immediate pressure on the player side as well, usually through negative `hp_change` or at minimum clear stamina loss plus explicit danger of the next hit.
-34. CONSUMABLE ACCOUNTING: If a potion, antidote, salve, bomb, or similar consumable is used, it must appear in `inventory_remove` for the user.
-35. ITEM TRANSFER ACCOUNTING: In multiplayer item sharing, the giver loses the item in `inventory_remove`, and the receiver either gains it in `inventory_add` or immediately benefits from it in their own `state_delta`.
-36. FATAL BLOWS: If a nearly dead player is struck by a final blow or clearly dies in the scene, emit a `DEATH` event or an unmistakably fatal state.
-37. LEVEL THRESHOLD DISCIPLINE: On level 5/10/15/20/... awakening scenes, always emit `ABILITY_UNLOCK`. On level 25/50/... scenes, emit both `ABILITY_UNLOCK` and `CLASS_MUTATION`.
-38. LEVELUP MILESTONES: If the player is one level below a milestone and the action clearly claims a breakthrough, victory, or crossing a limit, emit `LEVELUP` with `new_level` equal to the next level reached.
-39. CONDITION ACCOUNTING: If poison, rot, corruption, burning, bleeding, or another harmful status is inflicted, include it in `conditions_add` with a positive `duration_turns`. If an antidote, cleanse, cure, or relief effect removes an active status, include the removed status in `conditions_remove`.
-40. LORE ANSWERS: When asked about the Pact of Myr, Vor'Athek, the Primordial Thread, the Guild of Threads, or the Sealing, name the asked canon term directly and connect it to at least one other canon term or institution.
-41. BACKLASH WORDING: When corrupted magic rebounds on the caster, say that the corruption backfires, lashes back, bites back, or rebounds into the caster instead of only implying generic pain.
-42. SKILL TRACKING: When a player's action clearly invokes a named skill category (combat, stealth, social, politics, survival, medicine, lore, crafting, ritual, athletics, perception, nature, tactics, mysticism), emit `skill_use: {"skill_key": "<sub_skill>", "impact": <float>}` inside that player's `state_delta`. Impact values: 0.5=trivial/failed, 1.0=normal success, 2.0=significant (changed the scene), 3.0=exceptional (pivoted the session), 5.0=legendary (campaign-defining). Skill rank-ups are automatic — do not emit `skill_delta` unless you need to override a rank directly (rare). Omit `skill_use` for trivial environmental actions that do not reflect practiced competency.
+31. HEALING WORDING: When healing succeeds, explicitly mention wounds knitting closed, pain receding, breath steadying, strength returning, or fatigue lifting.
+32. REST LOGIC: Safe rest in a sheltered place can restore HP, MP, and stamina. Meditation-focused rest should favor MP recovery, deep sleep should give broader recovery, and unsafe rest under pressure should give little or none.
+33. BREAKTHROUGH PAYOFF: If the action clearly describes a breakthrough, boss finish, limit break, or claimed reward, emit the earned progression or loot signal instead of only narrating mood.
+34. ACTIVE COMBAT COST: In an unresolved combat exchange against a living threat, include immediate pressure on the player side as well, usually through negative `hp_change` or at minimum clear stamina loss plus explicit danger of the next hit.
+35. CONSUMABLE ACCOUNTING: If a potion, antidote, salve, bomb, or similar consumable is used, it must appear in `inventory_remove` for the user.
+36. ITEM TRANSFER ACCOUNTING: In multiplayer item sharing, the giver loses the item in `inventory_remove`, and the receiver either gains it in `inventory_add` or immediately benefits from it in their own `state_delta`.
+37. FATAL BLOWS: If a nearly dead player is struck by a final blow or clearly dies in the scene, emit a `DEATH` event or an unmistakably fatal state.
+38. LEVEL THRESHOLD DISCIPLINE: On level 5/10/15/20/... awakening scenes, always emit `ABILITY_UNLOCK`. On level 25/50/... scenes, emit both `ABILITY_UNLOCK` and `CLASS_MUTATION`.
+39. LEVELUP MILESTONES: If the player is one level below a milestone and the action clearly claims a breakthrough, victory, or crossing a limit, emit `LEVELUP` with `new_level` equal to the next level reached.
+40. CONDITION ACCOUNTING: If poison, rot, corruption, burning, bleeding, or another harmful status is inflicted, include it in `conditions_add` with a positive `duration_turns`. If an antidote, cleanse, cure, or relief effect removes an active status, include the removed status in `conditions_remove`.
+41. LORE ANSWERS: When asked about the Pact of Myr, Vor'Athek, the Primordial Thread, the Guild of Threads, or the Sealing, name the asked canon term directly and connect it to at least one other canon term or institution.
+42. BACKLASH WORDING: When corrupted magic rebounds on the caster, say that the corruption backfires, lashes back, bites back, or rebounds into the caster instead of only implying generic pain.
+43. SKILL TRACKING: When a player's action clearly invokes a named skill category (combat, stealth, social, politics, survival, medicine, lore, crafting, ritual, athletics, perception, nature, tactics, mysticism), emit `skill_use: {{"skill_key": "<sub_skill>", "impact": <float>}}` inside that player's `state_delta`. Impact values: 0.5=trivial/failed, 1.0=normal success, 2.0=significant (changed the scene), 3.0=exceptional (pivoted the session), 5.0=legendary (campaign-defining). Skill rank-ups are automatic, do not emit `skill_delta` unless you need to override a rank directly (rare). Omit `skill_use` for trivial environmental actions that do not reflect practiced competency.
+44. UNIQUE FEAT BONUS: If a player performs a unique, scene-defining feat (clearly above normal success), award extra progression using `unique_feat_bonus` inside that player's `state_delta`: `{{"attribute_points": 1-3, "proficiency_points": 1-3, "skill_boost": {{"skill_key": "<sub_skill>", "impact": 2.0-5.0}}}}`. Use this sparingly (major breakthroughs only), never for routine actions.
+45. STORY XP: If an action meaningfully advances the mission, reveals critical truth, overcomes a major obstacle, protects someone, wins a dangerous confrontation, or changes the direction of the scene, award concrete `experience_gain` to that player even outside combat.
+46. DICE CLARITY: If `dice_rolls` is non-empty, the narrative must explicitly telegraph the check in plain language, stating who is rolling and what is being tested, and then narrate the consequence of the result. Never hide rolls as vague fate.
+47. NPC PERSONALITY: Named NPCs must speak and react with a consistent personal voice, motive, and bias tied to faction/background. Avoid generic interchangeable dialogue and canned tavern exposition.
+47. PROGRESSIVE SCENE MOTION: Every turn must advance plot state with at least one concrete new lead, obstacle, revelation, or threat tied to the current environment and faction pressures.
+48. SECOND-PERSON PLAYER ADDRESS: Narrate in second person whenever possible, anchored to the acting player's name. Prefer phrasing like "Callum, you push through the door..." or the equivalent in the target language, instead of detached third-person summaries like "Callum does X".
+49. NATURAL FLOW: In exploration, dialogue, and rest scenes, use simpler and more natural phrasing. Avoid overwrought poetry, melodrama, or forced mysticism.
+50. COMBAT TONE: In combat or imminent danger, keep the prose tight, grave, and somber. Emphasize risk, pain, breath, impact, blood, fear, and consequence without becoming purple or theatrical.
+51. STYLE FILTER: Avoid stock AI phrasing such as "brisa acariciando", "burburinho", "microcosmo", "introspectivamente", "por um momento", or other inflated filler. Do not use spaced hyphens as dramatic pauses. Prefer blunt, concrete sensory detail.
 
 PLAYER OUTPUT TARGETS:
 {player_output_targets}
@@ -540,7 +595,8 @@ FINAL CHECKLIST:
 - If progression events are present, mention the growth in prose as well.
 - In Port Myr onboarding, name Port Myr, the harbor, or the docks directly.
 - For absent items or blocked departures, use explicit denial language rather than implication alone.
-- For successful healing, use visible bodily recovery language rather than subtle implication alone.
+- For successful healing, name whether it came from rest, treatment, potion, or magic.
+- Safe rest can recover HP, MP, and stamina; unsafe rest should not.
 - In unresolved combat, prefer showing immediate player-side cost instead of consequence-free dominance.
 - If a consumable is drunk or applied, include it in `inventory_remove`.
 - If one player gives an item to another, account for both sides of the transfer.
@@ -551,6 +607,13 @@ FINAL CHECKLIST:
 - If an antidote or cleanse works, include the removed effect in `conditions_remove`.
 - If the scene is about the Pact of Myr or related canon, name at least two canon terms directly.
 - If corrupted magic hurts the caster, describe it as backlash or corruption biting back.
+- If a unique feat happened, include `unique_feat_bonus` with explicit AP/PP and optional skill boost.
+- If the action clearly moved the story forward or solved a meaningful obstacle, include positive `experience_gain`.
+- If `dice_rolls` is present, the prose explicitly frames the check and consequence.
+- Named NPC dialogue must reveal consistent personality and motive, not generic exposition.
+- Every turn introduces a concrete progression beat aligned to the active location/environment.
+- The prose addresses the acting player in second person, preferably anchored to their name.
+- Quiet scenes sound natural and human; combat scenes stay grim, serious, and consequential.
 - `state_delta` keys are exact runtime player IDs from PLAYER OUTPUT TARGETS.
 - Every `game_events[].player_id` value is an exact runtime player ID from PLAYER OUTPUT TARGETS.
 - `next_scene_query` is a short retrieval fragment only: max 12 words, no question mark, no full sentence.
@@ -578,6 +641,11 @@ Free-form prose narrative, followed by:
         {{"item_id": "generated-item-id", "name": "Item Name", "description": "Item description.", "rarity": "rare", "quantity": 1, "equipped": false}}
       ],
       "inventory_remove": [],
+            "unique_feat_bonus": {{
+                "attribute_points": 2,
+                "proficiency_points": 1,
+                "skill_boost": {{"skill_key": "thread_sensing", "impact": 3.0}}
+            }},
       "conditions_add": [
         {{"condition_id": "generated-condition-id", "name": "Poisoned", "description": "Loses 5 HP per turn.", "duration_turns": 3, "applied_at_turn": {turn_number}, "is_buff": false}}
       ],
@@ -598,6 +666,28 @@ Free-form prose narrative, followed by:
   "next_scene_query": "harbor rumor about Traveler mark"
 }}
 </game_state>"""
+
+
+def build_slm_system_prompt(
+    location: str,
+    tension_level: int,
+    language: str = "en",
+) -> str:
+    """Lean system prompt for the SLM narrative path (B1).
+
+    The SLM specialises in narrative prose only.  game_state is extracted
+    separately by the extractor model after the narrative is streamed.
+    Format must stay in sync with aerum-narrator/generator/_build_slm_components().
+    """
+    kernel = _sanitize_slm_kernel(load_narration_bible_kernel())
+    language_name = "Brazilian Portuguese" if language == "pt" else "English"
+    return (
+        f"{kernel}\n\n"
+        f"Language: {language_name}. "
+        f"Location: {location}. "
+        f"Tension: {tension_level}/10.\n\n"
+        "Generate ONLY narrative prose. No JSON. No game_state block. No metadata."
+    )
 
 
 def build_gm_system_prompt(

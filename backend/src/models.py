@@ -261,7 +261,7 @@ class SpendAttributePointsRequest(BaseModel):
 
 
 class SpendProficiencyPointsRequest(BaseModel):
-    prof_type: str  # "weapon" | "magic"
+    prof_type: str  # "weapon" | "magic" | "magic_level"
     key: str        # e.g. "sword", "fire"
     target_rank: int
 
@@ -305,6 +305,42 @@ class UpdateMacrosBody(BaseModel):
 
 class UpdateSpellAliasesBody(BaseModel):
     aliases: dict[str, str]
+
+
+class AdminPlayerUpdateRequest(BaseModel):
+    username: str | None = None
+    name: str | None = None
+    race: str | None = None
+    subrace: str | None = None
+    faction: str | None = None
+    backstory: str | None = None
+    inferred_class: str | None = None
+    secret_objective: str | None = None
+    flame_seal: str | None = None
+    status: str | None = None
+    level: int | None = None
+    experience: int | None = None
+    max_hp: int | None = None
+    current_hp: int | None = None
+    max_mp: int | None = None
+    current_mp: int | None = None
+    max_stamina: int | None = None
+    current_stamina: int | None = None
+    magic_level: int | None = None
+    attribute_points_available: int | None = None
+    proficiency_points_available: int | None = None
+    inventory_weight: float | None = None
+    weight_capacity: float | None = None
+    attributes: dict[str, Any] | None = None
+    currency: dict[str, Any] | None = None
+    passive_milestones: list[Any] | None = None
+    magic_proficiency: dict[str, Any] | None = None
+    weapon_proficiency: dict[str, Any] | None = None
+    macros: list[dict[str, Any]] | None = None
+    spell_aliases: dict[str, Any] | None = None
+    skills: dict[str, Any] | None = None
+    inventory: list[dict[str, Any]] | None = None
+    conditions: list[dict[str, Any]] | None = None
 
 
 class TokenResponse(BaseModel):

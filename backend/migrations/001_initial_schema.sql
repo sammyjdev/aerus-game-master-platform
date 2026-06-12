@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS players (
     status                     TEXT NOT NULL DEFAULT 'alive',
     secret_objective           TEXT DEFAULT '',
     contribution_score         REAL NOT NULL DEFAULT 0.0,
+    magic_level                INTEGER NOT NULL DEFAULT 0,
     byok_key_encrypted         TEXT,
     created_at                 REAL NOT NULL,
     attributes_json            TEXT NOT NULL DEFAULT '{}',

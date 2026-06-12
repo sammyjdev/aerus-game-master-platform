@@ -22,6 +22,7 @@ class BillingConfig:
     model: str
     base_url: str = "https://openrouter.ai/api/v1"
     is_byok: bool = False
+    is_slm: bool = False
     player_id: str | None = None
 
 
@@ -35,7 +36,23 @@ def select_billing_config(
 
     Phase 1: always use the admin key.
     Phase 2: prefer the player's BYOK when available.
+    Phase 3 (SLM): route to local fine-tuned model when SLM_ENABLED=true.
     """
+    # SLM integration — routes narrative to local fine-tuned model (aerum-narrator).
+    # Rollback: set SLM_ENABLED=false in .env to return to OpenRouter instantly.
+    if os.getenv("SLM_ENABLED", "false").lower() == "true":
+        slm_base_url = os.getenv("SLM_BASE_URL", "http://localhost:8001/v1")
+        slm_model = os.getenv("SLM_MODEL", "aerum-gm")
+        logger.debug("SLM_ENABLED — routing to local model: %s at %s", slm_model, slm_base_url)
+        return BillingConfig(
+            api_key="local",
+            model=slm_model,
+            base_url=slm_base_url,
+            is_byok=False,
+            is_slm=True,
+            player_id=player_id,
+        )
+
     if player_byok_encrypted:
         try:
             player_key = decrypt_api_key(player_byok_encrypted)

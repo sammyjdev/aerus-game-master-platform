@@ -8,7 +8,7 @@ import logging
 import os
 import time
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator
 
 import aiosqlite
 
@@ -103,6 +103,14 @@ _CLASS_AFFINITIES: dict[str, list[str]] = {
 # Campaign attribute caps (must match campaign.yaml)
 ATTRIBUTE_PER_CAP = 250
 ATTRIBUTE_AP_BUDGET = 500   # total AP available from levelling at level 100
+MAGIC_LEVEL_CAP = 500
+MAGIC_LEVELS_PER_CHARACTER_LEVEL = 5
+ELEMENTAL_PROFICIENCY_CAP = 20
+MAGIC_LEVEL_STEP = 10
+ELEMENTAL_RANKS_PER_STEP = 2
+BASE_MAX_MP = 40
+MP_PER_INTELLIGENCE = 1
+MP_PER_MAGIC_LEVEL = 1
 
 # ---------------------------------------------------------------------------
 # Skill progression helpers
@@ -116,6 +124,100 @@ def _skill_impact_threshold(target_rank: int) -> float:
 def _pp_cost(current_rank: int) -> int:
     """PP cost to upgrade weapon/magic proficiency from current_rank to current_rank+1."""
     return (current_rank // 4) + 1
+
+
+def _magic_level_pp_cost(current_level: int) -> int:
+    """PP cost to upgrade magic level from current_level to current_level+1."""
+    return (current_level // 25) + 1
+
+
+def _magic_level_cost_multiplier(inferred_class: str) -> float:
+    """Pure magic classes progress magic level faster when spending PP."""
+    class_key = (inferred_class or "").strip().lower()
+    if class_key in {"sorcerer", "channeler"}:
+        return 0.7
+    if class_key in {"herald"}:
+        return 0.85
+    return 1.0
+
+
+def get_magic_level_cap_for_character_level(character_level: int) -> int:
+    """Global blocker: magic level cannot exceed character level progression."""
+    normalized_level = max(1, int(character_level or 1))
+    return min(MAGIC_LEVEL_CAP, normalized_level * MAGIC_LEVELS_PER_CHARACTER_LEVEL)
+
+
+def get_min_magic_level_for_rank(rank: int) -> int:
+    """Minimum general magic level required to sustain an elemental rank."""
+    normalized_rank = max(0, min(ELEMENTAL_PROFICIENCY_CAP, int(rank)))
+    if normalized_rank <= 0:
+        return 0
+    return ((normalized_rank - 1) // ELEMENTAL_RANKS_PER_STEP) * MAGIC_LEVEL_STEP + 1
+
+
+def get_magic_rank_cap(magic_level: int) -> int:
+    """Maximum elemental rank allowed by the current general magic level."""
+    normalized_level = max(0, min(MAGIC_LEVEL_CAP, int(magic_level)))
+    if normalized_level <= 0:
+        return 1
+    unlocked_steps = ((normalized_level - 1) // MAGIC_LEVEL_STEP) + 1
+    return min(ELEMENTAL_PROFICIENCY_CAP, unlocked_steps * ELEMENTAL_RANKS_PER_STEP)
+
+
+def get_effective_magic_level(
+    stored_magic_level: int,
+    magic_proficiency: dict[str, int] | None = None,
+    character_level: int | None = None,
+) -> int:
+    """Respect persisted magic level while preserving legacy characters that already have elemental ranks."""
+    highest_rank = max((int(rank) for rank in (magic_proficiency or {}).values()), default=0)
+    level_cap = MAGIC_LEVEL_CAP
+    if character_level is not None:
+        level_cap = min(level_cap, get_magic_level_cap_for_character_level(character_level))
+    return max(
+        0,
+        min(
+            level_cap,
+            max(int(stored_magic_level or 0), get_min_magic_level_for_rank(highest_rank)),
+        ),
+    )
+
+
+def get_magic_damage_bonus(magic_level: int) -> int:
+    """Flat spell damage bonus percentage derived from general magic level."""
+    normalized_level = max(0, min(MAGIC_LEVEL_CAP, int(magic_level)))
+    return normalized_level // 10
+
+
+def compute_max_mp(intelligence: int, magic_level: int) -> int:
+    """General magic level and INT together define the mana pool ceiling."""
+    normalized_int = max(0, int(intelligence))
+    normalized_level = max(0, min(MAGIC_LEVEL_CAP, int(magic_level)))
+    return BASE_MAX_MP + (normalized_int * MP_PER_INTELLIGENCE) + (normalized_level * MP_PER_MAGIC_LEVEL)
+
+
+def _derive_magic_state(
+    current_mp: int,
+    previous_max_mp: int,
+    intelligence: int,
+    stored_magic_level: int,
+    character_level: int,
+    magic_proficiency: dict[str, int] | None = None,
+) -> tuple[int, int, int, int]:
+    """Return effective magic level, elemental cap, max MP, and adjusted current MP."""
+    effective_level = get_effective_magic_level(
+        stored_magic_level,
+        magic_proficiency,
+        character_level=character_level,
+    )
+    rank_cap = get_magic_rank_cap(effective_level)
+    new_max_mp = compute_max_mp(intelligence, effective_level)
+    max_delta = new_max_mp - int(previous_max_mp)
+    adjusted_current_mp = int(current_mp)
+    if max_delta > 0:
+        adjusted_current_mp += max_delta
+    adjusted_current_mp = max(0, min(new_max_mp, adjusted_current_mp))
+    return effective_level, rank_cap, new_max_mp, adjusted_current_mp
 
 # Isekai rooting: days thresholds per stage (index == stage number)
 ROOTING_THRESHOLDS = [0, 365, 730, 1095, 1825]
@@ -285,6 +387,8 @@ async def set_character(
 ) -> None:
     # Use racial attribute distribution if a valid subrace is provided
     starting_attrs = dict(_RACIAL_ATTRS.get(subrace or "", _DEFAULT_ATTRS))
+    starting_magic_level = 0
+    starting_max_mp = compute_max_mp(starting_attrs["intelligence"], starting_magic_level)
     weight_capacity = get_weight_capacity(starting_attrs["strength"], starting_attrs["vitality"])
     currency = {
         "copper": 0,
@@ -298,10 +402,10 @@ async def set_character(
         """UPDATE players SET
            name = ?, race = ?, faction = ?, backstory = ?,
            inferred_class = ?, secret_objective = ?, max_hp = ?,
-           current_hp = ?, attributes_json = ?,
+           current_hp = ?, max_mp = ?, current_mp = ?, attributes_json = ?,
            currency_json = ?, inventory_weight = ?, weight_capacity = ?,
            macros_json = ?, spell_aliases_json = ?, backstory_changed_recently = 0,
-           subrace = ?,
+           subrace = ?, magic_level = ?,
            skills_json = ?,
            attribute_points_available = 0,
            proficiency_points_available = 0
@@ -309,9 +413,9 @@ async def set_character(
         (
             name, race, faction, backstory,
             inferred_class, secret_objective, max_hp,
-            max_hp, json.dumps(starting_attrs),
+            max_hp, starting_max_mp, starting_max_mp, json.dumps(starting_attrs),
             json.dumps(currency), 0.0, weight_capacity, json.dumps([]), json.dumps({}),
-            subrace,
+            subrace, starting_magic_level,
             json.dumps(racial_skills),
             player_id,
         ),
@@ -476,6 +580,7 @@ async def apply_state_delta(
         """SELECT current_hp, max_hp, current_mp, max_mp,
                   current_stamina, max_stamina,
                   experience, level, status, attributes_json, milestones_json,
+                  magic_level,
                   magic_prof_json, weapon_prof_json,
                   skills_json, attribute_points_available, proficiency_points_available,
                   inferred_class
@@ -497,20 +602,70 @@ async def apply_state_delta(
     updated_milestones = milestones + new_milestones
     result["milestones_unlocked"] = new_milestones
 
-    new_attr_pts = row["attribute_points_available"] + new_ap + int(delta.get("grant_attribute_points", 0))
-    new_prof_pts = row["proficiency_points_available"] + new_pp + int(delta.get("grant_proficiency_points", 0))
+    unique_feat_bonus = delta.get("unique_feat_bonus")
+    bonus_ap = 0
+    bonus_pp = 0
+    bonus_skill_boosts: list[tuple[str, float]] = []
+    if isinstance(unique_feat_bonus, dict):
+        bonus_ap = max(0, min(10, int(unique_feat_bonus.get("attribute_points", 0))))
+        bonus_pp = max(0, min(10, int(unique_feat_bonus.get("proficiency_points", 0))))
+
+        skill_boost = unique_feat_bonus.get("skill_boost")
+        if isinstance(skill_boost, dict) and "skill_key" in skill_boost:
+            bonus_skill_boosts.append(
+                (str(skill_boost["skill_key"]), float(skill_boost.get("impact", 3.0)))
+            )
+        elif isinstance(skill_boost, list):
+            for entry in skill_boost:
+                if isinstance(entry, dict) and "skill_key" in entry:
+                    bonus_skill_boosts.append(
+                        (str(entry["skill_key"]), float(entry.get("impact", 3.0)))
+                    )
+
+    magic_prof = json.loads(row["magic_prof_json"] or "{}")
+    target_magic_level = row["magic_level"]
+    if "magic_level_target" in delta:
+        target_magic_level = int(delta["magic_level_target"])
+    if "magic_level_change" in delta:
+        target_magic_level = int(target_magic_level) + int(delta["magic_level_change"])
+    effective_magic_level, magic_rank_cap, max_mp, current_mp = _derive_magic_state(
+        current_mp=current_mp,
+        previous_max_mp=row["max_mp"],
+        intelligence=attributes.get("intelligence", 10),
+        stored_magic_level=max(0, min(MAGIC_LEVEL_CAP, int(target_magic_level))),
+        character_level=level,
+        magic_proficiency=magic_prof,
+    )
+    result["magic_level"] = effective_magic_level
+    result["magic_rank_cap"] = magic_rank_cap
+    result["magic_damage_bonus"] = get_magic_damage_bonus(effective_magic_level)
+
+    new_attr_pts = (
+        row["attribute_points_available"]
+        + new_ap
+        + int(delta.get("grant_attribute_points", 0))
+        + bonus_ap
+    )
+    new_prof_pts = (
+        row["proficiency_points_available"]
+        + new_pp
+        + int(delta.get("grant_proficiency_points", 0))
+        + bonus_pp
+    )
 
     await conn.execute(
         """UPDATE players SET
-           current_hp = ?, current_mp = ?, current_stamina = ?,
+              current_hp = ?, current_mp = ?, max_mp = ?, current_stamina = ?,
            experience = ?, level = ?, status = ?, attributes_json = ?,
            milestones_json = ?,
+              magic_level = ?,
            attribute_points_available = ?,
            proficiency_points_available = ?
            WHERE player_id = ?""",
-        (current_hp, current_mp, current_stamina,
+          (current_hp, current_mp, max_mp, current_stamina,
          experience, level, status, json.dumps(attributes),
-         json.dumps(updated_milestones),
+            json.dumps(updated_milestones),
+            effective_magic_level,
          new_attr_pts, new_prof_pts,
          player_id),
     )
@@ -545,7 +700,7 @@ async def apply_state_delta(
             if prof_row:
                 mp = json.loads(prof_row["magic_prof_json"] or "{}")
                 for key, lvl in mpd.items():
-                    mp[key] = max(1, min(20, int(lvl)))
+                    mp[key] = max(1, min(magic_rank_cap, int(lvl)))
                 await conn.execute(
                     "UPDATE players SET magic_prof_json = ? WHERE player_id = ?",
                     (json.dumps(mp), player_id),
@@ -570,6 +725,27 @@ async def apply_state_delta(
             )
             if ranked_up:
                 result["skill_rank_up"] = {"skill": su["skill_key"], "new_rank": ranked_up}
+
+    if bonus_skill_boosts:
+        inferred_class = row["inferred_class"] or ""
+        boosted: list[dict[str, int | str]] = []
+        for skill_key, impact in bonus_skill_boosts:
+            ranked_up = await _apply_skill_use(
+                conn, player_id, skill_key, float(max(0.5, impact)), inferred_class
+            )
+            if ranked_up:
+                boosted.append({"skill": skill_key, "new_rank": ranked_up})
+        result["unique_feat_skill_boost"] = boosted
+
+    if bonus_ap > 0 or bonus_pp > 0 or bonus_skill_boosts:
+        result["unique_feat_bonus_awarded"] = {
+            "attribute_points": bonus_ap,
+            "proficiency_points": bonus_pp,
+            "skill_boosts": [
+                {"skill_key": skill_key, "impact": impact}
+                for skill_key, impact in bonus_skill_boosts
+            ],
+        }
 
     if "craft_outcome" in delta:
         outcome = delta["craft_outcome"]
@@ -787,7 +963,7 @@ async def spend_attribute_points(
         return {"ok": False, "reason": f"Target exceeds per-attribute cap of {ATTRIBUTE_PER_CAP}"}
 
     async with conn.execute(
-        "SELECT attributes_json, attribute_points_available, milestones_json FROM players WHERE player_id = ?",
+        "SELECT attributes_json, attribute_points_available, milestones_json, level, magic_level, current_mp, max_mp, magic_prof_json FROM players WHERE player_id = ?",
         (player_id,),
     ) as cur:
         row = await cur.fetchone()
@@ -809,29 +985,114 @@ async def spend_attribute_points(
     milestones = json.loads(row["milestones_json"] or "[]")
     new_milestones = _check_passive_milestones(attrs, -1, milestones)  # -1: level not changing
     updated_milestones = milestones + new_milestones
+    effective_magic_level, _, new_max_mp, new_current_mp = _derive_magic_state(
+        current_mp=row["current_mp"],
+        previous_max_mp=row["max_mp"],
+        intelligence=attrs.get("intelligence", 10),
+        stored_magic_level=row["magic_level"],
+        character_level=row["level"],
+        magic_proficiency=json.loads(row["magic_prof_json"] or "{}"),
+    )
 
     await conn.execute(
         """UPDATE players SET attributes_json = ?, attribute_points_available = ?,
-           milestones_json = ? WHERE player_id = ?""",
-        (json.dumps(attrs), new_available, json.dumps(updated_milestones), player_id),
+           milestones_json = ?, max_mp = ?, current_mp = ?, magic_level = ? WHERE player_id = ?""",
+        (
+            json.dumps(attrs),
+            new_available,
+            json.dumps(updated_milestones),
+            new_max_mp,
+            new_current_mp,
+            effective_magic_level,
+            player_id,
+        ),
     )
     await conn.commit()
     return {"ok": True, "spent": cost, "new_value": target_value, "ap_remaining": new_available,
-            "milestones_unlocked": new_milestones}
+            "milestones_unlocked": new_milestones,
+            "max_mp": new_max_mp,
+            "current_mp": new_current_mp,
+            "magic_level": effective_magic_level}
 
 
 async def spend_proficiency_points(
     conn: aiosqlite.Connection, player_id: str, prof_type: str, key: str, target_rank: int
 ) -> dict:
     """Spend PP to raise a weapon or magic proficiency to target_rank."""
-    if prof_type not in ("weapon", "magic"):
-        return {"ok": False, "reason": "prof_type must be 'weapon' or 'magic'"}
-    if not 1 <= target_rank <= 20:
-        return {"ok": False, "reason": "target_rank must be between 1 and 20"}
+    if prof_type not in ("weapon", "magic", "magic_level"):
+        return {"ok": False, "reason": "prof_type must be 'weapon', 'magic', or 'magic_level'"}
+    if prof_type == "magic_level":
+        if not 1 <= target_rank <= MAGIC_LEVEL_CAP:
+            return {"ok": False, "reason": f"target_rank must be between 1 and {MAGIC_LEVEL_CAP}"}
+        async with conn.execute(
+            "SELECT level, inferred_class, magic_level, magic_prof_json, proficiency_points_available, attributes_json, current_mp, max_mp FROM players WHERE player_id = ?",
+            (player_id,),
+        ) as cur:
+            row = await cur.fetchone()
+        if row is None:
+            return {"ok": False, "reason": "Player not found"}
+        character_magic_cap = get_magic_level_cap_for_character_level(row["level"])
+        if target_rank > character_magic_cap:
+            return {
+                "ok": False,
+                "reason": (
+                    f"Character level {row['level']} limits magic level to {character_magic_cap}."
+                ),
+            }
+        magic_prof = json.loads(row["magic_prof_json"] or "{}")
+        current_rank = get_effective_magic_level(
+            row["magic_level"],
+            magic_prof,
+            character_level=row["level"],
+        )
+        if target_rank <= current_rank:
+            return {"ok": False, "reason": "Target rank must be greater than current rank"}
+
+        base_cost = sum(_magic_level_pp_cost(rank) for rank in range(current_rank, target_rank))
+        multiplier = _magic_level_cost_multiplier(row["inferred_class"])
+        cost = max(1, int(round(base_cost * multiplier)))
+        available = int(row["proficiency_points_available"])
+        if available < cost:
+            return {"ok": False, "reason": f"Not enough PP (need {cost}, have {available})"}
+
+        attrs = json.loads(row["attributes_json"] or "{}")
+        effective_magic_level, magic_rank_cap, new_max_mp, new_current_mp = _derive_magic_state(
+            current_mp=row["current_mp"],
+            previous_max_mp=row["max_mp"],
+            intelligence=attrs.get("intelligence", 10),
+            stored_magic_level=target_rank,
+            character_level=row["level"],
+            magic_proficiency=magic_prof,
+        )
+        new_available = available - cost
+        await conn.execute(
+            "UPDATE players SET magic_level = ?, max_mp = ?, current_mp = ?, proficiency_points_available = ? WHERE player_id = ?",
+            (effective_magic_level, new_max_mp, new_current_mp, new_available, player_id),
+        )
+        await conn.commit()
+        return {
+            "ok": True,
+            "spent": cost,
+            "new_rank": effective_magic_level,
+            "pp_remaining": new_available,
+            "max_mp": new_max_mp,
+            "current_mp": new_current_mp,
+            "magic_rank_cap": magic_rank_cap,
+            "magic_damage_bonus": get_magic_damage_bonus(effective_magic_level),
+        }
+
+    if not 1 <= target_rank <= ELEMENTAL_PROFICIENCY_CAP:
+        return {
+            "ok": False,
+            "reason": f"target_rank must be between 1 and {ELEMENTAL_PROFICIENCY_CAP}",
+        }
 
     col = "weapon_prof_json" if prof_type == "weapon" else "magic_prof_json"
+    select_cols = f"{col}, proficiency_points_available"
+    if prof_type == "magic":
+        select_cols += ", magic_level, magic_prof_json"
     async with conn.execute(
-        f"SELECT {col}, proficiency_points_available FROM players WHERE player_id = ?",
+        f"SELECT {select_cols} FROM players WHERE player_id = ?",
         (player_id,),
     ) as cur:
         row = await cur.fetchone()
@@ -848,6 +1109,19 @@ async def spend_proficiency_points(
     if available < cost:
         return {"ok": False, "reason": f"Not enough PP (need {cost}, have {available})"}
 
+    if prof_type == "magic":
+        effective_magic_level = get_effective_magic_level(
+            row["magic_level"],
+            json.loads(row["magic_prof_json"] or "{}"),
+            character_level=row["level"],
+        )
+        max_rank_allowed = get_magic_rank_cap(effective_magic_level)
+        if target_rank > max_rank_allowed:
+            return {
+                "ok": False,
+                "reason": f"Magic level {effective_magic_level} only supports elemental rank {max_rank_allowed}",
+            }
+
     prof[key] = target_rank
     new_available = available - cost
     await conn.execute(
@@ -855,7 +1129,16 @@ async def spend_proficiency_points(
         (json.dumps(prof), new_available, player_id),
     )
     await conn.commit()
-    return {"ok": True, "spent": cost, "new_rank": target_rank, "pp_remaining": new_available}
+    result = {"ok": True, "spent": cost, "new_rank": target_rank, "pp_remaining": new_available}
+    if prof_type == "magic":
+        result["magic_rank_cap"] = get_magic_rank_cap(
+            get_effective_magic_level(
+                row["magic_level"],
+                prof,
+                character_level=row["level"],
+            )
+        )
+    return result
 
 
 async def apply_backstory_skills(
@@ -907,6 +1190,87 @@ async def get_player_conditions(
         (player_id,),
     ) as cursor:
         return await cursor.fetchall()
+
+
+def _condition_effect_delta(condition: Any) -> dict[str, int]:
+    try:
+        name = str(condition["name"] or "").lower()
+        description = str(condition["description"] or "").lower()
+        is_buff = bool(condition["is_buff"])
+    except Exception:
+        return {}
+
+    if is_buff:
+        return {}
+
+    text = f"{name} {description}"
+    if any(token in text for token in ("poison", "veneno", "envenenad", "toxic", "toxina")):
+        return {"hp_change": -4}
+    if any(token in text for token in ("bleed", "bleeding", "sangr", "hemorr")):
+        return {"hp_change": -3}
+    if any(token in text for token in ("burn", "burning", "queim", "fire")):
+        return {"hp_change": -2, "stamina_change": -1}
+    if any(token in text for token in ("corruption", "corrup", "rot", "decay")):
+        return {"hp_change": -2, "mp_change": -2}
+    if any(token in text for token in ("fatigue", "exaust", "weary", "cansa")):
+        return {"stamina_change": -2}
+    return {}
+
+
+async def process_condition_turn(
+    conn: aiosqlite.Connection,
+    turn_number: int,
+) -> dict[str, dict[str, int | list[str]]]:
+    """Advance active conditions one turn, applying deterministic effects and expiring them."""
+    async with conn.execute("SELECT * FROM conditions ORDER BY rowid") as cursor:
+        conditions = await cursor.fetchall()
+
+    results: dict[str, dict[str, int | list[str]]] = {}
+
+    for cond in conditions:
+        try:
+            applied_at = int(cond["applied_at_turn"] or 0)
+            duration = int(cond["duration_turns"] or 0)
+            player_id = str(cond["player_id"])
+            condition_id = str(cond["condition_id"])
+            condition_name = str(cond["name"] or "")
+        except Exception:
+            continue
+
+        if duration <= 0 or turn_number <= applied_at:
+            continue
+
+        effect_delta = _condition_effect_delta(cond)
+        if effect_delta:
+            await apply_state_delta(conn, player_id, effect_delta)
+            player_result = results.setdefault(
+                player_id,
+                {"hp_change": 0, "mp_change": 0, "stamina_change": 0, "expired": []},
+            )
+            for key in ("hp_change", "mp_change", "stamina_change"):
+                player_result[key] = int(player_result.get(key, 0)) + int(effect_delta.get(key, 0))
+
+        remaining = duration - 1
+        if remaining <= 0:
+            await conn.execute(
+                "DELETE FROM conditions WHERE condition_id = ? AND player_id = ?",
+                (condition_id, player_id),
+            )
+            player_result = results.setdefault(
+                player_id,
+                {"hp_change": 0, "mp_change": 0, "stamina_change": 0, "expired": []},
+            )
+            expired = list(player_result.get("expired", []))
+            expired.append(condition_name)
+            player_result["expired"] = expired
+        else:
+            await conn.execute(
+                "UPDATE conditions SET duration_turns = ? WHERE condition_id = ? AND player_id = ?",
+                (remaining, condition_id, player_id),
+            )
+
+    await conn.commit()
+    return results
 
 
 async def _apply_inventory_changes(
@@ -1487,11 +1851,123 @@ async def update_faction_reputation(
 # ---------------------------------------------------------------------------
 
 async def get_all_players(conn: aiosqlite.Connection) -> list[aiosqlite.Row]:
-    """Retrieve all players with core profile fields."""
+    """Retrieve all players with core profile and combat fields for admin dashboards."""
     async with conn.execute(
-        "SELECT player_id, username, status, name, level, faction, created_at FROM players"
+        """SELECT player_id, username, status, name, level, faction, inferred_class,
+                  current_hp, max_hp, created_at
+           FROM players
+           ORDER BY created_at DESC"""
     ) as cursor:
         return await cursor.fetchall()
+
+
+async def admin_update_player(conn: aiosqlite.Connection, player_id: str, updates: dict[str, Any]) -> aiosqlite.Row | None:
+    """Admin-only broad player correction helper with safe field whitelisting."""
+    row = await get_player_by_id(conn, player_id)
+    if row is None:
+        return None
+
+    scalar_fields = {
+        "username",
+        "name",
+        "race",
+        "subrace",
+        "faction",
+        "backstory",
+        "inferred_class",
+        "secret_objective",
+        "flame_seal",
+        "status",
+    }
+    int_fields = {
+        "level",
+        "experience",
+        "max_hp",
+        "current_hp",
+        "max_mp",
+        "current_mp",
+        "max_stamina",
+        "current_stamina",
+        "magic_level",
+        "attribute_points_available",
+        "proficiency_points_available",
+    }
+    float_fields = {"inventory_weight", "weight_capacity"}
+    json_field_map = {
+        "attributes": "attributes_json",
+        "currency": "currency_json",
+        "passive_milestones": "milestones_json",
+        "magic_proficiency": "magic_prof_json",
+        "weapon_proficiency": "weapon_prof_json",
+        "macros": "macros_json",
+        "spell_aliases": "spell_aliases_json",
+        "skills": "skills_json",
+    }
+
+    set_clauses: list[str] = []
+    values: list[Any] = []
+
+    for field in scalar_fields:
+        if field in updates:
+            set_clauses.append(f"{field} = ?")
+            values.append(updates[field])
+
+    for field in int_fields:
+        if field in updates and updates[field] is not None:
+            set_clauses.append(f"{field} = ?")
+            values.append(int(updates[field]))
+
+    for field in float_fields:
+        if field in updates and updates[field] is not None:
+            set_clauses.append(f"{field} = ?")
+            values.append(float(updates[field]))
+
+    for field, column in json_field_map.items():
+        if field in updates and updates[field] is not None:
+            set_clauses.append(f"{column} = ?")
+            values.append(json.dumps(updates[field]))
+
+    exact_max_hp = int(updates.get("max_hp", row["max_hp"] or 1))
+    exact_max_mp = int(updates.get("max_mp", row["max_mp"] or 0))
+    exact_max_stamina = int(updates.get("max_stamina", row["max_stamina"] or 10))
+    exact_current_hp = int(updates.get("current_hp", row["current_hp"] or 0))
+    exact_current_mp = int(updates.get("current_mp", row["current_mp"] or 0))
+    exact_current_stamina = int(updates.get("current_stamina", row["current_stamina"] or 0))
+
+    clamped_values = {
+        "max_hp": max(1, exact_max_hp),
+        "max_mp": max(0, exact_max_mp),
+        "max_stamina": max(1, exact_max_stamina),
+        "current_hp": max(0, min(max(1, exact_max_hp), exact_current_hp)),
+        "current_mp": max(0, min(max(0, exact_max_mp), exact_current_mp)),
+        "current_stamina": max(0, min(max(1, exact_max_stamina), exact_current_stamina)),
+        "level": max(1, int(updates.get("level", row["level"] or 1))),
+        "experience": max(0, int(updates.get("experience", row["experience"] or 0))),
+    }
+    for field, value in clamped_values.items():
+        if field in updates and updates[field] is not None:
+            clause = f"{field} = ?"
+            if clause in set_clauses:
+                idx = set_clauses.index(clause)
+                values[idx] = value
+
+    if set_clauses:
+        values.append(player_id)
+        await conn.execute(
+            f"UPDATE players SET {', '.join(set_clauses)} WHERE player_id = ?",
+            tuple(values),
+        )
+
+    if "inventory" in updates:
+        await conn.execute("DELETE FROM inventory WHERE player_id = ?", (player_id,))
+        await _apply_inventory_changes(conn, player_id, {"inventory_add": updates.get("inventory") or []})
+
+    if "conditions" in updates:
+        await conn.execute("DELETE FROM conditions WHERE player_id = ?", (player_id,))
+        await _apply_condition_changes(conn, player_id, {"conditions_add": updates.get("conditions") or []})
+
+    await conn.commit()
+    return await get_player_by_id(conn, player_id)
 
 
 async def delete_byok_key(conn: aiosqlite.Connection, player_id: str) -> None:

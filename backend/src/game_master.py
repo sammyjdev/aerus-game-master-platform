@@ -6,6 +6,7 @@ response parsing, delta application, and event broadcasting.
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import logging
 import os
@@ -23,7 +24,7 @@ from . import memory_manager
 from . import local_llm
 from . import state_manager, travel_manager, vector_store
 from .application.billing.billing_router import select_billing_config
-from .context_builder import build_context, build_gm_system_prompt
+from .context_builder import build_context, build_gm_system_prompt, build_slm_system_prompt
 from .infrastructure.config.config_loader import get_campaign_value as _get_campaign_value
 from .models import ActionBatch, GMResponse, PlayerAction, WSMessageType
 
@@ -175,6 +176,146 @@ async def _build_messages(
     return messages
 
 
+# ---------------------------------------------------------------------------
+# B1 — SLM narrative path
+# ---------------------------------------------------------------------------
+
+def _build_slm_messages(
+    context: Any,
+    user_message: str,
+    tension_level: int,
+    language: str,
+    history: list[dict],
+) -> list[dict[str, str]]:
+    """Build lean messages for the SLM (narrative only, no game_state rules)."""
+    loc_match = re.match(r"Current location:\s*(.+)", context.l2_state or "")
+    location = loc_match.group(1).strip() if loc_match else "Aerus"
+    system = build_slm_system_prompt(location, tension_level, language)
+    messages: list[dict[str, str]] = [{"role": "system", "content": system}]
+    # Include last 4 history entries for narrative continuity
+    for h in history[-4:]:
+        messages.append({"role": h["role"], "content": h["content"]})
+    messages.append({"role": "user", "content": user_message})
+    return messages
+
+
+async def _stream_slm_narrative(
+    billing: Any,
+    messages: list[dict[str, str]],
+) -> tuple[str, str]:
+    """B1: stream narrative from SLM. Returns (full_text, streamed_text)."""
+    started_at = time.perf_counter()
+    client = AsyncOpenAI(api_key=billing.api_key, base_url=billing.base_url)
+    collector: list[str] = []
+
+    log_flow(logger, "slm_narrative_start", model=billing.model, message_count=len(messages))
+
+    stream = await client.chat.completions.create(
+        model=billing.model,
+        messages=messages,
+        stream=True,
+        max_tokens=400,
+    )
+
+    async def _clean_tokens() -> AsyncIterator[str]:
+        async for chunk in stream:
+            delta = chunk.choices[0].delta.content
+            if not delta:
+                continue
+            collector.append(delta)
+            yield _sanitize_narrative_text(delta)
+
+    narrative = await cm.manager.broadcast_stream(_clean_tokens())
+    full_text = _sanitize_narrative_text("".join(collector))
+    log_flow(
+        logger,
+        "slm_narrative_complete",
+        model=billing.model,
+        duration_ms=round((time.perf_counter() - started_at) * 1000, 2),
+        narrative_chars=len(full_text),
+    )
+    return full_text, narrative
+
+
+async def _extract_game_state_b1(
+    conn: aiosqlite.Connection,
+    narrative: str,
+    batch: ActionBatch,
+    context: Any,
+    current_tension: int,
+    valid_player_ids: list[str],
+) -> "GMResponse":
+    """B1: extract structured game_state from narrative via extractor model.
+
+    Always uses AERUS_OLLAMA_EXTRACTOR_MODEL (Ollama) — never routes through
+    billing_router / SLM, because the SLM is trained for prose, not JSON.
+    """
+    player_list = "\n".join(
+        f"- {a.player_id} => {a.player_name}" for a in batch.actions
+    )
+    actions = "\n".join(f"**{a.player_name}**: {a.action_text}" for a in batch.actions)
+
+    system_prompt = (
+        "You are a game-state extractor for Aerus RPG.\n"
+        "Given a narrative and player actions, output ONLY valid JSON — no markdown, no extra text.\n\n"
+        "Schema:\n"
+        "{\n"
+        '  "dice_rolls": [],\n'
+        '  "state_delta": {"<player_id>": {"hp_change": 0, "mp_change": 0, "stamina_change": 0,\n'
+        '    "experience_gain": 0, "inventory_add": [], "inventory_remove": [],\n'
+        '    "conditions_add": [], "conditions_remove": []}},\n'
+        '  "game_events": [],\n'
+        '  "tension_level": 5,\n'
+        '  "audio_cue": "ambient_calm",\n'
+        '  "next_scene_query": "max 12 words, no question mark"\n'
+        "}\n\n"
+        "Use exact player_id values as keys in state_delta:\n"
+        f"{player_list}"
+    )
+    user_prompt = (
+        f"PLAYER ACTIONS (Turn {batch.turn_number}):\n{actions}\n\n"
+        f"NARRATIVE:\n{narrative}\n\n"
+        f"CURRENT STATE:\n{(context.l2_state or '')[:1200]}"
+    )
+
+    extractor_model = os.getenv("AERUS_OLLAMA_EXTRACTOR_MODEL", "qwen2.5:14b-instruct")
+    try:
+        raw = await local_llm.generate_text(
+            system_prompt,
+            user_prompt,
+            max_tokens=800,
+            model_override=extractor_model,  # forces Ollama path, never SLM
+        )
+        json_match = re.search(r"\{[\s\S]*\}", raw)
+        json_text = json_match.group(0) if json_match else raw
+        repaired = _repair_json_candidate(json_text)
+        data: dict[str, Any] = json.loads(repaired)
+
+        next_scene_query = _normalize_next_scene_query(data.get("next_scene_query"), narrative)
+        response = GMResponse(
+            narrative=narrative,
+            dice_rolls=data.get("dice_rolls", []),
+            state_delta=data.get("state_delta", {}),
+            game_events=_normalize_game_events(data.get("game_events", [])),
+            tension_level=int(data.get("tension_level", current_tension)),
+            audio_cue=data.get("audio_cue"),
+            image_prompt=next_scene_query,
+        )
+        log_debug(
+            logger,
+            "b1_game_state_extracted",
+            dice_rolls=len(response.dice_rolls),
+            state_delta_players=len(response.state_delta) if isinstance(response.state_delta, dict) else 0,
+            events=len(response.game_events),
+            tension_level=response.tension_level,
+        )
+        response = _reconcile_response_player_ids(response, valid_player_ids)
+        return _apply_response_guardrails(response)
+    except Exception as exc:
+        logger.warning("B1 game_state extraction failed: %s — returning narrative-only response", exc)
+        return GMResponse(narrative=narrative, tension_level=current_tension)
+
+
 def _calculate_encounter_scaling(party_size: int) -> tuple[float, int]:
     normalized_party = max(1, party_size)
     encounter_scale = round(1.0 + (normalized_party - 1) * 0.35, 2)
@@ -213,6 +354,11 @@ def _json_stop_position(buffer: str) -> int | None:
     return None
 
 
+def _sanitize_narrative_text(text: str) -> str:
+    # Hard ban of em dash in output and persisted narrative.
+    return (text or "").replace("\u2014", "-")
+
+
 def _flush_buffer(buffer: str) -> tuple[str, str, bool]:
     """
     Checks whether the buffer contains a structured game_state block.
@@ -233,19 +379,23 @@ async def _tokens_from_stream(
 ) -> AsyncIterator[str]:
     """Itera sobre o stream OpenAI, coleta a resposta completa e filtra <game_state>."""
     buffer = ""
+    suppress_output = False
     async for chunk in stream:
         delta = chunk.choices[0].delta.content
         if not delta:
             continue
         collector.append(delta)
+        if suppress_output:
+            continue
         buffer += delta
         to_emit, buffer, should_stop = _flush_buffer(buffer)
         if to_emit:
-            yield to_emit
+            yield _sanitize_narrative_text(to_emit)
         if should_stop:
-            return
-    if buffer:
-        yield buffer
+            suppress_output = True
+            buffer = ""
+    if buffer and not suppress_output:
+        yield _sanitize_narrative_text(buffer)
 
 
 async def _stream_llm(
@@ -309,11 +459,11 @@ async def _tokens_from_text(full_response: str) -> AsyncIterator[str]:
         buffer += full_response[index:index + chunk_size]
         to_emit, buffer, should_stop = _flush_buffer(buffer)
         if to_emit:
-            yield to_emit
+            yield _sanitize_narrative_text(to_emit)
         if should_stop:
             return
     if buffer and _GAME_STATE_MARKER not in buffer and _json_stop_position(buffer) is None:
-        yield buffer
+        yield _sanitize_narrative_text(buffer)
 
 
 async def process_batch(
@@ -348,22 +498,69 @@ async def process_batch(
         billing = None if local_llm.is_local_only() else await _resolve_billing(conn, batch)
         user_message = _format_batch_as_user_message(batch)
         party_size = await _get_party_size(conn, batch)
-        messages = await _build_messages(conn, context, user_message, batch, party_size)
+        valid_player_ids = [action.player_id for action in batch.actions]
+        language = _get_campaign_value("campaign.language") or "en"
 
-        thinking_task.cancel()
+        if billing and billing.is_slm:
+            # ── B1: SLM generates narrative, extractor builds game_state ──────
+            history = await state_manager.get_recent_history(conn, limit=4)
+            slm_messages = _build_slm_messages(
+                context, user_message, current_tension, language, list(history)
+            )
+            thinking_task.cancel()
+            full_response, _ = await _stream_slm_narrative(billing, slm_messages)
+            await cm.manager.broadcast({"type": WSMessageType.STREAM_END})
+            gm_response = await _extract_game_state_b1(
+                conn, full_response, batch, context, current_tension, valid_player_ids
+            )
+        else:
+            # ── Standard path: full-context prompt → GM response with game_state
+            messages = await _build_messages(conn, context, user_message, batch, party_size)
+            thinking_task.cancel()
+            full_response, _ = await _stream_llm(billing, messages)
+            await cm.manager.broadcast({"type": WSMessageType.STREAM_END})
+            gm_response = _parse_gm_response(
+                full_response,
+                current_tension=current_tension,
+                valid_player_ids=valid_player_ids,
+            )
 
-        full_response, _ = await _stream_llm(billing, messages)
-        await cm.manager.broadcast({"type": WSMessageType.STREAM_END})
-        gm_response = _parse_gm_response(
-            full_response,
-            current_tension=current_tension,
-            valid_player_ids=[action.player_id for action in batch.actions],
+        fallback_state, fallback_events = await _build_minimum_mechanics_fallback(
+            conn,
+            batch,
+            gm_response.narrative,
         )
+        gm_response.state_delta, merged_players = _merge_missing_fallback_state(
+            gm_response.state_delta,
+            fallback_state,
+        )
+        gm_response.game_events, merged_events = _merge_fallback_events(
+            gm_response.game_events,
+            fallback_events,
+        )
+        if merged_players or merged_events:
+            log_flow(
+                logger,
+                "fallback_mechanics_merged",
+                turn_number=batch.turn_number,
+                players=merged_players,
+                generated_events=merged_events,
+            )
+
+        await _inject_narrative_loot_if_missing(conn, batch, gm_response)
 
         # 6. Aplica deltas e emite eventos
         await _apply_deltas_and_events(conn, gm_response, batch)
         await _update_cooperative_mission_progress(conn, batch)
         await _advance_travel_if_active(conn)
+        condition_results = await state_manager.process_condition_turn(conn, batch.turn_number)
+        if condition_results:
+            log_flow(
+                logger,
+                "condition_turn_processed",
+                turn_number=batch.turn_number,
+                affected_players=list(condition_results.keys()),
+            )
 
         # 7. Save history
         await state_manager.append_history(
@@ -571,6 +768,35 @@ def _parse_gm_response(full_response: str, current_tension: int = 5, valid_playe
         return _apply_response_guardrails(response)
     except ValueError as e:
         logger.warning("Failed to parse <game_state>: %s", e)
+
+        # Fallback: salvage structured keys from the full raw response,
+        # not only the extracted <game_state> section.
+        salvaged = _salvage_partial_game_state(full_response)
+        if salvaged:
+            try:
+                next_scene_query = _normalize_next_scene_query(
+                    salvaged.get("next_scene_query"), narrative
+                )
+                response = GMResponse(
+                    narrative=narrative,
+                    dice_rolls=salvaged.get("dice_rolls", []),
+                    state_delta=salvaged.get("state_delta", {}),
+                    game_events=_normalize_game_events(salvaged.get("game_events", [])),
+                    tension_level=int(salvaged.get("tension_level", current_tension)),
+                    audio_cue=salvaged.get("audio_cue"),
+                    image_prompt=next_scene_query,
+                )
+                logger.warning(
+                    "Recovered partial game_state from full response: dice_rolls=%s state_delta_players=%s events=%s",
+                    len(response.dice_rolls),
+                    len(response.state_delta) if isinstance(response.state_delta, dict) else 0,
+                    len(response.game_events),
+                )
+                response = _reconcile_response_player_ids(response, valid_player_ids)
+                return _apply_response_guardrails(response)
+            except Exception as salvage_exc:
+                logger.warning("Full-response salvage failed: %s", salvage_exc)
+
         return GMResponse(narrative=narrative)
 
 
@@ -608,7 +834,118 @@ def _extract_narrative_only(full_response: str) -> str:
             stripped = (stripped[:brace_idx] + stripped[end_idx:]).strip()
         else:
             stripped = stripped[:close_idx].strip()
-    return stripped.strip()
+    return _sanitize_narrative_text(stripped.strip())
+
+
+def _merge_missing_fallback_state(
+    current_state: dict[str, Any] | Any,
+    fallback_state: dict[str, Any],
+) -> tuple[dict[str, Any], int]:
+    state = current_state if isinstance(current_state, dict) else {}
+    merged_players = 0
+
+    for player_id, fallback_delta in fallback_state.items():
+        if not isinstance(fallback_delta, dict):
+            continue
+
+        current_delta = state.get(player_id)
+        if not isinstance(current_delta, dict):
+            state[player_id] = dict(fallback_delta)
+            merged_players += 1
+            continue
+
+        changed = False
+
+        if "skill_use" in fallback_delta and "skill_use" not in current_delta and "skill_delta" not in current_delta:
+            current_delta["skill_use"] = fallback_delta["skill_use"]
+            changed = True
+
+        for key in ("hp_change", "mp_change", "stamina_change", "experience_gain"):
+            if key in fallback_delta and key not in current_delta:
+                current_delta[key] = fallback_delta[key]
+                changed = True
+
+        if isinstance(fallback_delta.get("magic_proficiency_delta"), dict):
+            current_magic = current_delta.get("magic_proficiency_delta")
+            if not isinstance(current_magic, dict):
+                current_magic = {}
+            before = len(current_magic)
+            for mk, mv in fallback_delta["magic_proficiency_delta"].items():
+                if mk not in current_magic:
+                    current_magic[mk] = mv
+            if len(current_magic) > before:
+                current_delta["magic_proficiency_delta"] = current_magic
+                changed = True
+
+        if isinstance(fallback_delta.get("inventory_add"), list):
+            current_add = current_delta.get("inventory_add")
+            if not isinstance(current_add, list):
+                current_add = []
+            existing_names = {
+                str(item.get("name", "")).lower()
+                for item in current_add
+                if isinstance(item, dict)
+            }
+            before_len = len(current_add)
+            for item in fallback_delta["inventory_add"]:
+                if not isinstance(item, dict):
+                    continue
+                name = str(item.get("name", "")).lower()
+                if name and name not in existing_names:
+                    current_add.append(item)
+                    existing_names.add(name)
+            if len(current_add) > before_len:
+                current_delta["inventory_add"] = current_add
+                changed = True
+
+        if changed:
+            state[player_id] = current_delta
+            merged_players += 1
+
+    return state, merged_players
+
+
+def _merge_fallback_events(
+    current_events: list[dict[str, Any]] | Any,
+    fallback_events: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], int]:
+    events = current_events if isinstance(current_events, list) else []
+    merged = 0
+
+    existing_loot_signatures: set[tuple[str, tuple[str, ...]]] = set()
+    for event in events:
+        if not isinstance(event, dict) or event.get("type") != "LOOT":
+            continue
+        pid = str(event.get("player_id", ""))
+        names = tuple(
+            sorted(
+                str(item.get("name", ""))
+                for item in event.get("items", [])
+                if isinstance(item, dict)
+            )
+        )
+        existing_loot_signatures.add((pid, names))
+
+    for event in fallback_events:
+        if not isinstance(event, dict):
+            continue
+        if event.get("type") == "LOOT":
+            pid = str(event.get("player_id", ""))
+            names = tuple(
+                sorted(
+                    str(item.get("name", ""))
+                    for item in event.get("items", [])
+                    if isinstance(item, dict)
+                )
+            )
+            signature = (pid, names)
+            if signature in existing_loot_signatures:
+                continue
+            existing_loot_signatures.add(signature)
+        events.append(event)
+        merged += 1
+
+    return events, merged
 
 
 def _normalize_next_scene_query(raw_query: Any, narrative: str) -> str | None:
@@ -623,12 +960,21 @@ def _normalize_next_scene_query(raw_query: Any, narrative: str) -> str | None:
 def _narrative_has_healing_signal(narrative: str) -> bool:
     text = narrative.lower()
     healing_terms = (
-        "heal", "healing", "mend", "mending", "warmth", "relief", "pain eases",
-        "pain eased", "wound closes", "wounds close", "wound knits", "knit shut",
-        "restored", "restoration", "breath returns", "strength returns",
-        "stitches itself", "closed flesh", "closing flesh",
+        "heal", "healing", "mend", "mending", "wound closes", "wounds close",
+        "wound knits", "knit shut", "stitches itself", "closed flesh",
+        "closing flesh", "tratar feridas", "cura", "curativo", "bandage",
+        "bandagem", "restaura feridas", "luz curativa", "magia curativa",
     )
     return any(term in text for term in healing_terms)
+
+
+def _narrative_has_rest_signal(narrative: str) -> bool:
+    text = narrative.lower()
+    rest_terms = (
+        "rest", "resting", "sleep", "sleeping", "nap", "bed", "inn", "room",
+        "descans", "dorm", "cama", "quarto", "taverna", "estalagem", "fôlego", "folego",
+    )
+    return any(term in text for term in rest_terms)
 
 
 def _narrative_has_combat_pressure(narrative: str) -> bool:
@@ -646,6 +992,7 @@ def _apply_response_guardrails(response: GMResponse) -> GMResponse:
         return response
 
     healing_visible = _narrative_has_healing_signal(response.narrative)
+    rest_visible = _narrative_has_rest_signal(response.narrative)
     adjusted = False
     normalized_state: dict[str, Any] = {}
     has_negative_hp = False
@@ -674,14 +1021,31 @@ def _apply_response_guardrails(response: GMResponse) -> GMResponse:
         if stamina_change_int < 0:
             has_negative_stamina = True
 
-        if hp_change_int > 0 and not healing_visible:
+        if hp_change_int > 0 and not healing_visible and not (rest_visible and response.tension_level <= 5):
             updated["hp_change"] = 0
             adjusted = True
             logger.info(
-                "GM guardrail removed positive hp_change without healing signal: player=%s original=%s",
+                "GM guardrail removed positive hp_change without healing or safe-rest signal: player=%s original=%s",
                 player_id,
                 hp_change,
             )
+
+        if rest_visible and response.tension_level >= 6:
+            for recovery_key in ("hp_change", "mp_change", "stamina_change"):
+                try:
+                    recovery_val = int(updated.get(recovery_key, 0) or 0)
+                except (TypeError, ValueError):
+                    recovery_val = 0
+                if recovery_val > 0:
+                    updated[recovery_key] = 0
+                    adjusted = True
+                    logger.info(
+                        "GM guardrail removed recovery during unsafe rest: player=%s key=%s original=%s tension=%s",
+                        player_id,
+                        recovery_key,
+                        recovery_val,
+                        response.tension_level,
+                    )
 
         normalized_state[player_id] = updated
 
@@ -739,6 +1103,602 @@ def _derive_next_scene_query(narrative: str) -> str:
     seed = sentences[-1] if sentences else text
     words = [word for word in re.findall(r"[A-Za-z0-9'_-]+", seed) if len(word) > 2]
     return " ".join(words[:12])
+
+
+def _infer_skill_key_from_action(action_text: str) -> str:
+    text = (action_text or "").lower()
+    matchers: list[tuple[tuple[str, ...], str]] = [
+        (("armadilha", "trap", "embosc", "rota de fuga"), "ambush"),
+        (("escond", "sombra", "furtiv", "stealth", "ocult"), "conceal"),
+        (("descans", "dorm", "medit", "concentr", "respirar", "fôlego", "folego"), "thread_sensing"),
+        (("runa", "runic", "runework"), "runework"),
+        (("selo", "seal", "selamento"), "seal_work"),
+        (("ritual", "invoca", "invocar"), "thread_sensing"),
+        (("magia", "feiti", "arcano", "thread", "vento", "fogo", "gelo", "raio"), "detect_magic"),
+        (("vasculh", "buscar", "procur", "inspec", "exam", "search", "observar", "investig"), "search"),
+        (("convencer", "persuad", "negoci", "interrog", "convers"), "persuasion"),
+        (("combate", "atacar", "golpe", "duelo", "fight", "battle"), "weapon_flow"),
+    ]
+    for terms, skill_key in matchers:
+        if any(term in text for term in terms):
+            return skill_key
+    return "search"
+
+
+def _infer_skill_use_from_action(action_text: str) -> dict[str, float | str]:
+    text = (action_text or "").lower()
+    skill_key = _infer_skill_key_from_action(action_text)
+    impact = 1.0 if text.strip() else 0.5
+
+    precision_terms = (
+        "concentr", "medit", "observar", "investig", "interrog", "negoci",
+        "armadilha", "trap", "embosc", "planej", "rota de fuga", "prepar",
+    )
+    risk_terms = (
+        "perigo", "risco", "a qualquer custo", "sombras", "inimig", "fuga",
+        "persegui", "combate", "alerta", "ameaça",
+    )
+
+    if any(term in text for term in precision_terms):
+        impact += 0.5
+    if any(term in text for term in risk_terms):
+        impact += 0.5
+
+    if skill_key in {"ambush", "conceal", "thread_sensing"} and impact < 1.5:
+        impact = 1.5
+
+    return {"skill_key": skill_key, "impact": min(3.0, max(0.5, impact))}
+
+
+def _infer_story_experience_gain(action_text: str, narrative: str, tension_level: int) -> int:
+    text = (action_text or "").lower().strip()
+    scene = (narrative or "").lower()
+    combined = f"{text} {scene}"
+
+    if not text:
+        return 0
+
+    story_terms = (
+        "salv", "resgat", "descobr", "revel", "convenc", "negoci", "interrog",
+        "investig", "infiltr", "proteg", "defeat", "ritual", "selo", "seal",
+        "quest", "missão", "missao", "pista", "verdade", "truth", "libert",
+    )
+    danger_terms = (
+        "inimig", "ameaça", "perigo", "combate", "duelo", "fight", "battle",
+        "cult", "capit", "boss", "guarda", "prisone", "prisione",
+    )
+    progress_terms = (
+        "muda o rumo", "próxima etapa", "proxima etapa", "next step", "avança",
+        "advance", "objective", "objetivo", "progresso", "clue", "pista",
+    )
+    completion_terms = (
+        "derrot", "vence", "triunf", "conquista", "fecha o ritual", "sela",
+        "recupera o artefato", "salva", "liberta",
+    )
+    trivial_terms = (
+        "ajeit", "casaco", "observo a chuva", "chuva", "respiro", "espero",
+        "silêncio", "silencio", "fico parado", "olho em volta sem agir",
+    )
+
+    impact_score = 0
+    if any(term in text for term in story_terms):
+        impact_score += 2
+    if any(term in combined for term in progress_terms):
+        impact_score += 2
+    if tension_level >= 6 or any(term in combined for term in danger_terms):
+        impact_score += 1
+    if any(term in combined for term in completion_terms):
+        impact_score += 1
+
+    if impact_score <= 0:
+        if any(term in combined for term in trivial_terms):
+            return 0
+        purposeful_verbs = (
+            "ataco", "confront", "vasculh", "explor", "persuad", "negoci", "investig",
+            "proteg", "escapo", "fujo", "interrogo", "rastreio",
+        )
+        if any(term in text for term in purposeful_verbs):
+            impact_score = 1
+        else:
+            return 0
+
+    xp = 6 + (impact_score * 4)
+    return max(0, min(24, xp))
+
+
+def _condition_ids_matching(active_conditions: list[Any] | None, keywords: tuple[str, ...]) -> list[str]:
+    matched: list[str] = []
+    for cond in active_conditions or []:
+        try:
+            if isinstance(cond, dict):
+                cond_id = str(cond.get("condition_id", ""))
+                name = str(cond.get("name", "") or "").lower()
+                desc = str(cond.get("description", "") or "").lower()
+            else:
+                cond_id = str(cond["condition_id"])
+                name = str(cond["name"] or "").lower()
+                desc = str(cond["description"] or "").lower()
+        except Exception:
+            continue
+        if cond_id and any(keyword in name or keyword in desc for keyword in keywords):
+            matched.append(cond_id)
+    return matched
+
+
+def _infer_healing_delta(
+    action_text: str,
+    narrative: str,
+    tension_level: int,
+    current_location: str = "",
+    active_conditions: list[Any] | None = None,
+) -> dict[str, Any]:
+    text = (action_text or "").lower()
+    scene = (narrative or "").lower()
+    location = (current_location or "").lower()
+    combined = f"{text} {scene} {location}"
+
+    healing_terms = (
+        "cura", "curar", "heal", "healing", "primeiros socorros", "first aid",
+        "enfaixar", "bandage", "curativo", "tratar ferida", "tratamento",
+        "poção", "pocao", "potion", "elixir", "antídoto", "antidoto", "salve",
+        "purificar", "cleanse", "restoration", "restauração", "restauracao",
+    )
+    if not any(term in combined for term in healing_terms):
+        return {}
+
+    under_pressure = (
+        tension_level >= 6
+        or _narrative_has_combat_pressure(narrative)
+        or any(term in combined for term in ("inimig", "ameaça", "passos", "persegui", "alarme"))
+    )
+    safe_place = any(
+        term in combined
+        for term in ("quarto", "cama", "estalagem", "taverna", "inn", "room", "bed", "camp", "abrigo", "santu", "temple")
+    )
+    quality_bonus = 2 if safe_place else 0
+    pressure_penalty = 2 if under_pressure else 0
+
+    delta: dict[str, Any] = {}
+
+    if any(term in text for term in ("primeiros socorros", "first aid", "enfaixar", "bandage", "curativo", "tratar")):
+        delta["hp_change"] = max(1, 4 + quality_bonus - pressure_penalty)
+        delta["stamina_change"] = max(0, 1 + quality_bonus - pressure_penalty)
+        remove_ids = _condition_ids_matching(active_conditions, ("bleed", "sangr", "burn", "queim", "fatigue", "exaust"))
+        if remove_ids and not under_pressure:
+            delta["conditions_remove"] = remove_ids
+
+    if any(term in text for term in ("poção", "pocao", "potion", "elixir", "salve")):
+        delta["hp_change"] = max(int(delta.get("hp_change", 0)), 6 + quality_bonus)
+        if "antídoto" in text or "antidoto" in text:
+            remove_ids = _condition_ids_matching(active_conditions, ("poison", "veneno", "toxic", "tox"))
+            if remove_ids:
+                current_remove = list(delta.get("conditions_remove", []))
+                for cid in remove_ids:
+                    if cid not in current_remove:
+                        current_remove.append(cid)
+                delta["conditions_remove"] = current_remove
+
+    if _is_magic_intent(action_text) and any(term in text for term in ("cura", "heal", "divina", "restauração", "restauracao", "purificar", "cleanse")):
+        delta["hp_change"] = max(int(delta.get("hp_change", 0)), 5 + quality_bonus)
+        delta["mp_change"] = int(delta.get("mp_change", 0)) - 4
+        remove_ids = _condition_ids_matching(active_conditions, ("bleed", "sangr", "burn", "queim", "poison", "veneno"))
+        if remove_ids and not under_pressure:
+            current_remove = list(delta.get("conditions_remove", []))
+            for cid in remove_ids:
+                if cid not in current_remove:
+                    current_remove.append(cid)
+            delta["conditions_remove"] = current_remove
+
+    return delta
+
+
+def _infer_rest_recovery(
+    action_text: str,
+    narrative: str,
+    tension_level: int,
+    current_location: str = "",
+) -> dict[str, Any]:
+    text = (action_text or "").lower()
+    scene = (narrative or "").lower()
+    location = (current_location or "").lower()
+    combined = f"{text} {scene} {location}"
+
+    if not any(term in text for term in ("descans", "dorm", "deitar", "sleep", "rest", "medit")):
+        return {}
+
+    premium_shelter = any(
+        term in combined
+        for term in ("cama", "quarto", "taverna", "estalagem", "inn", "room", "bed", "sanctuary", "temple", "port myr")
+    )
+    basic_shelter = premium_shelter or any(
+        term in combined for term in ("camp", "fogueira", "tent", "abrigo", "shelter")
+    )
+    calm_scene = any(
+        term in combined
+        for term in ("quieto", "silêncio", "silencio", "porta fecha", "ninguém interrompe", "alone", "calmo", "seguro", "safe", "sem interrupções")
+    )
+    danger_present = (
+        tension_level >= 6
+        or _narrative_has_combat_pressure(narrative)
+        or any(term in combined for term in ("persegui", "inimig", "ameaça", "grito", "passos", "alerta"))
+    )
+
+    if danger_present:
+        return {}
+
+    if not basic_shelter and not calm_scene and tension_level > 4:
+        return {}
+
+    meditative_focus = _is_magic_sensory_intent(action_text) or any(
+        term in text for term in ("concentr", "medit", "vento", "thread", "mana", "foco")
+    )
+    full_sleep = any(term in text for term in ("dormir", "passar a noite", "pernoitar", "sleep through", "sono"))
+    deep_rest = full_sleep or any(term in text for term in ("recuperar completamente", "restaurar completamente", "descansar mais"))
+
+    quality = 2 if premium_shelter else 1 if basic_shelter or calm_scene else 0
+    hp_gain = 2 + quality + (1 if deep_rest else 0)
+    mp_gain = 2 + quality + (2 if meditative_focus else 0) + (1 if deep_rest else 0)
+    stamina_gain = 4 + (quality * 2) + (2 if deep_rest else 0)
+
+    if not premium_shelter:
+        hp_gain = min(hp_gain, 3)
+        mp_gain = min(mp_gain, 4)
+        stamina_gain = min(stamina_gain, 6)
+
+    return {
+        "hp_change": max(1, hp_gain),
+        "mp_change": max(1, mp_gain),
+        "stamina_change": max(2, stamina_gain),
+    }
+
+
+def _is_magic_intent(action_text: str) -> bool:
+    text = (action_text or "").lower()
+    return bool(re.search(r"\b(magia|feiti|spell|arcano|vento|fogo|gelo|raio|ritual|thread|mana)\b", text))
+
+
+def _is_magic_sensory_intent(action_text: str) -> bool:
+    text = (action_text or "").lower()
+    return bool(
+        re.search(
+            r"\b(sentir|detectar|perceber|rastrear|mapear|scan|sense|feel|presence|presenca|presença)\b",
+            text,
+        )
+        and re.search(r"\b(vento|ar|wind|air|thread|magia|arcano|ritual)\b", text)
+    )
+
+
+def _has_magic_capability(row: aiosqlite.Row) -> bool:
+    allowed_magic_seals = {"common", "trade", "high_flame", "conclave"}
+    seal = str(row["flame_seal"] or "").lower()
+    if seal in allowed_magic_seals:
+        return True
+
+    magic_prof = json.loads(row["magic_prof_json"] or "{}")
+    if any(int(v or 0) > 0 for v in magic_prof.values()):
+        return True
+
+    skills = json.loads(row["skills_json"] or "{}")
+    for key in ("detect_magic", "thread_sensing", "corruption_reading", "seal_work", "runework"):
+        entry = skills.get(key)
+        if isinstance(entry, dict) and int(entry.get("rank", 0) or 0) > 0:
+            return True
+    return False
+
+
+def _infer_magic_element(action_text: str, narrative: str) -> str:
+    text = f"{action_text} {narrative}".lower()
+    if any(token in text for token in ("vento", "air", "wind")):
+        return "air"
+    if any(token in text for token in ("fogo", "fire", "flame")):
+        return "fire"
+    if any(token in text for token in ("agua", "água", "water", "ice", "gelo")):
+        return "water"
+    if any(token in text for token in ("terra", "earth", "stone", "rocha")):
+        return "earth"
+    if any(token in text for token in ("espirito", "espírito", "spirit", "alma")):
+        return "spirit"
+    return "energy"
+
+
+def _extract_loot_from_narrative(
+    action_text: str,
+    narrative: str,
+    player_id: str,
+    existing_item_names: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    action = (action_text or "").lower()
+    text = (narrative or "").lower()
+    existing = {name.lower() for name in (existing_item_names or set())}
+
+    is_search_context = bool(
+        re.search(r"(vasculh|saque|loot|search|revira|examina|inspec|buscar corpos)", action)
+    )
+    asks_for_weapon = bool(re.search(r"\b(arma|weapon|espada|sword)\b", action))
+
+    def missing(name: str) -> bool:
+        return name.lower() not in existing
+
+    items: list[dict[str, Any]] = []
+
+    # Weapon granted/requested in narrative context.
+    if asks_for_weapon and any(token in text for token in ("espada curta", "short sword", "espada")) and missing("Short Sword"):
+        items.append({
+            "item_id": f"{player_id}-short-sword-{uuid.uuid4().hex[:8]}",
+            "name": "Short Sword",
+            "description": "A reliable short blade for close combat.",
+            "rarity": "common",
+            "quantity": 1,
+            "equipped": False,
+        })
+
+    # Search/recovery context: documents and marked artifacts.
+    if is_search_context:
+        if any(token in text for token in ("anel", "ring")) and missing("Traveler Mark Ring"):
+            items.append({
+                "item_id": f"{player_id}-traveler-ring-{uuid.uuid4().hex[:8]}",
+                "name": "Traveler Mark Ring",
+                "description": "Recovered during field search.",
+                "rarity": "rare",
+                "quantity": 1,
+                "equipped": False,
+            })
+        if any(token in text for token in ("pergaminho", "scroll")) and missing("Sealed Scroll"):
+            items.append({
+                "item_id": f"{player_id}-sealed-scroll-{uuid.uuid4().hex[:8]}",
+                "name": "Sealed Scroll",
+                "description": "Recovered during field search.",
+                "rarity": "rare",
+                "quantity": 1,
+                "equipped": False,
+            })
+        if any(token in text for token in ("medalh", "medallion", "medalhao", "medalhão")) and missing("Traveler Mark Medallion"):
+            items.append({
+                "item_id": f"{player_id}-traveler-medallion-{uuid.uuid4().hex[:8]}",
+                "name": "Traveler Mark Medallion",
+                "description": "Recovered during field search.",
+                "rarity": "rare",
+                "quantity": 1,
+                "equipped": False,
+            })
+        if any(token in text for token in ("mapa", "map", "carta", "document")) and missing("Investigative Documents"):
+            items.append({
+                "item_id": f"{player_id}-investigative-docs-{uuid.uuid4().hex[:8]}",
+                "name": "Investigative Documents",
+                "description": "Notes, fragments, and routes tied to the Traveler Mark.",
+                "rarity": "common",
+                "quantity": 1,
+                "equipped": False,
+            })
+
+    return items[:3]
+
+
+async def _inject_narrative_loot_if_missing(
+    conn: aiosqlite.Connection,
+    batch: ActionBatch,
+    gm_response: GMResponse,
+) -> None:
+    if not batch.actions:
+        return
+
+    if not isinstance(gm_response.state_delta, dict):
+        gm_response.state_delta = {}
+    if not isinstance(gm_response.game_events, list):
+        gm_response.game_events = []
+
+    for action in batch.actions:
+        player_id = action.player_id
+        player_row = await state_manager.get_player_by_id(conn, player_id)
+        if player_row is None:
+            continue
+
+        inventory_rows = await state_manager.get_player_inventory(conn, player_id)
+        existing_names = {str(item["name"] or "") for item in inventory_rows}
+
+        inferred_items = _extract_loot_from_narrative(
+            action.action_text,
+            gm_response.narrative,
+            player_id,
+            existing_item_names=existing_names,
+        )
+        if not inferred_items:
+            continue
+
+        player_delta = gm_response.state_delta.get(player_id)
+        if not isinstance(player_delta, dict):
+            player_delta = {}
+
+        current_add = player_delta.get("inventory_add", [])
+        if not isinstance(current_add, list):
+            current_add = []
+        current_names = {
+            str(item.get("name", "")).lower()
+            for item in current_add
+            if isinstance(item, dict)
+        }
+        for item in inferred_items:
+            if item["name"].lower() not in current_names:
+                current_add.append(item)
+
+        if not current_add:
+            continue
+
+        player_delta["inventory_add"] = current_add
+        gm_response.state_delta[player_id] = player_delta
+
+        gm_response.game_events.append(
+            {
+                "type": "LOOT",
+                "player_id": player_id,
+                "player_name": action.player_name,
+                "items": inferred_items,
+            }
+        )
+
+        log_flow(
+            logger,
+            "narrative_loot_injected",
+            player_id=player_id,
+            player_name=action.player_name,
+            items=[item["name"] for item in inferred_items],
+        )
+
+
+def _merge_delta_resources(target: dict[str, Any], patch: dict[str, Any]) -> None:
+    for key, value in patch.items():
+        if key in {"hp_change", "mp_change", "stamina_change", "experience_gain"}:
+            target[key] = int(target.get(key, 0) or 0) + int(value or 0)
+        elif key in {"conditions_remove", "inventory_remove"}:
+            current = list(target.get(key, []))
+            for item in value or []:
+                if item not in current:
+                    current.append(item)
+            target[key] = current
+        elif key in {"conditions_add", "inventory_add"}:
+            current = list(target.get(key, []))
+            current.extend(value or [])
+            target[key] = current
+        else:
+            target[key] = value
+
+
+async def _build_minimum_mechanics_fallback(
+    conn: aiosqlite.Connection,
+    batch: ActionBatch,
+    narrative: str,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    state_delta: dict[str, Any] = {}
+    fallback_events: list[dict[str, Any]] = []
+    current_tension = await _get_tension_level(conn)
+    current_location = (
+        await state_manager.get_world_state(conn, "current_location")
+        or state_manager.DEFAULT_START_LOCATION
+    )
+
+    for action in batch.actions:
+        row = await state_manager.get_player_by_id(conn, action.player_id)
+        if row is None:
+            continue
+
+        delta: dict[str, Any] = {}
+        action_text = action.action_text or ""
+        active_conditions = await state_manager.get_player_conditions(conn, action.player_id)
+
+        delta["skill_use"] = _infer_skill_use_from_action(action_text)
+
+        story_xp = _infer_story_experience_gain(action_text, narrative, current_tension)
+        if story_xp > 0:
+            delta["experience_gain"] = int(delta.get("experience_gain", 0) or 0) + story_xp
+            log_flow(
+                logger,
+                "story_xp_inferred",
+                player_id=action.player_id,
+                player_name=action.player_name,
+                experience_gain=story_xp,
+            )
+
+        rest_delta = _infer_rest_recovery(
+            action_text,
+            narrative,
+            current_tension,
+            current_location=current_location,
+        )
+        if rest_delta:
+            _merge_delta_resources(delta, rest_delta)
+            log_flow(
+                logger,
+                "rest_recovery_inferred",
+                player_id=action.player_id,
+                player_name=action.player_name,
+                recovery=rest_delta,
+                tension=current_tension,
+                location=current_location,
+            )
+
+        healing_delta = _infer_healing_delta(
+            action_text,
+            narrative,
+            current_tension,
+            current_location=current_location,
+            active_conditions=active_conditions,
+        )
+        if healing_delta:
+            _merge_delta_resources(delta, healing_delta)
+            log_flow(
+                logger,
+                "healing_delta_inferred",
+                player_id=action.player_id,
+                player_name=action.player_name,
+                recovery=healing_delta,
+                tension=current_tension,
+                location=current_location,
+            )
+
+        if _is_magic_intent(action_text):
+            seal = str(row["flame_seal"] or "").lower()
+            magic_prof = json.loads(row["magic_prof_json"] or "{}")
+            can_cast = _has_magic_capability(row)
+            sensory_intent = _is_magic_sensory_intent(action_text)
+
+            if can_cast:
+                # Sensory/channeling actions cost less than offensive casting.
+                if sensory_intent:
+                    delta["mp_change"] = int(delta.get("mp_change", 0) or 0) - 2
+                    delta["skill_use"] = {
+                        "skill_key": "thread_sensing",
+                        "impact": 1.0,
+                    }
+                else:
+                    delta["mp_change"] = int(delta.get("mp_change", 0) or 0) - 6
+                    element = _infer_magic_element(action_text, narrative)
+                    if int(magic_prof.get(element, 0)) < 1:
+                        delta["magic_proficiency_delta"] = {element: 1}
+            else:
+                # Explicit backlash when action attempts magic without explicit capability.
+                if sensory_intent:
+                    # Non-offensive sensing without capability: fatigue, but no direct self-harm.
+                    delta["stamina_change"] = int(delta.get("stamina_change", 0) or 0) - 3
+                    delta["mp_change"] = int(delta.get("mp_change", 0) or 0) - 1
+                    delta["skill_use"] = {"skill_key": "thread_sensing", "impact": 0.5}
+                    log_flow(
+                        logger,
+                        "magic_gate_soft_fail",
+                        player_id=action.player_id,
+                        player_name=action.player_name,
+                        seal=seal or "none",
+                    )
+                else:
+                    delta["hp_change"] = int(delta.get("hp_change", 0) or 0) - 4
+                    delta["stamina_change"] = int(delta.get("stamina_change", 0) or 0) - 8
+                    delta["mp_change"] = int(delta.get("mp_change", 0) or 0) - 3
+                    delta["skill_use"] = {"skill_key": "thread_sensing", "impact": 0.5}
+                    log_flow(
+                        logger,
+                        "magic_gate_backlash_applied",
+                        player_id=action.player_id,
+                        player_name=action.player_name,
+                        seal=seal or "none",
+                    )
+        elif re.search(r"(atacar|combate|duelo|fight|battle|confront)", action_text.lower()):
+            delta["stamina_change"] = int(delta.get("stamina_change", 0) or 0) - 3
+
+        fallback_items = _extract_loot_from_narrative(action_text, narrative, action.player_id)
+        if fallback_items:
+            delta["inventory_add"] = fallback_items
+            fallback_events.append(
+                {
+                    "type": "LOOT",
+                    "player_id": action.player_id,
+                    "player_name": action.player_name,
+                    "items": fallback_items,
+                }
+            )
+
+        if delta:
+            state_delta[action.player_id] = delta
+
+    return state_delta, fallback_events
 
 
 def _repair_json_candidate(raw_json: str) -> str:
@@ -869,6 +1829,17 @@ async def _apply_deltas_and_events(
     for roll in gm_response.dice_rolls:
         die = int(roll.get("die", 20))
         result = int(roll.get("result", 0))
+        purpose = str(roll.get("purpose", "action check")).strip() or "action check"
+        player_name = str(roll.get("player", "Player")).strip() or "Player"
+
+        # Telegraph the roll clearly before publishing the result.
+        broadcast_gm_thinking = getattr(cm.manager, "broadcast_gm_thinking", None)
+        if callable(broadcast_gm_thinking):
+            maybe_result = broadcast_gm_thinking(
+                f"Dice check incoming: {player_name} will roll d{die} for {purpose}."
+            )
+            if inspect.isawaitable(maybe_result):
+                await maybe_result
         enriched = {
             **roll,
             "is_critical": result == die,

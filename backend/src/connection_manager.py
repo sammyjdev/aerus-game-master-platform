@@ -217,12 +217,14 @@ class ConnectionManager:
 
         return full_narrative
 
-    async def broadcast_gm_thinking(self, campaign_id: str | None = None) -> None:
-        """Broadcast a 'GM is thinking...' signal."""
+    async def broadcast_gm_thinking(
+        self, message: str | None = None, campaign_id: str | None = None
+    ) -> None:
+        """Broadcast a 'GM is thinking...' signal (campaign-scoped, custom message)."""
         await self.broadcast(
             {
                 "type": WSMessageType.GM_THINKING,
-                "message": "The Game Master is weighing your fate...",
+                "message": message or "The Game Master is weighing your fate...",
             },
             campaign_id=campaign_id,
         )

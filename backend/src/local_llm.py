@@ -59,7 +59,11 @@ async def generate_text(
     max_tokens: int = 220,
     model_override: str | None = None,
 ) -> str:
-    if _is_local_only():
+    # When model_override is set, it targets a specific Ollama model for utility
+    # extraction tasks (summarizer, extractor, etc.).  Routing these through
+    # billing_router would send them to the SLM when SLM_ENABLED=true, which is
+    # trained for narrative prose — not structured JSON extraction.
+    if _is_local_only() or model_override:
         try:
             return await _generate_with_ollama(
                 system_prompt,
@@ -68,7 +72,9 @@ async def generate_text(
                 model_override=model_override,
             )
         except Exception as exc:
-            raise RuntimeError(f"Local model failed while AERUS_LOCAL_ONLY=true: {exc}") from exc
+            if _is_local_only():
+                raise RuntimeError(f"Local model failed while AERUS_LOCAL_ONLY=true: {exc}") from exc
+            logger.warning("Ollama failed (model_override=%s), falling back to OpenRouter: %s", model_override, exc)
 
     try:
         return await _generate_with_openrouter(system_prompt, user_prompt, max_tokens=max_tokens)
