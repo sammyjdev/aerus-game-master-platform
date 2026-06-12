@@ -64,6 +64,7 @@ from eval.topics.core_topics import build_scenarios as build_core_topic_scenario
 from eval.topics.multiplayer_topics import build_scenarios as build_multiplayer_topic_scenarios
 from eval.topics.progression_topics import build_scenarios as build_progression_topic_scenarios
 from eval.topics.session_topics import build_scenarios as build_session_topic_scenarios
+from eval.topics.narration_quality_test import build_scenarios as build_narration_quality_scenarios
 from eval.topics.world_topics import build_scenarios as build_world_topic_scenarios
 from src import vector_store
 from src.local_llm import _ollama_model, configured_execution_mode, configured_hosted_model, configured_model_label, is_local_only
@@ -163,6 +164,7 @@ def _build_scenarios() -> list[Scenario]:
     scenarios.extend(build_progression_topic_scenarios(reg))
     scenarios.extend(build_world_topic_scenarios(reg))
     scenarios.extend(build_session_topic_scenarios(reg))
+    scenarios.extend(build_narration_quality_scenarios(reg))
     return scenarios
 
 

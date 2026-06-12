@@ -83,6 +83,29 @@ def narrative_is_creative_enough(narrative: str, _: dict[str, Any], __: RuntimeC
     return len(narrative.strip()) >= 140 and sum(token in text for token in vivid) >= 3
 
 
+def has_no_cliche_phrases(narrative: str, _: dict[str, Any], __: RuntimeContext) -> bool:
+    """Fails if any forbidden narration cliché appears in the GM narrative response."""
+    forbidden = [
+        "você sente",
+        "você percebe",
+        "você nota",
+        "acariciando",
+        "burburinho",
+        "microcosmo",
+        "ferida sangrante",
+        "introspectivamente",
+        "aos poucos",
+        "instintivamente",
+        "por um momento",
+        "a serenidade, porém, é breve",
+        "algo se esconde, atento",
+    ]
+    lower = narrative.lower()
+    if "—" in narrative or " - " in narrative:
+        return False
+    return not any(phrase in lower for phrase in forbidden)
+
+
 def lore_is_specific_not_generic(narrative: str, _: dict[str, Any], __: RuntimeContext) -> bool:
     text = narrative.lower()
     canonical = [
@@ -680,6 +703,7 @@ def build_topic_registry() -> dict[str, Any]:
         "Assertion": Assertion,
         "base_contract": base_contract_assertions,
         "has_nonempty_narrative": has_nonempty_narrative,
+        "has_no_cliche_phrases": has_no_cliche_phrases,
         "narrative_is_creative_enough": narrative_is_creative_enough,
         "lore_is_specific_not_generic": lore_is_specific_not_generic,
         "mentions_english_world_terms": mentions_english_world_terms,

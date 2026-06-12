@@ -9,7 +9,12 @@ from src.game_master import (
     _extract_narrative_only,
     _flush_buffer,
     _format_batch_as_user_message,
+    _infer_healing_delta,
+    _infer_rest_recovery,
+    _infer_skill_use_from_action,
+    _infer_story_experience_gain,
     _parse_gm_response,
+    _tokens_from_stream,
 )
 from src.models import ActionBatch, GMResponse, PlayerAction
 
@@ -223,41 +228,192 @@ def test_format_batch_empty_actions():
 
 def test_flush_buffer_splits_on_game_state_marker():
     buffer = "Narrativa antes.<game_state>json aqui"
-    to_emit, new_buffer = _flush_buffer(buffer)
+    to_emit, new_buffer, should_stop = _flush_buffer(buffer)
     assert to_emit == "Narrativa antes."
     assert new_buffer == ""
+    assert should_stop is True
 
 
 def test_flush_buffer_short_no_marker_emits_nothing():
     """Buffer curto sem marcador: não emite, mantém no buffer."""
     buffer = "curto"
-    to_emit, new_buffer = _flush_buffer(buffer)
+    to_emit, new_buffer, should_stop = _flush_buffer(buffer)
     assert to_emit == ""
     assert new_buffer == "curto"
+    assert should_stop is False
 
 
 def test_flush_buffer_long_no_marker_emits_partial():
     """Buffer longo sem marcador: emite parte, retém os últimos 20 chars."""
     buffer = "A" * 60
-    to_emit, new_buffer = _flush_buffer(buffer)
+    to_emit, new_buffer, should_stop = _flush_buffer(buffer)
     assert len(to_emit) == 40   # 60 - 20
     assert len(new_buffer) == 20
+    assert should_stop is False
 
 
 def test_flush_buffer_exactly_50_chars_emits_partial():
     """Buffer com exatamente 51 chars (> 50) deve emitir."""
     buffer = "B" * 51
-    to_emit, new_buffer = _flush_buffer(buffer)
+    to_emit, new_buffer, should_stop = _flush_buffer(buffer)
     assert len(to_emit) == 31
     assert len(new_buffer) == 20
+    assert should_stop is False
 
 
 def test_flush_buffer_marker_at_start():
     """Marcador no início: nada a emitir antes."""
     buffer = "<game_state>resto"
-    to_emit, new_buffer = _flush_buffer(buffer)
+    to_emit, new_buffer, should_stop = _flush_buffer(buffer)
     assert to_emit == ""
     assert new_buffer == ""
+    assert should_stop is True
+
+
+class _FakeDelta:
+    def __init__(self, content: str):
+        self.content = content
+
+
+class _FakeChoice:
+    def __init__(self, content: str):
+        self.delta = _FakeDelta(content)
+
+
+class _FakeChunk:
+    def __init__(self, content: str):
+        self.choices = [_FakeChoice(content)]
+
+
+class _FakeStream:
+    def __init__(self, parts: list[str]):
+        self.parts = parts
+
+    def __aiter__(self):
+        self._index = 0
+        return self
+
+    async def __anext__(self):
+        if self._index >= len(self.parts):
+            raise StopAsyncIteration
+        part = self.parts[self._index]
+        self._index += 1
+        return _FakeChunk(part)
+
+
+@pytest.mark.asyncio
+async def test_tokens_from_stream_keeps_collecting_full_response_after_game_state_marker():
+    full_response = (
+        "A névoa baixa sobre o porto."
+        "<game_state>"
+        '{"tension_level": 4, "state_delta": {}, "game_events": []}'
+        "</game_state>"
+    )
+    stream = _FakeStream([
+        "A névoa baixa ",
+        "sobre o porto.",
+        "<game_state>",
+        '{"tension_level": 4, ',
+        '"state_delta": {}, ',
+        '"game_events": []}',
+        "</game_state>",
+    ])
+
+    collector: list[str] = []
+    emitted: list[str] = []
+    async for token in _tokens_from_stream(stream, collector):
+        emitted.append(token)
+
+    assert "".join(collector) == full_response
+    assert "<game_state>" not in "".join(emitted)
+    assert "A névoa baixa sobre o porto." == "".join(emitted).strip()
+
+
+def test_infer_skill_use_from_action_rewards_stealth_setup_more_than_trivial_search():
+    skill = _infer_skill_use_from_action(
+        "Vou me esconder nas sombras, preparar armadilhas e observar a rota de fuga."
+    )
+
+    assert skill["skill_key"] in {"ambush", "conceal"}
+    assert float(skill["impact"]) >= 1.5
+
+
+def test_infer_rest_recovery_requires_safe_conditions_for_real_recovery():
+    short_rest = _infer_rest_recovery(
+        action_text="Quero me deitar na cama da taverna e recuperar o fôlego enquanto medito no vento.",
+        narrative="No quarto da taverna, a porta fecha e o porto fica distante.",
+        tension_level=3,
+        current_location="Port Myr",
+    )
+    calm_rest_without_bed_keywords = _infer_rest_recovery(
+        action_text="eu ainda sinto meu corpo cansado quero descansar mais para conseguir me recuperar completamente.",
+        narrative="O lugar enfim ficou quieto e ninguém interrompe você.",
+        tension_level=4,
+        current_location="Isles of Myr",
+    )
+    pressured_rest = _infer_rest_recovery(
+        action_text="Vou tentar descansar no meio da perseguição.",
+        narrative="Passos correm no corredor e o perigo ainda está perto.",
+        tension_level=7,
+        current_location="Isles of Myr",
+    )
+
+    assert int(short_rest.get("hp_change", 0)) > 0
+    assert int(short_rest.get("mp_change", 0)) > 0
+    assert int(short_rest.get("stamina_change", 0)) > 0
+    assert int(calm_rest_without_bed_keywords.get("stamina_change", 0)) > 0
+    assert pressured_rest == {}
+
+
+def test_meditative_rest_recovers_more_mana_than_plain_stamina_break():
+    meditative = _infer_rest_recovery(
+        action_text="Sento na cama e medito sobre o Thread para restaurar meu foco.",
+        narrative="A noite ficou calma na estalagem.",
+        tension_level=3,
+        current_location="Port Myr",
+    )
+    plain_rest = _infer_rest_recovery(
+        action_text="Vou apenas dormir e recuperar as forças.",
+        narrative="A noite passou sem interrupções.",
+        tension_level=3,
+        current_location="Port Myr",
+    )
+
+    assert int(meditative.get("mp_change", 0)) >= int(plain_rest.get("mp_change", 0))
+    assert int(plain_rest.get("hp_change", 0)) >= 0
+
+
+def test_infer_healing_delta_first_aid_can_remove_bleeding_in_safe_place():
+    delta = _infer_healing_delta(
+        action_text="Vou usar primeiros socorros e enfaixar a ferida para parar o sangramento.",
+        narrative="No quarto da estalagem há luz, água limpa e tempo para tratar a lesão.",
+        tension_level=2,
+        current_location="Port Myr",
+        active_conditions=[{"condition_id": "bleed-1", "name": "Bleeding"}],
+    )
+
+    assert int(delta.get("hp_change", 0)) > 0
+    assert "bleed-1" in delta.get("conditions_remove", [])
+
+
+def test_infer_story_experience_gain_rewards_high_impact_progression():
+    xp = _infer_story_experience_gain(
+        action_text="Eu enfrento o capitão cultista, salvo o prisioneiro e arranco dele a verdade sobre o ritual.",
+        narrative="A revelação muda o rumo da missão e empurra a história para a próxima etapa.",
+        tension_level=7,
+    )
+
+    assert xp >= 10
+
+
+def test_infer_story_experience_gain_ignores_low_impact_flavor():
+    xp = _infer_story_experience_gain(
+        action_text="Eu ajeito o casaco e observo a chuva por um instante.",
+        narrative="Nada muda na cena além do silêncio da noite.",
+        tension_level=2,
+    )
+
+    assert xp == 0
 
 
 def test_calculate_encounter_scaling_grows_with_party_size():

@@ -371,6 +371,32 @@ async def test_apply_state_delta_conditions_remove(db):
     assert len(rows) == 0
 
 
+async def test_process_condition_turn_ticks_damage_and_expires(db):
+    pid = await _seed_character(db)
+    cond_id = str(uuid.uuid4())
+    cond = {
+        "condition_id": cond_id,
+        "name": "Envenenado",
+        "description": "Perde 5 HP por turno.",
+        "duration_turns": 2,
+        "applied_at_turn": 1,
+        "is_buff": False,
+    }
+
+    row_before = await state_manager.get_player_by_id(db, pid)
+    hp_before = row_before["current_hp"]
+
+    await state_manager.apply_state_delta(db, pid, {"conditions_add": [cond]})
+    result = await state_manager.process_condition_turn(db, 2)
+
+    row_after = await state_manager.get_player_by_id(db, pid)
+    rows = await state_manager.get_player_conditions(db, pid)
+
+    assert row_after["current_hp"] < hp_before
+    assert rows[0]["duration_turns"] == 1
+    assert pid in result
+
+
 # ---------------------------------------------------------------------------
 # get_player_inventory e get_player_conditions
 # ---------------------------------------------------------------------------

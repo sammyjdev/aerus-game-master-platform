@@ -119,6 +119,107 @@ class TestAdminPlayersEndpoint:
 
 
 @pytest.mark.asyncio
+class TestAdminPlayerDetailAndUpdateEndpoint:
+    """Admin can inspect and correct full player state."""
+
+    async def test_admin_can_fetch_full_player_state(
+        self,
+        authenticated_client: AsyncClient,
+        admin_client: AsyncClient,
+        player_id: str,
+    ):
+        await authenticated_client.post(
+            "/character",
+            json={
+                "name": "Callum",
+                "race": "human",
+                "faction": "guild_of_threads",
+                "backstory": "Um vigia cansado que sobreviveu a um ritual quebrado e agora busca respostas nas ilhas cinzentas.",
+            },
+        )
+
+        response = await admin_client.get(f"/admin/players/{player_id}")
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert "player" in data
+        assert data["player"]["player_id"] == player_id
+        assert data["player"]["name"] == "Callum"
+        assert "attributes" in data["player"]
+        assert "skills" in data["player"]
+
+    async def test_admin_can_update_full_player_state(
+        self,
+        authenticated_client: AsyncClient,
+        admin_client: AsyncClient,
+        player_id: str,
+    ):
+        await authenticated_client.post(
+            "/character",
+            json={
+                "name": "Callum",
+                "race": "human",
+                "faction": "guild_of_threads",
+                "backstory": "Um vigia cansado que sobreviveu a um ritual quebrado e agora busca respostas nas ilhas cinzentas.",
+            },
+        )
+
+        response = await admin_client.patch(
+            f"/admin/players/{player_id}",
+            json={
+                "name": "Callum Corretor",
+                "level": 5,
+                "experience": 275,
+                "current_hp": 77,
+                "max_hp": 110,
+                "current_mp": 18,
+                "max_mp": 25,
+                "current_stamina": 9,
+                "max_stamina": 14,
+                "status": "alive",
+                "attributes": {
+                    "strength": 14,
+                    "dexterity": 13,
+                    "intelligence": 15,
+                    "vitality": 12,
+                    "luck": 11,
+                    "charisma": 16,
+                },
+                "currency": {"copper": 4, "silver": 12, "gold": 2, "platinum": 0},
+                "skills": {
+                    "persuasion": {"rank": 2, "uses": 3, "impact": 1.5}
+                },
+                "inventory": [
+                    {
+                        "item_id": "potion-1",
+                        "name": "Poção Menor",
+                        "description": "Recupera parte da vida.",
+                        "rarity": "common",
+                        "quantity": 2,
+                        "equipped": False,
+                    }
+                ],
+                "conditions": [
+                    {
+                        "condition_id": "blessing-1",
+                        "name": "Blessing",
+                        "description": "Foco estável.",
+                        "duration_turns": 3,
+                        "is_buff": True,
+                    }
+                ],
+            },
+        )
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["player"]["name"] == "Callum Corretor"
+        assert data["player"]["level"] == 5
+        assert data["player"]["experience"] == 275
+        assert data["player"]["current_hp"] == 77
+        assert data["player"]["attributes"]["intelligence"] == 15
+        assert data["player"]["inventory"][0]["name"] == "Poção Menor"
+        assert data["player"]["conditions"][0]["name"] == "Blessing"
+
+
 class TestAdminPauseEndpoint:
     """GAP A-01: POST /admin/pause for campaign pause."""
 

@@ -2,6 +2,7 @@
 test_context_builder.py — Testes do context_builder.py.
 Cobre construção de camadas L0, L1 e utilitários de lore.
 """
+from pathlib import Path
 from unittest.mock import patch
 
 from src.context_builder import (
@@ -9,6 +10,7 @@ from src.context_builder import (
     _build_l0_static,
     _build_l1_campaign,
     _build_lore_text,
+    build_gm_system_prompt,
 )
 from src.models import LoreResult
 
@@ -98,3 +100,25 @@ class TestBuildLoreText:
         assert "a" * 800 not in result
         # Mas os primeiros 600 chars devem estar presentes (via truncagem)
         assert "a" * 600 in result
+
+
+class TestNarrationPromptStyle:
+    def test_runtime_narration_assets_avoid_long_dash_character(self):
+        """The runtime narration guidance should not include the em dash character."""
+        root = Path(__file__).resolve().parents[1]
+        kernel = (root / "config" / "narration_bible_kernel.md").read_text(encoding="utf-8")
+        prompt = build_gm_system_prompt(num_players=1, tension_level=3)
+
+        assert "—" not in kernel
+        assert "—" not in prompt
+
+    def test_prompt_requires_second_person_player_address(self):
+        """The GM prompt should explicitly require second-person narration anchored to the player name."""
+        prompt = build_gm_system_prompt(
+            num_players=2,
+            tension_level=4,
+            player_output_targets=[("p1", "Callum"), ("p2", "Lyra")],
+        )
+
+        assert "second-person" in prompt.lower() or "second person" in prompt.lower()
+        assert "callum" in prompt.lower()
