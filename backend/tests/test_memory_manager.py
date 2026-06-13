@@ -35,19 +35,19 @@ async def test_update_memory_after_turn_persists_character_world_arc(db):
     batch = ActionBatch(
         actions=[
             PlayerAction(player_id=p1, player_name="Kael", action_text="Ataco", timestamp=0.0),
-            PlayerAction(player_id=p2, player_name="Lyra", action_text="LanÃ§o magia", timestamp=0.0),
+            PlayerAction(player_id=p2, player_name="Lyra", action_text="Lanço magia", timestamp=0.0),
         ],
         turn_number=3,
     )
-    gm_response = GMResponse(narrative="A cena avanÃ§a", tension_level=7)
+    gm_response = GMResponse(narrative="A cena avança", tension_level=7)
 
     extracted = {
         "character_facts": {
             "Kael": ["Sofreu dano ao proteger Lyra"],
             "Lyra": ["Selou a cripta com magia de fogo"],
         },
-        "world_changes": ["CapitÃ£o cultista fugiu para a cripta"],
-        "arc_progress": ["Conflito escalou apÃ³s fuga do antagonista"],
+        "world_changes": ["Capitão cultista fugiu para a cripta"],
+        "arc_progress": ["Conflito escalou após fuga do antagonista"],
         "tension_hint": 8,
     }
 
@@ -60,7 +60,7 @@ async def test_update_memory_after_turn_persists_character_world_arc(db):
     assert "Selou a cripta com magia de fogo" in memory.character
     assert "Resumo do turno" in memory.character
     assert "Turn 3" in memory.world
-    assert "CapitÃ£o cultista fugiu para a cripta" in memory.world
+    assert "Capitão cultista fugiu para a cripta" in memory.world
     assert "Tension 8/10" in memory.arc
 
 
@@ -71,7 +71,7 @@ async def test_update_memory_after_turn_uses_deterministic_fallback_when_extract
         actions=[PlayerAction(player_id=p1, player_name="Nox", action_text="Observo", timestamp=0.0)],
         turn_number=1,
     )
-    gm_response = GMResponse(narrative="SilÃªncio", tension_level=5)
+    gm_response = GMResponse(narrative="Silêncio", tension_level=5)
 
     with patch("src.memory_manager.generate_text", new=AsyncMock(return_value="NOT_JSON")):
         with patch("src.memory_manager.summarize_recent_history", new=AsyncMock(return_value="  ")):
@@ -93,16 +93,16 @@ def test_parse_extractor_json_strips_markdown_fences():
     raw = """```json
     {
       "character_facts": {"Kael": ["Feriu o inimigo"]},
-      "world_changes": ["PortÃ£o foi quebrado"],
-      "arc_progress": ["Ato 1 avanÃ§ou"],
+      "world_changes": ["Portão foi quebrado"],
+      "arc_progress": ["Ato 1 avançou"],
       "tension_hint": 9
     }
     ```"""
     parsed = memory_manager._parse_extractor_json(raw, batch=batch, gm_response=gm_response)
 
     assert parsed["character_facts"]["Kael"] == ["Feriu o inimigo"]
-    assert parsed["world_changes"] == ["PortÃ£o foi quebrado"]
-    assert parsed["arc_progress"] == ["Ato 1 avanÃ§ou"]
+    assert parsed["world_changes"] == ["Portão foi quebrado"]
+    assert parsed["arc_progress"] == ["Ato 1 avançou"]
     assert parsed["tension_hint"] == 9
 
 

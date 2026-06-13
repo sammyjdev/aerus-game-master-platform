@@ -1,161 +1,161 @@
-# Material core para artigo de LinkedIn — "Eu treinei uma IA local por dias. Depois descobri que não precisava dela."
+# Core material for a LinkedIn article — "I spent days training a local AI. Then I found out I didn't need it."
 
-> Tudo que você precisa para escrever um artigo forte: o arco narrativo, os números,
-> os achados contra-intuitivos, as falas-âncora e as lições. Use como matéria-prima.
-
----
-
-## A tese (o gancho)
-
-**Passei uma maratona treinando um Small Language Model local para ser o narrador de um
-RPG. No fim, um modelo de nuvem barato + os meus próprios exemplos como RAG + 50 linhas
-de validação entregaram mais qualidade, por menos custo e esforço. O trabalho não foi
-perdido — virou outra coisa.**
-
-É uma história de **build vs buy** decidida por **evidência** (benchmarks e um teste cego),
-não por opinião — e cheia de reviravoltas que contrariam a intuição.
+> Everything you need to write a strong article: the narrative arc, the numbers,
+> the counter-intuitive findings, the anchor quotes, and the lessons. Use it as raw material.
 
 ---
 
-## O arco (estrutura sugerida do artigo)
+## The thesis (the hook)
 
-1. **A premissa romântica:** "IA local, custo zero, modelo só meu." Treinar um SLM (Mistral
-   7B→12B) na minha RTX 4070 Ti para narrar meu RPG.
-2. **O primeiro soco:** o modelo treinado **regurgitava as próprias regras** em vez de narrar.
-   Um bug de uma linha (`completion_only_loss=False`) — a loss estava treinando o modelo a
-   *repetir o prompt*.
-3. **A obsessão por dados:** automatizei a geração de um dataset "perfeito" com 17 agentes em
-   paralelo (98,9% de aproveitamento). 794 exemplos curados. O modelo melhorou — e travou
-   num teto de ~67%.
-4. **A reviravolta nº1 — a métrica mentia:** comparei modelos de nuvem no MESMO teste. O
-   melhor da métrica foi o **pior** no julgamento humano. A métrica media *obediência de
-   formato*, não *qualidade*.
-5. **A reviravolta nº2 — o juiz cego:** fiz um teste A/B onde eu não sabia qual modelo era
-   qual. O meu SLM local perdeu para modelos de nuvem que eu nem tinha treinado. Mas ganhou
-   UMA cena (a de morte) — e isso ensinou algo.
-6. **A virada de chave:** e se eu desse os meus exemplos curados para o modelo de nuvem como
-   **RAG**, em vez de treinar com eles? O frontier entende "quando ser conciso vs prolixo"
-   na hora. Os 794 exemplos viram o **banco de RAG**, não dado de treino.
-7. **O detalhe que ninguém vê:** a narração saía em 3ª pessoa fria ("O Callum sofre..."). O
-   correto, imersivo, é 2ª pessoa ("Você, Callum, sofre..."). Uma linha de prompt resolveu —
-   no modelo de nuvem. No SLM, exigiria retreino.
-8. **A garantia:** como confiar numa IA generativa? Um **guardrail determinístico** que valida
-   cada saída contra as regras checáveis e regenera/corrige as que falham.
-9. **A lição:** o valor não estava no modelo. Estava em **saber o que é qualidade** e em ter
-   **um jeito de medir e garantir**.
+**I spent a marathon training a local Small Language Model to be the narrator of an
+RPG. In the end, a cheap cloud model + my own examples as RAG + 50 lines of validation
+delivered more quality, for less cost and effort. The work wasn't wasted — it just
+became something else.**
+
+It's a **build vs buy** story decided by **evidence** (benchmarks and a blind test),
+not opinion — and full of twists that defy intuition.
 
 ---
 
-## Os números (use à vontade — todos reais e medidos)
+## The arc (suggested article structure)
 
-**Progressão do SLM local (Density gate):**
-- 7B original: ~0% (quebrado, regurgitava regras)
-- 7B gate-curado: 42%
-- Nemo 12B (794 exemplos): **67-68%** (teto prático)
-
-**O benchmark de nuvem no MESMO gate (com prompt de caps):**
-- Claude 3.5 Haiku: **82,5%**
-- DeepSeek V3: 75,4%
-- Gemini 2.5 Flash: 70,2%
-- Meu SLM (Nemo): 67%
-- Claude Haiku 4.5: **29,8%**
-
-**O teste cego (eu como juiz, sem saber qual era qual):**
-- Haiku 4.5 (o **pior** da métrica, 29,8%) **venceu 4 de 6 cenas**.
-- Haiku 3.5 (o **melhor** da métrica, 82,5%) ficou em **último**.
-- Meu SLM local venceu **1 cena** (a de morte) — de graça, offline.
-- Rodada 2: **DeepSeek V3.2 empatou com o Haiku 4.5** — por **~1/4 do custo**.
-
-**Custo final (com caching):**
-- DeepSeek: **~$0,13 / 1000 turnos**
-- Haiku: ~$1,00 / 1000 turnos
-- (O output domina o custo — e o do Haiku é 12× o do DeepSeek.)
-
-**Infra (a parte chata e real):**
-- 12B = teto para treinar E servir em 12GB de VRAM.
-- 14B → vira I/O-bound (offload VRAM↔RAM pelo PCIe): ~4h de treino vs ~30min do 12B.
-- Gemma 3 12B nem carregou (multimodal não cabe). Qwen deu NaN (tokenizer PT inflava o
-  prompt e truncava a resposta). Cada base é uma armadilha diferente.
+1. **The romantic premise:** "Local AI, zero cost, a model that's all mine." Training an SLM
+   (Mistral 7B→12B) on my RTX 4070 Ti to narrate my RPG.
+2. **The first punch:** the trained model **regurgitated its own rules** instead of narrating.
+   A one-line bug (`completion_only_loss=False`) — the loss was training the model to
+   *repeat the prompt*.
+3. **The obsession with data:** I automated the generation of a "perfect" dataset with 17 agents in
+   parallel (98.9% yield). 794 curated examples. The model improved — and stalled
+   at a ceiling of ~67%.
+4. **Twist #1 — the metric was lying:** I compared cloud models on the SAME test. The
+   best one on the metric was the **worst** in human judgment. The metric measured *format
+   obedience*, not *quality*.
+5. **Twist #2 — the blind judge:** I ran an A/B test where I didn't know which model was
+   which. My local SLM lost to cloud models I hadn't even trained. But it won
+   ONE scene (the death one) — and that taught me something.
+6. **The pivot:** what if I gave my curated examples to the cloud model as
+   **RAG**, instead of training with them? The frontier model understands "when to be concise vs verbose"
+   on the fly. The 794 examples become the **RAG bank**, not training data.
+7. **The detail no one sees:** the narration came out in cold 3rd person ("Callum suffers...").
+   The correct, immersive way is 2nd person ("You, Callum, suffer..."). One line of prompt fixed it —
+   on the cloud model. On the SLM, it would require retraining.
+8. **The guarantee:** how do you trust a generative AI? A **deterministic guardrail** that validates
+   every output against the checkable rules and regenerates/corrects the ones that fail.
+9. **The lesson:** the value wasn't in the model. It was in **knowing what quality is** and in having
+   **a way to measure and guarantee it**.
 
 ---
 
-## Os achados contra-intuitivos (o ouro do artigo)
+## The numbers (use freely — all real and measured)
 
-1. **"Benchmark não é qualidade."** O campeão do meu teste automático foi o pior no
-   julgamento humano. Métricas rígidas medem o que é fácil medir (contar frases), não o que
-   importa (a narração é boa de ler?). Um modelo melhor escreve prosa mais rica — e "falha"
-   na métrica de concisão.
+**Local SLM progression (Density gate):**
+- 7B original: ~0% (broken, regurgitated rules)
+- 7B gate-curated: 42%
+- Nemo 12B (794 examples): **67-68%** (practical ceiling)
 
-2. **"O modelo mais novo pontuou pior."** Haiku 4.5 (mais novo) perdeu para Haiku 3.5 na
-   métrica — porque é tunado para ser mais elaborado, e a métrica punia comprimento. Mas
-   ganhou no julgamento humano. *Capacidade ≠ obediência cega a uma régua.*
+**The cloud benchmark on the SAME gate (with a caps prompt):**
+- Claude 3.5 Haiku: **82.5%**
+- DeepSeek V3: 75.4%
+- Gemini 2.5 Flash: 70.2%
+- My SLM (Nemo): 67%
+- Claude Haiku 4.5: **29.8%**
 
-3. **"O dataset que eu curei tinha um viés contra a própria bíblia."** 70% dos meus exemplos
-   usavam 3ª pessoa fria, contradizendo a regra de 2ª pessoa. Eu estava ensinando o modelo a
-   errar. (No nuvem: 1 linha conserta. No SLM: retreino.)
+**The blind test (me as judge, not knowing which was which):**
+- Haiku 4.5 (the **worst** on the metric, 29.8%) **won 4 of 6 scenes**.
+- Haiku 3.5 (the **best** on the metric, 82.5%) came in **last**.
+- My local SLM won **1 scene** (the death one) — for free, offline.
+- Round 2: **DeepSeek V3.2 tied with Haiku 4.5** — for **~1/4 of the cost**.
 
-4. **"Fine-tuning vs RAG não é build vs buy — é onde você coloca o conhecimento."** Treinar
-   assa o conhecimento no peso (caro de mudar). RAG injeta na hora (barato de mudar). Para
-   VOZ e ESTILO, RAG ganhou.
+**Final cost (with caching):**
+- DeepSeek: **~$0.13 / 1000 turns**
+- Haiku: ~$1.00 / 1000 turns
+- (Output dominates the cost — and Haiku's is 12× DeepSeek's.)
 
-5. **"No RPG, o narrador não pode falar antes do dado."** O melhor modelo "vazou" o resultado
-   de uma perícia antes da rolagem. Isso não é problema de prosa — é de **arquitetura de
-   jogo**: resolver/pedir o dado primeiro, narrar a consequência depois.
+**Infra (the boring, real part):**
+- 12B = ceiling for training AND serving on 12GB of VRAM.
+- 14B → becomes I/O-bound (VRAM↔RAM offload over PCIe): ~4h of training vs ~30min for the 12B.
+- Gemma 3 12B didn't even load (multimodal won't fit). Qwen returned NaN (the PT tokenizer inflated the
+  prompt and truncated the response). Every base model is a different trap.
 
 ---
 
-## Falas-âncora (frases prontas pra citar)
+## The counter-intuitive findings (the gold of the article)
 
-- *"Eu não estava construindo um modelo. Estava descobrindo o que era qualidade — e como
-  medir e garantir isso."*
-- *"O melhor da métrica foi o pior no teste cego. Aprendi a desconfiar do meu próprio
+1. **"Benchmark is not quality."** The champion of my automated test was the worst in human
+   judgment. Rigid metrics measure what's easy to measure (counting sentences), not what
+   matters (is the narration good to read?). A better model writes richer prose — and "fails"
+   the conciseness metric.
+
+2. **"The newer model scored worse."** Haiku 4.5 (newer) lost to Haiku 3.5 on the
+   metric — because it's tuned to be more elaborate, and the metric punished length. But
+   it won in human judgment. *Capability ≠ blind obedience to a ruler.*
+
+3. **"The dataset I curated had a bias against my own bible."** 70% of my examples
+   used cold 3rd person, contradicting the 2nd-person rule. I was teaching the model to
+   get it wrong. (On the cloud: 1 line fixes it. On the SLM: retraining.)
+
+4. **"Fine-tuning vs RAG isn't build vs buy — it's where you put the knowledge."** Training
+   bakes the knowledge into the weights (expensive to change). RAG injects it on the fly (cheap to change). For
+   VOICE and STYLE, RAG won.
+
+5. **"In an RPG, the narrator can't speak before the dice."** The best model "leaked" the result
+   of a skill check before the roll. That's not a prose problem — it's a **game architecture**
+   problem: resolve/request the roll first, narrate the consequence after.
+
+---
+
+## Anchor quotes (ready-to-cite lines)
+
+- *"I wasn't building a model. I was discovering what quality was — and how to
+  measure and guarantee it."*
+- *"The best on the metric was the worst in the blind test. I learned to distrust my own
   benchmark."*
-- *"Os 794 exemplos que eu curei para treinar não foram desperdiçados. Viraram o RAG e o
-  espec de voz. O trabalho mudou de lugar, não de valor."*
-- *"Prompt inclina. Guardrail garante. As duas coisas são necessárias."*
-- *"A pergunta certa não era 'qual modelo treinar', era 'qual a forma mais barata de
-  garantir a voz que eu quero'."*
+- *"The 794 examples I curated to train weren't wasted. They became the RAG and the
+  voice spec. The work changed place, not value."*
+- *"Prompt nudges. Guardrail guarantees. You need both."*
+- *"The right question wasn't 'which model to train,' it was 'what's the cheapest way to
+  guarantee the voice I want.'"*
 
 ---
 
-## As lições técnicas (credibilidade)
+## The technical lessons (credibility)
 
-- **`completion_only_loss`**: se a loss treina sobre o prompt, o modelo aprende a repetir o
-  prompt. Mascarar a loss na resposta é o feijão-com-arroz que ninguém conta.
-- **Dataset eval-curado**: treinar só com exemplos que passam no seu próprio critério de
-  aceitação é uma forma barata e poderosa de alinhar comportamento.
-- **Tokenizers diferentes quebram tamanhos fixos**: o mesmo texto vira 600 tokens no Mistral
-  e 860 no Qwen. `max_seq_length` fixo → resposta truncada → NaN.
-- **Guardrail de runtime**: auto-fix grátis (regex) para o mecânico, regeneração só para o
-  substantivo, fallback no fim. ~99% de conformidade nas regras checáveis.
-- **Caching**: badrata o input estático, não o output. Em narração, o output domina — por
-  isso o modelo de output barato (DeepSeek) ganha mesmo com cache nos dois.
-
----
-
-## O que NÃO romantizar (honestidade = autoridade)
-
-- O SLM local **tem nicho**: ganhou a cena de morte, é $0/offline. Não é lixo — é fallback.
-- O guardrail tem **custo real** (~1,6 chamadas/turno) e **buracos** (regex de verbo frágil
-  deu falso-positivo). Mostre isso — honestidade técnica vale mais que hype.
-- O subjetivo (voz, tom) **não é 100% garantível por código**. Prompt+RAG inclinam;
-  amostragem monitora. Admita os limites.
+- **`completion_only_loss`**: if the loss trains over the prompt, the model learns to repeat the
+  prompt. Masking the loss on the response is the bread-and-butter that no one talks about.
+- **Eval-curated dataset**: training only on examples that pass your own acceptance
+  criterion is a cheap and powerful way to align behavior.
+- **Different tokenizers break fixed lengths**: the same text becomes 600 tokens in Mistral
+  and 860 in Qwen. Fixed `max_seq_length` → truncated response → NaN.
+- **Runtime guardrail**: free auto-fix (regex) for the mechanical, regeneration only for the
+  substantive, fallback at the end. ~99% conformance on the checkable rules.
+- **Caching**: it cheapens the static input, not the output. In narration, output dominates — that's
+  why the cheap-output model (DeepSeek) wins even with caching on both.
 
 ---
 
-## CTA sugerido para o post
+## What NOT to romanticize (honesty = authority)
 
-> "Stack: Mistral/Unsloth, llama.cpp, ChromaDB, DeepSeek/Claude via API, e um gate honesto
-> que me obrigou a confiar mais no meu julgamento que no meu benchmark. Repo e documento de
-> decisão nos comentários. Qual foi a última vez que um benchmark te enganou?"
+- The local SLM **has a niche**: it won the death scene, it's $0/offline. It's not garbage — it's a fallback.
+- The guardrail has a **real cost** (~1.6 calls/turn) and **holes** (a fragile verb regex
+  produced a false positive). Show that — technical honesty is worth more than hype.
+- The subjective (voice, tone) **isn't 100% guaranteeable by code**. Prompt+RAG nudge;
+  sampling monitors. Admit the limits.
 
 ---
 
-## Hashtags / ângulos
+## Suggested CTA for the post
+
+> "Stack: Mistral/Unsloth, llama.cpp, ChromaDB, DeepSeek/Claude via API, and an honest
+> gate that forced me to trust my own judgment more than my benchmark. Repo and decision
+> document in the comments. When was the last time a benchmark fooled you?"
+
+---
+
+## Hashtags / angles
 
 `#LLM #RAG #FineTuning #AIEngineering #BuildVsBuy #PromptEngineering #GameDev #MLOps`
 
-Ângulos alternativos de manchete:
-- "RAG venceu fine-tuning no meu projeto — e os dados explicam por quê."
-- "Por que parei de confiar em benchmarks de LLM (com números)."
-- "O modelo de IA mais novo pontuou pior. A história por trás disso."
+Alternative headline angles:
+- "RAG beat fine-tuning in my project — and the data explains why."
+- "Why I stopped trusting LLM benchmarks (with numbers)."
+- "The newer AI model scored worse. The story behind it."

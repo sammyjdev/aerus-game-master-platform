@@ -1,63 +1,63 @@
 # GAP ANALYSIS NARRATOR — AERUM RPG
 
-> Documento de análise de gaps para treinamento do modelo narrador (SLM fine-tune).
-> Produzido em: 2026-04-14
-> Baseado em leitura integral de toda a documentação listada.
+> Gap analysis document for training the narrator model (SLM fine-tune).
+> Produced on: 2026-04-14
+> Based on a complete reading of all the documentation listed.
 
 ---
 
-## LEGENDA
+## LEGEND
 
-- ✅ Coberto — regra, exemplo ou protocolo documentado na fonte indicada.
-- PARTIAL — existe algo, mas está incompleto ou ambíguo para o GM.
-- ❌ MISSING — não existe documentação relevante.
-- **CRÍTICO** — ausência quebra a sessão.
-- **ALTO** — ausência causa improv errado.
-- **MÉDIO** — ausência torna a narração genérica.
-
----
-
-## SEÇÃO 1 — MECÂNICAS QUE DITAM A NARRATIVA
+- ✅ Covered — rule, example, or protocol documented in the indicated source.
+- PARTIAL — something exists, but it is incomplete or ambiguous for the GM.
+- ❌ MISSING — no relevant documentation exists.
+- **CRITICAL** — the absence breaks the session.
+- **HIGH** — the absence leads to wrong improvisation.
+- **MEDIUM** — the absence makes the narration generic.
 
 ---
 
-### COMBATE
+## SECTION 1 — MECHANICS THAT DICTATE THE NARRATIVE
 
 ---
 
-#### Iniciativa e ordem de turno
+### COMBAT
 
-- (a) Arbitration rule: ❌ MISSING — Nenhum documento define atributo usado, dado rolado, ni desempates.
+---
+
+#### Initiative and turn order
+
+- (a) Arbitration rule: ❌ MISSING — No document defines the attribute used, the die rolled, or tie-breakers.
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem regra para empate, inimigos múltiplos, ou "surprise round".
+- (c) Edge cases: ❌ MISSING — no rule for ties, multiple enemies, or a "surprise round".
 
 ---
 
-#### Ataque bem-sucedido por tipo (físico, mágico, à distância)
+#### Successful attack by type (physical, magical, ranged)
 
-- (a) Arbitration rule: ❌ MISSING — aerus_base_classes.md descreve papéis de combate mas não define dado de ataque, DC de defesa, nem fórmula de dano.
-- (b) Narrative example: PARTIAL — narration_bible.md e narration_bible_kernel.md têm diretrizes de tom ("frases secas, tensas") mas sem exemplo de resolução de acerto.
-- (c) Edge cases: ❌ MISSING — sem regra para ataque vs. armadura de Keth, ataque com selo mágico em zona corrupta, ou alcance máximo.
-
----
-
-#### Ataque falho e exposição de flanco
-
-- (a) Arbitration rule: ❌ MISSING — nenhuma mecânica de "miss" documentada; não há consequência mecânica por falha.
-- (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING
+- (a) Arbitration rule: ❌ MISSING — aerus_base_classes.md describes combat roles but does not define the attack die, defense DC, or damage formula.
+- (b) Narrative example: PARTIAL — narration_bible.md and narration_bible_kernel.md have tone guidelines ("dry, tense sentences") but no example of resolving a hit.
+- (c) Edge cases: ❌ MISSING — no rule for an attack vs. Keth armor, an attack with a magical seal in a corrupted zone, or maximum range.
 
 ---
 
-#### Crítico (natural 20) — o que muda na narrativa
+#### Failed attack and exposed flank
 
-- (a) Arbitration rule: ❌ MISSING — nenhuma definição de "natural 20" para o Aerum; a tabela de atributos existe (STR, DEX, INT, VIT, LUK, CAR) mas sem mecânica de crit.
+- (a) Arbitration rule: ❌ MISSING — no "miss" mechanic documented; there is no mechanical consequence for a failure.
 - (b) Narrative example: ❌ MISSING
 - (c) Edge cases: ❌ MISSING
 
 ---
 
-#### Falha crítica (natural 1) — consequência obrigatória
+#### Critical hit (natural 20) — what changes in the narrative
+
+- (a) Arbitration rule: ❌ MISSING — no definition of "natural 20" for Aerum; the attribute table exists (STR, DEX, INT, VIT, LUK, CAR) but with no crit mechanic.
+- (b) Narrative example: ❌ MISSING
+- (c) Edge cases: ❌ MISSING
+
+---
+
+#### Critical failure (natural 1) — mandatory consequence
 
 - (a) Arbitration rule: ❌ MISSING
 - (b) Narrative example: ❌ MISSING
@@ -65,47 +65,47 @@
 
 ---
 
-#### Dano por tipo de elemento (fogo, gelo, terra, ar, energia, espírito)
+#### Damage by element type (fire, ice, earth, air, energy, spirit)
 
-- (a) Arbitration rule: PARTIAL — world_kernel.md lista efeitos de corrupção por elemento ("fire -> burns the caster; water -> necrotizes; earth -> erodes consciousness; air -> attracts an Echo; energy -> causes a Surge; spirit -> awakens something"), MAS apenas como risco de backfire, não como fórmula de dano contra alvos.
-- (b) Narrative example: ❌ MISSING — sem exemplo de como narrar acerto de gelo vs criatura de fogo, por exemplo.
-- (c) Edge cases: ❌ MISSING — sem regra para imunidade, resistência, ou cura por elemento afim.
+- (a) Arbitration rule: PARTIAL — world_kernel.md lists corruption effects by element ("fire -> burns the caster; water -> necrotizes; earth -> erodes consciousness; air -> attracts an Echo; energy -> causes a Surge; spirit -> awakens something"), BUT only as a backfire risk, not as a damage formula against targets.
+- (b) Narrative example: ❌ MISSING — no example of how to narrate an ice hit vs. a fire creature, for instance.
+- (c) Edge cases: ❌ MISSING — no rule for immunity, resistance, or healing from a matching element.
 
 ---
 
-#### Dano em zona de corrupção (magia instável)
+#### Damage in a corruption zone (unstable magic)
 
-- (a) Arbitration rule: PARTIAL — aerus_mechanics_magic_isekai.md §Aeridian Fragments diz que dentro de 50m de um Fragmento a magia é completamente estável; aerus_mechanics_languages_crafting.md §Keth by Grade lista grades de estabilização; world_kernel.md lista efeitos de backfire. Mas não há tabela de probabilidade de instabilidade por zona, nem penalidade numérica.
+- (a) Arbitration rule: PARTIAL — aerus_mechanics_magic_isekai.md §Aeridian Fragments states that within 50m of a Fragment magic is completely stable; aerus_mechanics_languages_crafting.md §Keth by Grade lists stabilization grades; world_kernel.md lists backfire effects. But there is no instability probability table by zone, nor any numerical penalty.
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para magia defensiva em zona corrupta, nem diferença entre zona T2 vs T4.
+- (c) Edge cases: ❌ MISSING — no protocol for defensive magic in a corrupted zone, nor a difference between a T2 vs. a T4 zone.
 
 ---
 
-#### Morte imediata vs 0 HP vs estabilização
+#### Instant death vs. 0 HP vs. stabilization
 
-- (a) Arbitration rule: ❌ MISSING — campaign.yaml confirma `permadeath: true` e `difficulty: brutal` mas não define limiar de HP, "death saves", nem protocolo de estabilização.
-- (b) Narrative example: PARTIAL — aerus_gm_guide.md §Character Death tem fragmento de voz ("There is no heroic final monologue, only the abrupt violence of a life interrupted") mas sem protocolo mecânico.
-- (c) Edge cases: ❌ MISSING — sem regra para personagem a 1 HP, personagem inconsciente, estabilização por aliado.
-
----
-
-#### Morte permanente (permadeath) — protocolo narrativo
-
-- (a) Arbitration rule: PARTIAL — campaign.yaml `permadeath: true` confirma que morte é permanente; aerus_mechanics_magic_isekai.md §Model: Log Horizon confirma "Death is real death." Mas não há protocolo de o que o GM deve fazer imediatamente após a morte.
-- (b) Narrative example: PARTIAL — aerus_gm_guide.md §Character Death tem 4 linhas de voz mas não diz se o GM pausa, faz transição, ou continua a cena.
-- (c) Edge cases: ❌ MISSING — sem regra para morte por dano de área (quem morre primeiro?), morte durante combate com múltiplos jogadores.
+- (a) Arbitration rule: ❌ MISSING — campaign.yaml confirms `permadeath: true` and `difficulty: brutal` but does not define an HP threshold, "death saves", or a stabilization protocol.
+- (b) Narrative example: PARTIAL — aerus_gm_guide.md §Character Death has a voice fragment ("There is no heroic final monologue, only the abrupt violence of a life interrupted") but no mechanical protocol.
+- (c) Edge cases: ❌ MISSING — no rule for a character at 1 HP, an unconscious character, or stabilization by an ally.
 
 ---
 
-#### Personagem morto vira espectador — transição narrativa
+#### Permanent death (permadeath) — narrative protocol
 
-- (a) Arbitration rule: ❌ MISSING — nenhum documento descreve o que acontece mecanicamente após a morte: pode o jogador ver a cena? participar? criar novo personagem imediatamente?
+- (a) Arbitration rule: PARTIAL — campaign.yaml `permadeath: true` confirms that death is permanent; aerus_mechanics_magic_isekai.md §Model: Log Horizon confirms "Death is real death." But there is no protocol for what the GM should do immediately after a death.
+- (b) Narrative example: PARTIAL — aerus_gm_guide.md §Character Death has 4 lines of voice but does not say whether the GM pauses, transitions, or continues the scene.
+- (c) Edge cases: ❌ MISSING — no rule for death from area damage (who dies first?), or death during combat with multiple players.
+
+---
+
+#### A dead character becomes a spectator — narrative transition
+
+- (a) Arbitration rule: ❌ MISSING — no document describes what happens mechanically after death: can the player watch the scene? participate? create a new character immediately?
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para "espectador com objetivo secreto ainda ativo" ou "espectador que conhece informação vital".
+- (c) Edge cases: ❌ MISSING — no protocol for a "spectator with a secret objective still active" or a "spectator who knows vital information".
 
 ---
 
-#### Múltiplos atacantes no mesmo alvo
+#### Multiple attackers on the same target
 
 - (a) Arbitration rule: ❌ MISSING
 - (b) Narrative example: ❌ MISSING
@@ -113,83 +113,75 @@
 
 ---
 
-#### Ataque de área em grupo misto (aliados + inimigos)
+#### Area attack in a mixed group (allies + enemies)
 
-- (a) Arbitration rule: ❌ MISSING — campaign.yaml tem `friendly_fire: false` mas não explica como isso interage com magia de área narrativamente.
-- (b) Narrative example: ❌ MISSING — sem exemplo de como narrar um feitiço de área que tecnicamente não afeta aliados mas os coloca em risco visível.
-- (c) Edge cases: ❌ MISSING — e se o alvo aliado estiver incapacitado dentro da zona?
-
----
-
-#### Combate em terreno especial (ruína, zona corrompida, água, altitude)
-
-- (a) Arbitration rule: PARTIAL — aerus_gm_guide.md §Combat Scenes menciona "terrain" como elemento que torna a luta única, mas sem modificadores mecânicos.
-- (b) Narrative example: PARTIAL — aerus_gm_guide.md §Danger Zone tem fragmento de voz para Ash Desert, mas não para combate dentro de zona corrompida.
-- (c) Edge cases: ❌ MISSING — sem regra para combate dentro de Ondrek Pass (zona sem magia), água, ou altitude extrema.
+- (a) Arbitration rule: ❌ MISSING — campaign.yaml has `friendly_fire: false` but does not explain how this interacts narratively with area magic.
+- (b) Narrative example: ❌ MISSING — no example of how to narrate an area spell that technically does not affect allies but puts them in visible danger.
+- (c) Edge cases: ❌ MISSING — what if the allied target is incapacitated inside the zone?
 
 ---
 
-#### Fuga de combate — quando é possível, como narrar
+#### Combat on special terrain (ruin, corrupted zone, water, altitude)
 
-- (a) Arbitration rule: ❌ MISSING — nenhum documento define condição de fuga (HP limiar? ação específica? custo?).
+- (a) Arbitration rule: PARTIAL — aerus_gm_guide.md §Combat Scenes mentions "terrain" as an element that makes a fight unique, but with no mechanical modifiers.
+- (b) Narrative example: PARTIAL — aerus_gm_guide.md §Danger Zone has a voice fragment for the Ash Desert, but none for combat inside a corrupted zone.
+- (c) Edge cases: ❌ MISSING — no rule for combat inside Ondrek Pass (a no-magic zone), water, or extreme altitude.
+
+---
+
+#### Fleeing combat — when it is possible, how to narrate it
+
+- (a) Arbitration rule: ❌ MISSING — no document defines a flee condition (HP threshold? a specific action? a cost?).
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem regra para fuga quando cercado, fuga de boss, ou perseguição após fuga.
+- (c) Edge cases: ❌ MISSING — no rule for fleeing when surrounded, fleeing a boss, or a pursuit after fleeing.
 
 ---
 
-#### Rendição de inimigo — o que acontece mecanicamente
+#### Enemy surrender — what happens mechanically
 
 - (a) Arbitration rule: ❌ MISSING
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para inimigo que se rende e depois trai, ou para executar inimigo rendido e consequência de reputação.
+- (c) Edge cases: ❌ MISSING — no protocol for an enemy who surrenders and then betrays, or for executing a surrendered enemy and the reputation consequence.
 
 ---
 
-#### Monstro com fase (boss phase change) — gatilho e narrativa
+#### Monster with a phase (boss phase change) — trigger and narrative
 
-- (a) Arbitration rule: ❌ MISSING — nenhum limiar de HP ou condição definida para phase change.
-- (b) Narrative example: ✅ aerus_gm_guide.md §Boss Phase Change — fragmento exemplar completo ("The second phase does not announce itself... The party has one turn.").
-- (c) Edge cases: ❌ MISSING — sem regra para quantas fases existem, se a fase change cura HP, ou se o GM deve avisar com antecedência.
+- (a) Arbitration rule: ❌ MISSING — no HP threshold or condition defined for the phase change.
+- (b) Narrative example: ✅ aerus_gm_guide.md §Boss Phase Change — a complete exemplary fragment ("The second phase does not announce itself... The party has one turn.").
+- (c) Edge cases: ❌ MISSING — no rule for how many phases exist, whether the phase change heals HP, or whether the GM should give advance warning.
 
 ---
 
-#### Combate contra NPC aliado (traição, controle mental)
+#### Combat against an allied NPC (betrayal, mind control)
 
 - (a) Arbitration rule: ❌ MISSING
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para "NPC aliado sob controle mental ataca jogador" ou "jogador com objetivo secreto de eliminar o aliado".
+- (c) Edge cases: ❌ MISSING — no protocol for "an allied NPC under mind control attacks a player" or "a player with a secret objective to eliminate the ally".
 
 ---
 
-#### Batalha enquanto outro jogador executa ação diferente
+#### Battle while another player performs a different action
 
-- (a) Arbitration rule: PARTIAL — CLAUDE.md menciona sistema de batch de 3s (`action_batch_window_seconds: 3`) mas não define como o GM resolve simultaneidade narrativa.
+- (a) Arbitration rule: PARTIAL — CLAUDE.md mentions the 3s batch system (`action_batch_window_seconds: 3`) but does not define how the GM resolves narrative simultaneity.
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para jogador B negociando enquanto jogador A está em combate na mesma cena.
+- (c) Edge cases: ❌ MISSING — no protocol for player B negotiating while player A is in combat in the same scene.
 
 ---
 
-### CONDIÇÕES E ESTADOS
+### CONDITIONS AND STATES
 
 ---
 
-#### Lista completa de condições do sistema (atordoado, envenenado etc.)
+#### Complete list of system conditions (stunned, poisoned, etc.)
 
-- (a) Arbitration rule: ❌ MISSING — nenhum documento lista condições de status do Aerum. aerus_mechanics_systems.md não define lista de condições. Apenas world_kernel.md cita "corrupção progressiva" como efeito de backfire.
+- (a) Arbitration rule: ❌ MISSING — no document lists Aerum's status conditions. aerus_mechanics_systems.md does not define a list of conditions. Only world_kernel.md mentions "progressive corruption" as a backfire effect.
 - (b) Narrative example: ❌ MISSING
 - (c) Edge cases: ❌ MISSING
 
 ---
 
-#### Quanto tempo dura cada condição
-
-- (a) Arbitration rule: ❌ MISSING
-- (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING
-
----
-
-#### Como narrar aplicação de cada condição
+#### How long each condition lasts
 
 - (a) Arbitration rule: ❌ MISSING
 - (b) Narrative example: ❌ MISSING
@@ -197,15 +189,7 @@
 
 ---
 
-#### Como narrar remoção de cada condição
-
-- (a) Arbitration rule: ❌ MISSING — narration_bible_kernel.md menciona "Cura e recuperação devem indicar a fonte" mas não por tipo de condição.
-- (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING
-
----
-
-#### Condições que interagem entre si
+#### How to narrate the application of each condition
 
 - (a) Arbitration rule: ❌ MISSING
 - (b) Narrative example: ❌ MISSING
@@ -213,51 +197,15 @@
 
 ---
 
-#### Corrupção mágica progressiva — estágios e narrativa por estágio
+#### How to narrate the removal of each condition
 
-- (a) Arbitration rule: PARTIAL — world_kernel.md lista efeitos de backfire por elemento mas sem estágios numerados ou limiar de acumulação. aerus_mechanics_magic_isekai.md menciona vulnerabilidade de Viajantes à corrupção mas sem escala.
-- (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para "personagem em estágio 3 de corrupção que usa magia de cura".
-
----
-
-#### Rooting dos Viajantes — como muda a narrativa por estágio
-
-- (a) Arbitration rule: ✅ aerus_mechanics_magic_isekai.md §Rooting — tabela de 5 períodos com sinais físicos/narrativos definidos.
-- (b) Narrative example: PARTIAL — tabela descreve o sinal ("The Thread becomes perceptible as atmospheric pressure") mas não exemplifica como o GM deve narrar isso em cena.
-- (c) Edge cases: ❌ MISSING — sem protocolo para jogador que tenta sair antes do rooting completo, ou para dois Viajantes em estágios diferentes na mesma cena.
-
----
-
-#### Frenesi ou perda de controle do personagem
-
-- (a) Arbitration rule: ❌ MISSING — nenhum documento define gatilho ou mecânica de frenesi/perda de controle.
+- (a) Arbitration rule: ❌ MISSING — narration_bible_kernel.md mentions "Healing and recovery must indicate the source" but not by condition type.
 - (b) Narrative example: ❌ MISSING
 - (c) Edge cases: ❌ MISSING
 
 ---
 
-### MAGIA E FIO PRIMORDIAL
-
----
-
-#### Surge — o que desencadeia, como escalar, como narrar
-
-- (a) Arbitration rule: PARTIAL — world_kernel.md define que "energy -> causes a Surge" como backfire. aerus_lore_cosmology_history.md explica que Surges são Vor'Athek pressionando contra a prisão. Mas não há tabela de DC de Surge, escala de raio, ou gatilho por nível de magia.
-- (b) Narrative example: PARTIAL — aerus_gm_guide.md §Danger Zone tem voz de zona de perigo mas sem exemplo específico de Surge em progresso.
-- (c) Edge cases: ❌ MISSING — sem regra para Surge causado por Fragmento destruído (citado em aerus_mechanics_magic_isekai.md como "energy equivalent to a maximum-grade Surge" mas sem protocolo narrativo).
-
----
-
-#### Backfire em zona corrompida — probabilidade e consequências
-
-- (a) Arbitration rule: PARTIAL — world_kernel.md lista tipos de backfire por elemento. aerus_mechanics_languages_crafting.md §Keth by Grade implica que Keth reduz risco mas sem número. Não há tabela de probabilidade por zona (T1-T5).
-- (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem regra para personagem com Fragmento Aeridiano em zona corrupta, ou efeito de Keth Grade 4 vs Grade 1.
-
----
-
-#### Dois feitiços simultâneos no mesmo alvo
+#### Conditions that interact with each other
 
 - (a) Arbitration rule: ❌ MISSING
 - (b) Narrative example: ❌ MISSING
@@ -265,115 +213,167 @@
 
 ---
 
-#### Fusão elemental (quando dois elementos interagem)
+#### Progressive magical corruption — stages and narrative per stage
 
-- (a) Arbitration rule: PARTIAL — aerus_mechanics_magic_isekai.md §Alchemical Fusions tem tabela de requisitos (nível mínimo nos elementos base), mas não define o que acontece quando dois jogadores usam elementos diferentes no mesmo turno sem coordenação.
+- (a) Arbitration rule: PARTIAL — world_kernel.md lists backfire effects by element but with no numbered stages or accumulation threshold. aerus_mechanics_magic_isekai.md mentions Travelers' vulnerability to corruption but with no scale.
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem regra para fusão não intencional (fogo vs água de dois jogadores).
+- (c) Edge cases: ❌ MISSING — no protocol for "a character at corruption stage 3 who uses healing magic".
 
 ---
 
-#### Magia de cura que causa necrose (corrupção do Fio)
+#### Rooting of the Travelers — how it changes the narrative per stage
 
-- (a) Arbitration rule: PARTIAL — aerus_lore_cosmology_history.md e world.md mencionam que "healing magic could cause necrosis" como efeito da corrupção do Fio; world_kernel.md lista "water -> necrotizes". Mas sem DC de quando isso acontece, nem protocolo de quanto necrose causa.
-- (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para curandeiro com Keth vs sem Keth, ou cura em zona estabilizada por Fragmento.
+- (a) Arbitration rule: ✅ aerus_mechanics_magic_isekai.md §Rooting — a table of 5 periods with defined physical/narrative signs.
+- (b) Narrative example: PARTIAL — the table describes the sign ("The Thread becomes perceptible as atmospheric pressure") but does not illustrate how the GM should narrate it in a scene.
+- (c) Edge cases: ❌ MISSING — no protocol for a player trying to leave before rooting is complete, or for two Travelers at different stages in the same scene.
 
 ---
 
-#### Spell failure parcial vs total
+#### Frenzy or loss of character control
 
-- (a) Arbitration rule: ❌ MISSING — nenhum documento diferencia falha parcial (efeito reduzido) de falha total (nada acontece) de backfire (efeito negativo).
+- (a) Arbitration rule: ❌ MISSING — no document defines a trigger or mechanic for frenzy/loss of control.
 - (b) Narrative example: ❌ MISSING
 - (c) Edge cases: ❌ MISSING
 
 ---
 
-#### Canal aberto (Canalizador) — risco e recompensa narrativa
+### MAGIC AND THE PRIMORDIAL THREAD
 
-- (a) Arbitration rule: PARTIAL — aerus_base_classes.md §Channeler descreve "Open Channel" como habilidade base que "temporarily aligns the self with a source of power for increased effect and increased risk." Mas sem definição do risco (DC? dano? duração?).
+---
+
+#### Surge — what triggers it, how to escalate it, how to narrate it
+
+- (a) Arbitration rule: PARTIAL — world_kernel.md defines "energy -> causes a Surge" as a backfire. aerus_lore_cosmology_history.md explains that Surges are Vor'Athek pressing against the prison. But there is no Surge DC table, radius scale, or trigger by magic level.
+- (b) Narrative example: PARTIAL — aerus_gm_guide.md §Danger Zone has danger-zone voice but no specific example of a Surge in progress.
+- (c) Edge cases: ❌ MISSING — no rule for a Surge caused by a destroyed Fragment (cited in aerus_mechanics_magic_isekai.md as "energy equivalent to a maximum-grade Surge" but with no narrative protocol).
+
+---
+
+#### Backfire in a corrupted zone — probability and consequences
+
+- (a) Arbitration rule: PARTIAL — world_kernel.md lists backfire types by element. aerus_mechanics_languages_crafting.md §Keth by Grade implies that Keth reduces risk but with no number. There is no probability table by zone (T1-T5).
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para Canalizador que mantém canal aberto por múltiplos turnos, ou canal aberto em zona corrupta.
+- (c) Edge cases: ❌ MISSING — no rule for a character with an Aeridian Fragment in a corrupted zone, or the effect of Keth Grade 4 vs. Grade 1.
 
 ---
 
-#### Uso de magia sem Selo de Chama em território imperial
+#### Two simultaneous spells on the same target
 
-- (a) Arbitration rule: ✅ aerus_mechanics_magic_isekai.md §Flame Seals + aerus_mechanics_systems.md §Flame Seal System — define categorias de Selos, que usar magia sem autorização "increases institutional pressure", e que falsificações colapsam sob inspeção especializada.
-- (b) Narrative example: PARTIAL — aerus_mechanics_systems.md §Black Market Role e §Gameplay Effects descrevem consequências abstratas mas sem exemplo concreto de cena.
-- (c) Edge cases: PARTIAL — aerus_mechanics_magic_isekai.md menciona que "Kethara never adopted the system, and Myr accepts Seals but does not require them" — útil, mas sem protocolo para zona de transição (entrando em território imperial pelo mar).
+- (a) Arbitration rule: ❌ MISSING
+- (b) Narrative example: ❌ MISSING
+- (c) Edge cases: ❌ MISSING
 
 ---
 
-#### Fragmento Aeridiano próximo — como muda a magia
+#### Elemental fusion (when two elements interact)
+
+- (a) Arbitration rule: PARTIAL — aerus_mechanics_magic_isekai.md §Alchemical Fusions has a requirements table (minimum level in the base elements), but does not define what happens when two players use different elements on the same turn without coordination.
+- (b) Narrative example: ❌ MISSING
+- (c) Edge cases: ❌ MISSING — no rule for unintentional fusion (fire vs. water from two players).
+
+---
+
+#### Healing magic that causes necrosis (Thread corruption)
+
+- (a) Arbitration rule: PARTIAL — aerus_lore_cosmology_history.md and world.md mention that "healing magic could cause necrosis" as an effect of Thread corruption; world_kernel.md lists "water -> necrotizes". But there is no DC for when this happens, nor a protocol for how much necrosis it causes.
+- (b) Narrative example: ❌ MISSING
+- (c) Edge cases: ❌ MISSING — no protocol for a healer with Keth vs. without Keth, or healing in a zone stabilized by a Fragment.
+
+---
+
+#### Partial vs. total spell failure
+
+- (a) Arbitration rule: ❌ MISSING — no document distinguishes partial failure (reduced effect) from total failure (nothing happens) from backfire (negative effect).
+- (b) Narrative example: ❌ MISSING
+- (c) Edge cases: ❌ MISSING
+
+---
+
+#### Open Channel (Channeler) — narrative risk and reward
+
+- (a) Arbitration rule: PARTIAL — aerus_base_classes.md §Channeler describes "Open Channel" as a base ability that "temporarily aligns the self with a source of power for increased effect and increased risk." But with no definition of the risk (DC? damage? duration?).
+- (b) Narrative example: ❌ MISSING
+- (c) Edge cases: ❌ MISSING — no protocol for a Channeler who keeps the channel open across multiple turns, or an open channel in a corrupted zone.
+
+---
+
+#### Using magic without a Flame Seal in imperial territory
+
+- (a) Arbitration rule: ✅ aerus_mechanics_magic_isekai.md §Flame Seals + aerus_mechanics_systems.md §Flame Seal System — defines Seal categories, that using magic without authorization "increases institutional pressure", and that forgeries collapse under specialized inspection.
+- (b) Narrative example: PARTIAL — aerus_mechanics_systems.md §Black Market Role and §Gameplay Effects describe abstract consequences but with no concrete scene example.
+- (c) Edge cases: PARTIAL — aerus_mechanics_magic_isekai.md mentions that "Kethara never adopted the system, and Myr accepts Seals but does not require them" — useful, but with no protocol for a transition zone (entering imperial territory by sea).
+
+---
+
+#### Aeridian Fragment nearby — how it changes magic
 
 - (a) Arbitration rule: ✅ aerus_mechanics_magic_isekai.md §Aeridian Fragments — "Within a 50-meter radius, magic becomes completely stable."
-- (b) Narrative example: PARTIAL — aerus_lore_dome_factions.md §The Dome Mark menciona que a Marca "pulses more intensely near Aeridian Fragments" mas sem exemplo narrativo de o que o GM descreve para o jogador.
-- (c) Edge cases: ❌ MISSING — sem protocolo para dois Fragmentos próximos, Fragmento corrompido (caso Valdek IV), ou Fragmento destruído.
+- (b) Narrative example: PARTIAL — aerus_lore_dome_factions.md §The Dome Mark mentions that the Mark "pulses more intensely near Aeridian Fragments" but with no narrative example of what the GM describes to the player.
+- (c) Edge cases: ❌ MISSING — no protocol for two nearby Fragments, a corrupted Fragment (the Valdek IV case), or a destroyed Fragment.
 
 ---
 
-#### Cristal do Silêncio — efeito na magia ao redor
+#### Crystal of Silence — effect on surrounding magic
 
-- (a) Arbitration rule: PARTIAL — aerus_lore_cosmology_history.md menciona que "emits a low-frequency sound that humans do not hear but animals avoid" e que "the vault should never remain open for long." campaign_mission_arcs.md §Arc III menciona que o Guild quer que os Viajantes carreguem o Cristal para o Last Chamber. Mas sem definição de raio de efeito, efeito em spells, ou interação com zonas corruptas.
+- (a) Arbitration rule: PARTIAL — aerus_lore_cosmology_history.md mentions that it "emits a low-frequency sound that humans do not hear but animals avoid" and that "the vault should never remain open for long." campaign_mission_arcs.md §Arc III mentions that the Guild wants the Travelers to carry the Crystal to the Last Chamber. But with no definition of its effect radius, its effect on spells, or its interaction with corrupted zones.
 - (b) Narrative example: ❌ MISSING
 - (c) Edge cases: ❌ MISSING
 
 ---
 
-### PROGRESSÃO E MUTAÇÃO
+### PROGRESSION AND MUTATION
 
 ---
 
-#### Level up durante sessão — quando acontece, como narrar
+#### Level up during a session — when it happens, how to narrate it
 
-- (a) Arbitration rule: PARTIAL — narration_bible_kernel.md menciona "Ações com impacto real... devem render XP explícito no estado." campaign.yaml define `level_cap: 100` e `passive_milestone_every_points: 25`. Mas não há DC de XP necessário por nível, nem protocolo de quando interromper a cena para narrar o level up.
+- (a) Arbitration rule: PARTIAL — narration_bible_kernel.md mentions "Actions with real impact... must yield explicit XP in the state." campaign.yaml defines `level_cap: 100` and `passive_milestone_every_points: 25`. But there is no DC for the XP required per level, nor a protocol for when to interrupt the scene to narrate the level up.
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para dois jogadores evoluindo no mesmo turno, ou evolução durante combate.
+- (c) Edge cases: ❌ MISSING — no protocol for two players leveling on the same turn, or leveling during combat.
 
 ---
 
-#### Milestone passivo desbloqueado — interrupção narrativa ou não
+#### Passive milestone unlocked — narrative interruption or not
 
-- (a) Arbitration rule: ❌ MISSING — campaign.yaml define `passive_milestone_every_points: 25` e `class_mutation_every_levels: 25` mas sem protocolo narrativo de como o GM comunica o desbloqueio.
-- (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING
-
----
-
-#### Mutação formal (níveis 25/50/75/100) — protocolo de narrativa
-
-- (a) Arbitration rule: PARTIAL — aerus_class_mutations.md §Mutation Framework define outcomes esperados por nível mas sem protocolo de como o GM apresenta as opções ao jogador ou como narra a transformação.
-- (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para mutação rejeitada pelo jogador, ou mutação em contexto de combat ativo.
-
----
-
-#### Atributo atingindo o cap (250 por atributo) — consequência narrativa
-
-- (a) Arbitration rule: PARTIAL — campaign.yaml define `attribute_per_cap: 250` e `attribute_campaign_cap: 500`. Mas sem protocolo narrativo de o que acontece quando um atributo é maxado.
+- (a) Arbitration rule: ❌ MISSING — campaign.yaml defines `passive_milestone_every_points: 25` and `class_mutation_every_levels: 25` but with no narrative protocol for how the GM communicates the unlock.
 - (b) Narrative example: ❌ MISSING
 - (c) Edge cases: ❌ MISSING
 
 ---
 
-#### XP por tipo de ação (combate, diplomacia, objetivo)
+#### Formal mutation (levels 25/50/75/100) — narrative protocol
 
-- (a) Arbitration rule: PARTIAL — narration_bible_kernel.md: "Ações com impacto real, que resolvem obstáculo, salvam alguém ou fazem a história avançar, devem render XP explícito no estado." Mas sem tabela de quantidade de XP por tipo de ação.
+- (a) Arbitration rule: PARTIAL — aerus_class_mutations.md §Mutation Framework defines expected outcomes per level but with no protocol for how the GM presents the options to the player or how it narrates the transformation.
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para diplomacia que falha parcialmente, ou objetivo completado de forma não prevista.
+- (c) Edge cases: ❌ MISSING — no protocol for a mutation rejected by the player, or a mutation in the context of active combat.
 
 ---
 
-#### Classe inferida errada — como corrigir sem quebrar a narrativa
+#### Attribute reaching the cap (250 per attribute) — narrative consequence
 
-- (a) Arbitration rule: ❌ MISSING — CLAUDE.md menciona `behavior_trajectory.py` que "scores player episodes by action category; drives class mutation path selection" mas sem protocolo de correção narrativa.
+- (a) Arbitration rule: PARTIAL — campaign.yaml defines `attribute_per_cap: 250` and `attribute_campaign_cap: 500`. But with no narrative protocol for what happens when an attribute is maxed out.
 - (b) Narrative example: ❌ MISSING
 - (c) Edge cases: ❌ MISSING
 
 ---
 
-#### Dois jogadores evoluindo ao mesmo tempo
+#### XP by action type (combat, diplomacy, objective)
+
+- (a) Arbitration rule: PARTIAL — narration_bible_kernel.md: "Actions with real impact, that resolve an obstacle, save someone, or advance the story, must yield explicit XP in the state." But with no table of XP amounts by action type.
+- (b) Narrative example: ❌ MISSING
+- (c) Edge cases: ❌ MISSING — no protocol for diplomacy that partially fails, or an objective completed in an unforeseen way.
+
+---
+
+#### Wrongly inferred class — how to correct it without breaking the narrative
+
+- (a) Arbitration rule: ❌ MISSING — CLAUDE.md mentions `behavior_trajectory.py` which "scores player episodes by action category; drives class mutation path selection" but with no narrative correction protocol.
+- (b) Narrative example: ❌ MISSING
+- (c) Edge cases: ❌ MISSING
+
+---
+
+#### Two players leveling at the same time
 
 - (a) Arbitration rule: ❌ MISSING
 - (b) Narrative example: ❌ MISSING
@@ -381,27 +381,27 @@
 
 ---
 
-### CRAFTING E ECONOMIA
+### CRAFTING AND ECONOMY
 
 ---
 
-#### Tentativa de craft bem-sucedida — narrativa do processo
+#### Successful crafting attempt — narrating the process
 
 - (a) Arbitration rule: ✅ aerus_mechanics_languages_crafting.md §Principle — "Crafting is resolved narratively by the GM using the recipe tables... The GM describes the process, calls for an attribute check against a difficulty class, and narrates the result."
-- (b) Narrative example: ❌ MISSING — o documento define o protocolo mas não fornece exemplo de narração de craft bem-sucedido.
-- (c) Edge cases: ❌ MISSING — sem protocolo para craft parcialmente bem-sucedido (passou DC mas por 1), ou craft em condições adversas.
+- (b) Narrative example: ❌ MISSING — the document defines the protocol but does not provide an example of narrating a successful craft.
+- (c) Edge cases: ❌ MISSING — no protocol for a partially successful craft (passed the DC but by 1), or crafting under adverse conditions.
 
 ---
 
-#### Falha no craft — consequência (item quebrado, ingrediente perdido, acidente)
+#### Crafting failure — consequence (broken item, lost ingredient, accident)
 
-- (a) Arbitration rule: PARTIAL — aerus_mechanics_languages_crafting.md define o check (INT DC X ou STR DC X) mas não define o que acontece em falha: o ingrediente é consumido? o item quebra? há dano ao artesão?
+- (a) Arbitration rule: PARTIAL — aerus_mechanics_languages_crafting.md defines the check (INT DC X or STR DC X) but does not define what happens on failure: is the ingredient consumed? does the item break? is there damage to the crafter?
 - (b) Narrative example: ❌ MISSING
 - (c) Edge cases: ❌ MISSING
 
 ---
 
-#### Falha crítica no craft — consequência grave
+#### Critical crafting failure — severe consequence
 
 - (a) Arbitration rule: ❌ MISSING
 - (b) Narrative example: ❌ MISSING
@@ -409,39 +409,39 @@
 
 ---
 
-#### Craft em zona corrompida com Keth
+#### Crafting in a corrupted zone with Keth
 
-- (a) Arbitration rule: PARTIAL — aerus_mechanics_languages_crafting.md §Keth by Grade define que Keth estabiliza magia de nível correspondente, mas sem protocolo específico para crafting em zona T3+ corrompida mesmo com Keth Grade 3.
+- (a) Arbitration rule: PARTIAL — aerus_mechanics_languages_crafting.md §Keth by Grade defines that Keth stabilizes magic of the corresponding level, but with no specific protocol for crafting in a corrupted T3+ zone even with Keth Grade 3.
 - (b) Narrative example: ❌ MISSING
 - (c) Edge cases: ❌ MISSING
 
 ---
 
-#### Item consumível usado em combate — timing narrativo
+#### Consumable item used in combat — narrative timing
 
-- (a) Arbitration rule: ❌ MISSING — nenhum documento define se usar uma poção consome ação de turno, ação livre, ou tem restrição de timing em combate.
+- (a) Arbitration rule: ❌ MISSING — no document defines whether using a potion consumes a turn action, a free action, or has a timing restriction in combat.
 - (b) Narrative example: ❌ MISSING
 - (c) Edge cases: ❌ MISSING
 
 ---
 
-#### Troca e negociação de preço com NPC
+#### Trade and price negotiation with an NPC
 
-- (a) Arbitration rule: PARTIAL — aerus_lore_geopolitics_economy.md §Regional Price Table tem preços regionais, reputation_gates.yaml tem desconto de 15% para Myr Council friendly. Mas sem protocolo de checagem de atributo para barganha.
-- (b) Narrative example: PARTIAL — narration_bible.md §Resposta a ação social tem exemplo de NPC reagindo, mas sem contexto de negociação de preço especificamente.
-- (c) Edge cases: ❌ MISSING — sem protocolo para negociar com NPC hostil (-50 ou abaixo), ou para item ilegal.
+- (a) Arbitration rule: PARTIAL — aerus_lore_geopolitics_economy.md §Regional Price Table has regional prices, reputation_gates.yaml has a 15% discount for Myr Council friendly. But with no attribute-check protocol for haggling.
+- (b) Narrative example: PARTIAL — narration_bible.md §Response to a social action has an example of an NPC reacting, but with no context of price negotiation specifically.
+- (c) Edge cases: ❌ MISSING — no protocol for negotiating with a hostile NPC (-50 or below), or for an illegal item.
 
 ---
 
-#### Compra de item ilegal (mercado cinza)
+#### Buying an illegal item (gray market)
 
-- (a) Arbitration rule: PARTIAL — aerus_mechanics_systems.md §Black Market Role e aerus_lore_geopolitics_economy.md §Gray Market in Port Myr descrevem o mercado. aerus_main_npcs.md cita Seyla Vorn como fornecedora de Keth sem papelada. Mas sem DC de encontrar vendedor, risco de flagrante, ou consequência de reputação específica.
+- (a) Arbitration rule: PARTIAL — aerus_mechanics_systems.md §Black Market Role and aerus_lore_geopolitics_economy.md §Gray Market in Port Myr describe the market. aerus_main_npcs.md cites Seyla Vorn as a Keth supplier with no paperwork. But with no DC for finding a seller, risk of being caught, or specific reputation consequence.
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para item comprado no mercado negro sendo encontrado por inspeção imperial.
+- (c) Edge cases: ❌ MISSING — no protocol for an item bought on the black market being found during an imperial inspection.
 
 ---
 
-#### Item roubado sendo reconhecido por dono
+#### Stolen item being recognized by its owner
 
 - (a) Arbitration rule: ❌ MISSING
 - (b) Narrative example: ❌ MISSING
@@ -449,151 +449,151 @@
 
 ---
 
-### VIAGEM E ENCONTROS
+### TRAVEL AND ENCOUNTERS
 
 ---
 
-#### Encontro de viagem em cada tipo de terreno
+#### Travel encounter in each terrain type
 
-- (a) Arbitration rule: ✅ aerus_travel.md §Encounter Types by Terrain + backend/config/travel.yaml §encounter_tables — tabelas completas por terreno com roll ranges, tipos e tiers.
-- (b) Narrative example: PARTIAL — aerus_gm_guide.md §Danger Zone tem fragmento para Ash Desert; aerus_travel.md menciona descrições curtas por tipo. Mas sem exemplos narrativos para cada encontro específico.
-- (c) Edge cases: PARTIAL — aerus_travel.md §Special Location Notes cobre Gorath Fissures, Vel'Arath, Limen, Keth-Ara, Wandering Cities e Heart of Ashes com notas especiais. Mas sem protocolo para "encontro durante acampamento" ou "dois encontros no mesmo dia".
+- (a) Arbitration rule: ✅ aerus_travel.md §Encounter Types by Terrain + backend/config/travel.yaml §encounter_tables — complete tables by terrain with roll ranges, types, and tiers.
+- (b) Narrative example: PARTIAL — aerus_gm_guide.md §Danger Zone has a fragment for the Ash Desert; aerus_travel.md mentions short descriptions by type. But with no narrative examples for each specific encounter.
+- (c) Edge cases: PARTIAL — aerus_travel.md §Special Location Notes covers Gorath Fissures, Vel'Arath, Limen, Keth-Ara, Wandering Cities, and Heart of Ashes with special notes. But with no protocol for "an encounter during camp" or "two encounters on the same day".
 
 ---
 
-#### Encounter de Tier acima da party — fuga obrigatória?
+#### Encounter of a Tier above the party — mandatory flight?
 
-- (a) Arbitration rule: PARTIAL — travel.yaml §corrupted lista "Abyss Lord — Abyss Lord encounter where escape is wiser than combat" (tier 4) mas sem mecânica de fuga obrigatória ou regra de "fight or flee" por diferença de tier.
+- (a) Arbitration rule: PARTIAL — travel.yaml §corrupted lists "Abyss Lord — Abyss Lord encounter where escape is wiser than combat" (tier 4) but with no mandatory flight mechanic or "fight or flee" rule by tier difference.
 - (b) Narrative example: ❌ MISSING
 - (c) Edge cases: ❌ MISSING
 
 ---
 
-#### Chegada a local novo durante missão ativa
+#### Arrival at a new location during an active mission
 
-- (a) Arbitration rule: PARTIAL — aerus_gm_guide.md §Arrival Scenes tem checklist de 4 pontos mas sem integração com estado de missão ativa.
-- (b) Narrative example: PARTIAL — narration_bible.md §Abertura de Cena tem estrutura em 3 beats com exemplo concreto de Port Myr.
-- (c) Edge cases: ❌ MISSING — sem protocolo para chegada a local onde a party é "wanted" (reputation gate `empire_hostile_wanted`).
+- (a) Arbitration rule: PARTIAL — aerus_gm_guide.md §Arrival Scenes has a 4-point checklist but with no integration with active mission state.
+- (b) Narrative example: PARTIAL — narration_bible.md §Scene Opening has a 3-beat structure with a concrete Port Myr example.
+- (c) Edge cases: ❌ MISSING — no protocol for arriving at a location where the party is "wanted" (reputation gate `empire_hostile_wanted`).
 
 ---
 
-#### Clima extremo durante viagem (tempestade mágica, neve ártica)
+#### Extreme weather during travel (magical storm, arctic snow)
 
-- (a) Arbitration rule: PARTIAL — travel.yaml lista "ice_storm: Blizzard with near-zero visibility and hypothermia risk" e "storm: Storm damages the ship and may push it off course" como encounter types mas sem regras mecânicas de dano ou penalidade.
+- (a) Arbitration rule: PARTIAL — travel.yaml lists "ice_storm: Blizzard with near-zero visibility and hypothermia risk" and "storm: Storm damages the ship and may push it off course" as encounter types but with no mechanical rules for damage or penalty.
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para tempestade mágica vs normal, ou hipotermia em mecânica de VIT.
+- (c) Edge cases: ❌ MISSING — no protocol for a magical vs. a normal storm, or hypothermia in a VIT mechanic.
 
 ---
 
-#### Viagem de barco vs terrestre — diferenças narrativas
+#### Boat travel vs. overland — narrative differences
 
-- (a) Arbitration rule: PARTIAL — travel.yaml define speed multipliers (sea: 0.6 = mais rápido; mountain: 3.0 = mais lento) e encounter tables diferentes. Mas sem diferença narrativa explícita (desconforto, risco diferente, NPCs encontrados).
+- (a) Arbitration rule: PARTIAL — travel.yaml defines speed multipliers (sea: 0.6 = faster; mountain: 3.0 = slower) and different encounter tables. But with no explicit narrative difference (discomfort, different risk, NPCs encountered).
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para naufrágio, abordagem pirata, ou separação de grupo em mar aberto.
+- (c) Edge cases: ❌ MISSING — no protocol for a shipwreck, pirate boarding, or group separation on the open sea.
 
 ---
 
-#### Viagem pelo Cinturão Pálido (Void Zone) — efeitos especiais
+#### Travel through the Pale Belt (Void Zone) — special effects
 
-- (a) Arbitration rule: PARTIAL — aerus_lore_geography.md menciona "Permanent fog, pervasive danger, and only one truly safe crossing through Ondrek Pass." aerus_mechanics_magic_isekai.md §Flame Seals implica que magia não funciona em Ondrek Pass. Mas sem tabela de efeitos de Void Zone em magia, HP, ou orientação.
+- (a) Arbitration rule: PARTIAL — aerus_lore_geography.md mentions "Permanent fog, pervasive danger, and only one truly safe crossing through Ondrek Pass." aerus_mechanics_magic_isekai.md §Flame Seals implies that magic does not work in Ondrek Pass. But with no table of Void Zone effects on magic, HP, or orientation.
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para Khorathi (Body Without Thread) vs Canalizador viajando pela Void Zone.
+- (c) Edge cases: ❌ MISSING — no protocol for a Khorathi (Body Without Thread) vs. a Channeler traveling through the Void Zone.
 
 ---
 
-#### Vel'Arath — regras especiais de entrada
+#### Vel'Arath — special entry rules
 
-- (a) Arbitration rule: PARTIAL — aerus_travel.md §Special Location Notes: "The forest decides who may enter. There is no fixed route; duration is narrative." travel.yaml nota "The forest only admits those it chooses." Mas sem critério de quem o bosque admite, nem mecânica de tentativa e recusa.
+- (a) Arbitration rule: PARTIAL — aerus_travel.md §Special Location Notes: "The forest decides who may enter. There is no fixed route; duration is narrative." travel.yaml notes "The forest only admits those it chooses." But with no criterion for whom the forest admits, nor a mechanic for attempt and refusal.
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para Wandering Fae tentando entrar, ou grupo com um membro não admitido.
+- (c) Edge cases: ❌ MISSING — no protocol for a Wandering Fae trying to enter, or a group with one non-admitted member.
 
 ---
 
-#### Coração das Cinzas — preparação narrativa obrigatória
+#### Heart of Ashes — mandatory narrative preparation
 
-- (a) Arbitration rule: PARTIAL — aerus_travel.md e travel.yaml listam "Extremely dangerous. Not recommended below level 100." campaign_mission_arcs.md descreve o que lá existe (Last Chamber). Mas sem checklist de preparação obrigatória (equipamento, level mínimo, proteção contra corrupção).
+- (a) Arbitration rule: PARTIAL — aerus_travel.md and travel.yaml list "Extremely dangerous. Not recommended below level 100." campaign_mission_arcs.md describes what exists there (Last Chamber). But with no mandatory preparation checklist (equipment, minimum level, protection against corruption).
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para party subleveled que insiste em ir.
+- (c) Edge cases: ❌ MISSING — no protocol for a subleveled party that insists on going.
 
 ---
 
-#### Acampamento e descanso — quanto recupera, quanto tempo passa
+#### Camping and resting — how much it recovers, how much time passes
 
-- (a) Arbitration rule: PARTIAL — narration_bible_kernel.md: "O local importa: uma cama segura, templo ou estalagem melhora a recuperação; perigo e interrupção a reduzem. Cura e recuperação devem indicar a fonte: repouso leve, sono seguro, primeiros socorros, poção, ritual ou magia." Mas sem número concreto de HP/MP recuperados por tipo de descanso.
+- (a) Arbitration rule: PARTIAL — narration_bible_kernel.md: "The location matters: a safe bed, temple, or inn improves recovery; danger and interruption reduce it. Healing and recovery must indicate the source: light rest, safe sleep, first aid, potion, ritual, or magic." But with no concrete number of HP/MP recovered by rest type.
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para descanso em zona corrompida (recupera menos? acumula corrupção?).
+- (c) Edge cases: ❌ MISSING — no protocol for resting in a corrupted zone (does it recover less? does it accumulate corruption?).
 
 ---
 
-#### Emboscada durante descanso
+#### Ambush during rest
 
-- (a) Arbitration rule: ❌ MISSING — nenhum documento define penalidade de "sleeping party" (sem armadura, sem iniciativa normal, etc.).
+- (a) Arbitration rule: ❌ MISSING — no document defines a "sleeping party" penalty (no armor, no normal initiative, etc.).
 - (b) Narrative example: ❌ MISSING
 - (c) Edge cases: ❌ MISSING
 
 ---
 
-### SOCIAL E FACÇÕES
+### SOCIAL AND FACTIONS
 
 ---
 
-#### Checagem de reputação antes de interação com NPC
+#### Reputation check before interacting with an NPC
 
-- (a) Arbitration rule: ✅ aerus_mechanics_systems.md §Reputation Bands + §General Effects — define faixas e efeitos gerais. reputation_gates.yaml define gates de conteúdo desbloqueável por limiar.
-- (b) Narrative example: PARTIAL — aerus_npc_sheets.md e aerus_main_npcs.md têm "initial posture" por NPC mas sem exemplo de como o GM ajusta a narração para cada faixa de reputação.
-- (c) Edge cases: ❌ MISSING — sem protocolo para NPC que não sabe a reputação da party (city desconhecida), ou NPC com memória de evento específico que contradiz a reputação atual.
+- (a) Arbitration rule: ✅ aerus_mechanics_systems.md §Reputation Bands + §General Effects — defines the bands and general effects. reputation_gates.yaml defines content gates unlockable by threshold.
+- (b) Narrative example: PARTIAL — aerus_npc_sheets.md and aerus_main_npcs.md have an "initial posture" per NPC but with no example of how the GM adjusts the narration for each reputation band.
+- (c) Edge cases: ❌ MISSING — no protocol for an NPC who does not know the party's reputation (unknown city), or an NPC with a memory of a specific event that contradicts the current reputation.
 
 ---
 
-#### NPC hostil (-50 ou abaixo) — pode atacar imediatamente?
+#### Hostile NPC (-50 or below) — can it attack immediately?
 
-- (a) Arbitration rule: PARTIAL — aerus_mechanics_systems.md §General Effects: "Lower reputation increases surveillance, refusal of service, obstruction, and violence." reputation_gates.yaml cita "Church inquisitors are now actively tracking the player" e "Imperial soldiers in any location will challenge them on sight." Mas sem protocolo de quando a violência é imediata vs gradual.
+- (a) Arbitration rule: PARTIAL — aerus_mechanics_systems.md §General Effects: "Lower reputation increases surveillance, refusal of service, obstruction, and violence." reputation_gates.yaml cites "Church inquisitors are now actively tracking the player" and "Imperial soldiers in any location will challenge them on sight." But with no protocol for when violence is immediate vs. gradual.
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para NPC hostil em local neutro (Port Myr), ou para party com reputação diferente por jogador.
+- (c) Edge cases: ❌ MISSING — no protocol for a hostile NPC in a neutral location (Port Myr), or for a party with different reputation per player.
 
 ---
 
-#### NPC aliado (+50 ou acima) — o que ele faz espontaneamente
+#### Allied NPC (+50 or above) — what it does spontaneously
 
-- (a) Arbitration rule: PARTIAL — reputation_gates.yaml define benefícios específicos por gate (militar escoltando, rota de contrabando, etc.) mas sem comportamento geral de NPC aliado fora dos gates documentados.
+- (a) Arbitration rule: PARTIAL — reputation_gates.yaml defines specific benefits per gate (military escort, smuggling route, etc.) but with no general behavior for an allied NPC outside the documented gates.
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para NPC aliado em perigo e comportamento espontâneo de resgate.
+- (c) Edge cases: ❌ MISSING — no protocol for an allied NPC in danger and spontaneous rescue behavior.
 
 ---
 
-#### Tentar persuadir NPC de facção inimiga
+#### Trying to persuade an NPC of an enemy faction
 
-- (a) Arbitration rule: PARTIAL — aerus_mechanics_systems.md §General Effects implica dificuldade aumentada mas sem modificador de atributo ou DC específico.
-- (b) Narrative example: PARTIAL — narration_bible.md §Resposta a ação social tem estrutura e exemplo (Maren Toss) mas sem contexto de facção inimiga.
-- (c) Edge cases: ❌ MISSING — sem protocolo para NPC que é persuadido a trair sua facção, e consequência de reputação daí decorrente.
-
----
-
-#### Revelar identidade de Viajante (Marca da Cúpula) em contexto hostil
-
-- (a) Arbitration rule: ✅ aerus_mechanics_magic_isekai.md §How NPCs React to the Mark — tabela por região com reações específicas e linhas de diálogo de NPC.
-- (b) Narrative example: ✅ aerus_mechanics_magic_isekai.md — diálogos de NPC como "Roll your sleeve up, or I will ask anyway." e "Traveler. Good. You people usually die fast or last long."
-- (c) Edge cases: PARTIAL — aerus_lore_dome_factions.md §The Dome Mark descreve comportamento da Marca (não pode ser removida permanentemente, pulsa perto de Fragmentos, fica fria em locais de morte de Viajante). Mas sem protocolo para Marca pulsando durante negociação diplomática secreta, ou para tentar esconder a Marca ativamente.
+- (a) Arbitration rule: PARTIAL — aerus_mechanics_systems.md §General Effects implies increased difficulty but with no attribute modifier or specific DC.
+- (b) Narrative example: PARTIAL — narration_bible.md §Response to a social action has structure and an example (Maren Toss) but with no enemy-faction context.
+- (c) Edge cases: ❌ MISSING — no protocol for an NPC who is persuaded to betray their faction, and the resulting reputation consequence.
 
 ---
 
-#### Rumor sendo espalhado pelos jogadores — como rastrear
+#### Revealing a Traveler's identity (the Dome Mark) in a hostile context
 
-- (a) Arbitration rule: PARTIAL — CLAUDE.md menciona `rumor_manager.py` que "injects faction-biased rumor variants per player into L2 context once per rumor_id". rumors.yaml tem estrutura de base + variantes por facção. Mas sem protocolo de o que acontece quando o jogador cria um rumor novo (não listado no yaml).
+- (a) Arbitration rule: ✅ aerus_mechanics_magic_isekai.md §How NPCs React to the Mark — a table by region with specific reactions and NPC dialogue lines.
+- (b) Narrative example: ✅ aerus_mechanics_magic_isekai.md — NPC dialogue such as "Roll your sleeve up, or I will ask anyway." and "Traveler. Good. You people usually die fast or last long."
+- (c) Edge cases: PARTIAL — aerus_lore_dome_factions.md §The Dome Mark describes the Mark's behavior (it cannot be permanently removed, it pulses near Fragments, it goes cold in places where a Traveler died). But with no protocol for the Mark pulsing during a secret diplomatic negotiation, or for actively trying to hide the Mark.
+
+---
+
+#### A rumor being spread by the players — how to track it
+
+- (a) Arbitration rule: PARTIAL — CLAUDE.md mentions `rumor_manager.py` which "injects faction-biased rumor variants per player into L2 context once per rumor_id". rumors.yaml has a base + faction-variants structure. But with no protocol for what happens when a player creates a new rumor (not listed in the yaml).
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para rumor verdadeiro vs falso espalhado pelos jogadores, ou rumor que contradiz canon.
+- (c) Edge cases: ❌ MISSING — no protocol for a true vs. false rumor spread by the players, or a rumor that contradicts canon.
 
 ---
 
-#### Missão de uma facção que contradiz outra ativa
+#### A faction mission that contradicts another active one
 
-- (a) Arbitration rule: PARTIAL — campaign_mission_structure.md §Reputation conflict rule: "When players complete a faction mission, the GM should automatically apply a partial negative delta to antagonistic factions." aerus_mechanics_systems.md §Cross-Faction Pressure tem exemplos de ações que afetam múltiplas facções. Mas sem protocolo de como o GM narra o conflito quando o jogador tem duas missões ativas simultaneamente.
+- (a) Arbitration rule: PARTIAL — campaign_mission_structure.md §Reputation conflict rule: "When players complete a faction mission, the GM should automatically apply a partial negative delta to antagonistic factions." aerus_mechanics_systems.md §Cross-Faction Pressure has examples of actions that affect multiple factions. But with no protocol for how the GM narrates the conflict when the player has two active missions simultaneously.
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para missão onde completar o objetivo A de church_01 impossibilita o objetivo de children_01 ao mesmo tempo.
+- (c) Edge cases: ❌ MISSING — no protocol for a mission where completing objective A of church_01 makes the objective of children_01 impossible at the same time.
 
 ---
 
-#### Dois jogadores com facções opostas na mesma cena de negociação
+#### Two players with opposing factions in the same negotiation scene
 
 - (a) Arbitration rule: ❌ MISSING
 - (b) Narrative example: ❌ MISSING
@@ -601,35 +601,35 @@
 
 ---
 
-#### NPC que morre por escolha do jogador — consequência de reputação
+#### An NPC who dies by the player's choice — reputation consequence
 
-- (a) Arbitration rule: PARTIAL — aerus_mechanics_systems.md §Typical Negative Triggers: "violence against members or institutions". aerus_npc_sheets.md §NPC Design Rules: "If an NPC matters politically, treat combat against them as campaign-shaping." Mas sem tabela de quanto cai a reputação por matar NPC por tier/importância.
+- (a) Arbitration rule: PARTIAL — aerus_mechanics_systems.md §Typical Negative Triggers: "violence against members or institutions". aerus_npc_sheets.md §NPC Design Rules: "If an NPC matters politically, treat combat against them as campaign-shaping." But with no table of how much reputation drops for killing an NPC by tier/importance.
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para matar NPC aliado de outra facção acidentalmente, ou testemunha que viu o assassinato.
+- (c) Edge cases: ❌ MISSING — no protocol for accidentally killing an allied NPC of another faction, or a witness who saw the murder.
 
 ---
 
-#### Objetivo secreto conflitando com ação do grupo
+#### A secret objective conflicting with the group's action
 
-- (a) Arbitration rule: PARTIAL — aerus_gm_guide.md §Secret Objectives tem diretrizes de design mas sem protocolo de como o GM arbitra quando o objetivo secreto de jogador A impede o sucesso de jogador B.
+- (a) Arbitration rule: PARTIAL — aerus_gm_guide.md §Secret Objectives has design guidelines but with no protocol for how the GM arbitrates when player A's secret objective prevents player B's success.
 - (b) Narrative example: ❌ MISSING
 - (c) Edge cases: ❌ MISSING
 
 ---
 
-### MORTE E CONSEQUÊNCIAS PERMANENTES
+### DEATH AND PERMANENT CONSEQUENCES
 
 ---
 
-#### Morte de NPC aliado importante — protocolo narrativo
+#### Death of an important allied NPC — narrative protocol
 
-- (a) Arbitration rule: PARTIAL — aerus_gm_guide.md §Consequences lista "An NPC now trusts or fears the group" como padrão de consequência, e aerus_npc_sheets.md define NPCs como "campaign-shaping" se importantes. Mas sem protocolo de narração específico para morte de NPC aliado.
+- (a) Arbitration rule: PARTIAL — aerus_gm_guide.md §Consequences lists "An NPC now trusts or fears the group" as a consequence pattern, and aerus_npc_sheets.md defines NPCs as "campaign-shaping" if important. But with no specific narration protocol for the death of an allied NPC.
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para Thresh morrendo antes de completar children_03, ou Maren morrendo com informação vital não revelada.
+- (c) Edge cases: ❌ MISSING — no protocol for Thresh dying before completing children_03, or Maren dying with vital information unrevealed.
 
 ---
 
-#### Morte de NPC que ainda tinha informação vital
+#### Death of an NPC who still held vital information
 
 - (a) Arbitration rule: ❌ MISSING
 - (b) Narrative example: ❌ MISSING
@@ -637,23 +637,23 @@
 
 ---
 
-#### Fragmento destruído — Surge imediato raio de 200km
+#### Destroyed Fragment — immediate Surge with a 200km radius
 
-- (a) Arbitration rule: PARTIAL — aerus_mechanics_magic_isekai.md §Aeridian Fragments: "Destroying a Fragment releases energy equivalent to a maximum-grade Surge." Mas sem protocolo narrativo de o que acontece nos 200km de raio, nem quem sabe do evento, nem consequência de facção.
+- (a) Arbitration rule: PARTIAL — aerus_mechanics_magic_isekai.md §Aeridian Fragments: "Destroying a Fragment releases energy equivalent to a maximum-grade Surge." But with no narrative protocol for what happens within the 200km radius, who knows about the event, or the faction consequence.
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para Fragmento de Valdek IV sendo destruído (campaign_mission_arcs §Arc II).
+- (c) Edge cases: ❌ MISSING — no protocol for the Valdek IV Fragment being destroyed (campaign_mission_arcs §Arc II).
 
 ---
 
-#### Selagem falhada na Câmara Final — o que acontece
+#### Failed sealing in the Final Chamber — what happens
 
-- (a) Arbitration rule: ❌ MISSING — campaign_mission_arcs §The Final Choice descreve 4 opções mas sem protocolo para "tentativa de selar que falha mecanicamente" (vs. "escolher não selar").
+- (a) Arbitration rule: ❌ MISSING — campaign_mission_arcs §The Final Choice describes 4 options but with no protocol for "a sealing attempt that fails mechanically" (vs. "choosing not to seal").
 - (b) Narrative example: ❌ MISSING
 - (c) Edge cases: ❌ MISSING
 
 ---
 
-#### Jogador que tenta suicidar o personagem
+#### A player who tries to make their character commit suicide
 
 - (a) Arbitration rule: ❌ MISSING
 - (b) Narrative example: ❌ MISSING
@@ -661,51 +661,51 @@
 
 ---
 
-#### Perda permanente de atributo (maldição, corrupção severa)
+#### Permanent loss of an attribute (curse, severe corruption)
 
-- (a) Arbitration rule: PARTIAL — aerus_mechanics_races.md §Corrupted Fae: "Lose permanent vitality over long progression milestones" (Onus Entis). Mas sem protocolo geral de como o GM aplica perda permanente de atributo por corrupção.
+- (a) Arbitration rule: PARTIAL — aerus_mechanics_races.md §Corrupted Fae: "Lose permanent vitality over long progression milestones" (Onus Entis). But with no general protocol for how the GM applies permanent attribute loss from corruption.
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para atributo caindo abaixo do mínimo racial, ou para recuperação de atributo perdido permanentemente.
+- (c) Edge cases: ❌ MISSING — no protocol for an attribute dropping below the racial minimum, or for recovering a permanently lost attribute.
 
 ---
 
-#### Local destruído pelo grupo — consequência geopolítica
+#### A location destroyed by the group — geopolitical consequence
 
-- (a) Arbitration rule: PARTIAL — aerus_gm_guide.md §Consequences: "A corrupted zone expands" e "A route becomes unsafe" como padrões. Mas sem protocolo para consequências específicas de destruição de local chave (Vel'Ossian, Port Myr Broken Square).
+- (a) Arbitration rule: PARTIAL — aerus_gm_guide.md §Consequences: "A corrupted zone expands" and "A route becomes unsafe" as patterns. But with no protocol for the specific consequences of destroying a key location (Vel'Ossian, Port Myr Broken Square).
 - (b) Narrative example: ❌ MISSING
 - (c) Edge cases: ❌ MISSING
 
 ---
 
-#### Segredo revelado publicamente — reação das facções envolvidas
+#### A secret revealed publicly — reaction of the factions involved
 
-- (a) Arbitration rule: PARTIAL — aerus_lore_geopolitics_economy.md §Recent Events descreve quem sabe o quê de cada evento, útil como modelo. aerus_mechanics_systems.md §Cross-Faction Pressure tem exemplos de ações que ativam múltiplas facções. Mas sem protocolo de como o GM aplica o "quem reage como" quando o grupo revela um segredo específico.
+- (a) Arbitration rule: PARTIAL — aerus_lore_geopolitics_economy.md §Recent Events describes who knows what about each event, useful as a model. aerus_mechanics_systems.md §Cross-Faction Pressure has examples of actions that activate multiple factions. But with no protocol for how the GM applies the "who reacts how" when the group reveals a specific secret.
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para segredo revelado a uma facção que não estava na lista de "quem sabe".
+- (c) Edge cases: ❌ MISSING — no protocol for a secret revealed to a faction that was not on the "who knows" list.
 
 ---
 
-### MULTIPLAYER E COOPERAÇÃO
+### MULTIPLAYER AND COOPERATION
 
 ---
 
-#### Dois jogadores fazendo ações simultâneas — batching de 3s
+#### Two players performing simultaneous actions — 3s batching
 
-- (a) Arbitration rule: PARTIAL — CLAUDE.md descreve `action_batch_window_seconds: 3` e `game_master.py` como orquestrador de turnos. Mas sem protocolo narrativo de como o GM arbitra e narra duas ações simultâneas conflitantes (A tenta negociar enquanto B ataca).
+- (a) Arbitration rule: PARTIAL — CLAUDE.md describes `action_batch_window_seconds: 3` and `game_master.py` as the turn orchestrator. But with no narrative protocol for how the GM arbitrates and narrates two conflicting simultaneous actions (A tries to negotiate while B attacks).
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para ações que se cancelam mutuamente.
+- (c) Edge cases: ❌ MISSING — no protocol for actions that cancel each other out.
 
 ---
 
-#### Jogadores em locais diferentes na mesma sessão
+#### Players in different locations in the same session
 
-- (a) Arbitration rule: ❌ MISSING — nenhum documento define como o GM gerencia narração paralela, quando cortar entre cenas, ou como manter tensão coerente.
+- (a) Arbitration rule: ❌ MISSING — no document defines how the GM manages parallel narration, when to cut between scenes, or how to maintain coherent tension.
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para jogador A em combate enquanto jogador B está em viagem.
+- (c) Edge cases: ❌ MISSING — no protocol for player A in combat while player B is traveling.
 
 ---
 
-#### Um jogador morto (espectador) enquanto grupo continua
+#### One player dead (a spectator) while the group continues
 
 - (a) Arbitration rule: ❌ MISSING
 - (b) Narrative example: ❌ MISSING
@@ -713,15 +713,15 @@
 
 ---
 
-#### Conflito entre jogadores (PvP) — é permitido? protocolo
+#### Conflict between players (PvP) — is it allowed? protocol
 
-- (a) Arbitration rule: PARTIAL — campaign.yaml tem `friendly_fire: false` que implica PvP desabilitado. Mas sem protocolo para "o que o GM faz quando um jogador declara intenção de atacar outro jogador."
+- (a) Arbitration rule: PARTIAL — campaign.yaml has `friendly_fire: false`, which implies PvP is disabled. But with no protocol for "what the GM does when a player declares the intent to attack another player."
 - (b) Narrative example: ❌ MISSING
-- (c) Edge cases: ❌ MISSING — sem protocolo para objetivo secreto que explicitamente pede prejudicar outro jogador.
+- (c) Edge cases: ❌ MISSING — no protocol for a secret objective that explicitly asks to harm another player.
 
 ---
 
-#### Jogador ausente numa sessão — personagem some ou fica?
+#### A player absent in a session — does the character disappear or stay?
 
 - (a) Arbitration rule: ❌ MISSING
 - (b) Narrative example: ❌ MISSING
@@ -729,15 +729,15 @@
 
 ---
 
-#### Objetivo secreto de um jogador revelado acidentalmente
+#### A player's secret objective revealed accidentally
 
-- (a) Arbitration rule: ❌ MISSING — aerus_gm_guide.md §Secret Objectives tem diretrizes gerais mas sem protocolo de como o GM arbitra o reveal acidental.
+- (a) Arbitration rule: ❌ MISSING — aerus_gm_guide.md §Secret Objectives has general guidelines but with no protocol for how the GM arbitrates an accidental reveal.
 - (b) Narrative example: ❌ MISSING
 - (c) Edge cases: ❌ MISSING
 
 ---
 
-#### Um jogador sabota ação de outro (intencional ou não)
+#### One player sabotages another's action (intentional or not)
 
 - (a) Arbitration rule: ❌ MISSING
 - (b) Narrative example: ❌ MISSING
@@ -745,43 +745,43 @@
 
 ---
 
-#### Todos os jogadores falham na mesma rolagem crítica
+#### All players fail the same critical roll
 
-- (a) Arbitration rule: ❌ MISSING — nenhum documento define protocolo para falha de grupo total.
+- (a) Arbitration rule: ❌ MISSING — no document defines a protocol for a total group failure.
 - (b) Narrative example: ❌ MISSING
 - (c) Edge cases: ❌ MISSING
 
 ---
 
-### SISTEMA DE CLARIFICAÇÃO DO GM
+### GM CLARIFICATION SYSTEM
 
 ---
 
-#### Quando o GM deve pausar e pedir rolagem vs decidir sozinho
+#### When the GM should pause and ask for a roll vs. decide alone
 
-- (a) Arbitration rule: PARTIAL — narration_bible_kernel.md: "Se houver rolagem de dado, explicitar antes do resultado: quem rola, qual dado e o que está em jogo." Mas sem critério de quando uma ação requer rolagem vs quando é automática.
+- (a) Arbitration rule: PARTIAL — narration_bible_kernel.md: "If there is a die roll, state it before the result: who rolls, which die, and what is at stake." But with no criterion for when an action requires a roll vs. when it is automatic.
 - (b) Narrative example: ❌ MISSING
 - (c) Edge cases: ❌ MISSING
 
 ---
 
-#### Ação impossível pelo lore — como recusar sem quebrar imersão
+#### An action impossible by the lore — how to refuse it without breaking immersion
 
-- (a) Arbitration rule: PARTIAL — aerus_gm_guide.md §Table Rules: "Be direct when the world is clear." Mas sem protocolo específico de como recusar ação impossível (voar sem magia, teletransportar para outro continente) mantendo o tom literário.
+- (a) Arbitration rule: PARTIAL — aerus_gm_guide.md §Table Rules: "Be direct when the world is clear." But with no specific protocol for how to refuse an impossible action (flying without magic, teleporting to another continent) while keeping the literary tone.
 - (b) Narrative example: ❌ MISSING
 - (c) Edge cases: ❌ MISSING
 
 ---
 
-#### Ação que não tem regra definida — como improvisar consistentemente
+#### An action with no defined rule — how to improvise consistently
 
-- (a) Arbitration rule: PARTIAL — aerus_gm_guide.md §Table Rules: "Make failure productive whenever possible" e "Protect momentum." Mas sem protocolo de improvisação estruturada (similar ao "yes, and" ou ao Move trigger de Ironsworn).
+- (a) Arbitration rule: PARTIAL — aerus_gm_guide.md §Table Rules: "Make failure productive whenever possible" and "Protect momentum." But with no protocol for structured improvisation (similar to "yes, and" or to the Ironsworn Move trigger).
 - (b) Narrative example: ❌ MISSING
 - (c) Edge cases: ❌ MISSING
 
 ---
 
-#### Jogador tenta usar conhecimento OOC (fora do personagem)
+#### A player tries to use OOC (out-of-character) knowledge
 
 - (a) Arbitration rule: ❌ MISSING
 - (b) Narrative example: ❌ MISSING
@@ -789,7 +789,7 @@
 
 ---
 
-#### Ação que contradiz o lore canônico do Aerum
+#### An action that contradicts Aerum's canonical lore
 
 - (a) Arbitration rule: ❌ MISSING
 - (b) Narrative example: ❌ MISSING
@@ -797,9 +797,9 @@
 
 ---
 
-#### Pergunta sobre mecânica que o GM não tem resposta clara
+#### A question about a mechanic the GM has no clear answer for
 
-- (a) Arbitration rule: PARTIAL — aerus_gm_guide.md §Table Rules: "Be ambiguous only when the fiction supports ambiguity." Mas sem protocolo explícito de como o GM mascara a ausência de regra.
+- (a) Arbitration rule: PARTIAL — aerus_gm_guide.md §Table Rules: "Be ambiguous only when the fiction supports ambiguity." But with no explicit protocol for how the GM masks the absence of a rule.
 - (b) Narrative example: ❌ MISSING
 - (c) Edge cases: ❌ MISSING
 
@@ -807,183 +807,183 @@
 
 ---
 
-## SEÇÃO 2 — GAPS POR COMPARAÇÃO COM SISTEMAS MADUROS
+## SECTION 2 — GAPS BY COMPARISON WITH MATURE SYSTEMS
 
 ---
 
-### Comparação com D&D 5E
+### Comparison with D&D 5E
 
-| Conceito | Equivalente no Aerum | Status |
+| Concept | Equivalent in Aerum | Status |
 |---|---|---|
-| Condições com efeitos mecânicos precisos (lista completa) | Nenhuma lista de condições existe. world_kernel.md lista backfires mas não condições de status. | ❌ MISSING — **CRÍTICO** |
-| Regra de concentração para magias mantidas | Não existe. Channeler tem "Open Channel" mas sem custo de concentração definido. | ❌ MISSING — **ALTO** |
-| Saving throw vs atributo específico | Não existe. Checks usam atributos mas sem framework de "saving throw" separado. | ❌ MISSING — **ALTO** |
-| Advantage/Disadvantage | Não existe. Racial Onus Entis cita penalidades como "-2 on magical rolls" mas sem sistema geral. | ❌ MISSING — **ALTO** |
-| Short rest vs long rest (recuperação parcial) | PARTIAL — narration_bible_kernel.md diferencia "repouso leve" de "sono seguro" mas sem valores. | PARTIAL — **ALTO** |
-| Death saving throws | Não existe. Permadeath confirmado mas sem mecânica de limbo antes da morte. | ❌ MISSING — **CRÍTICO** |
-| Opportunity attack | Não existe. | ❌ MISSING — **MÉDIO** |
-| Flanking (bônus por posicionamento) | Não existe. | ❌ MISSING — **MÉDIO** |
-| Cover (cobertura em ranged attacks) | Não existe. | ❌ MISSING — **MÉDIO** |
-| Grapple e condição restrained | Não existe como condição definida. | ❌ MISSING — **MÉDIO** |
-| Concentration break por dano | Não existe. | ❌ MISSING — **ALTO** |
+| Conditions with precise mechanical effects (complete list) | No list of conditions exists. world_kernel.md lists backfires but not status conditions. | ❌ MISSING — **CRITICAL** |
+| Concentration rule for maintained spells | Does not exist. Channeler has "Open Channel" but with no defined concentration cost. | ❌ MISSING — **HIGH** |
+| Saving throw vs. a specific attribute | Does not exist. Checks use attributes but with no separate "saving throw" framework. | ❌ MISSING — **HIGH** |
+| Advantage/Disadvantage | Does not exist. The racial Onus Entis cites penalties such as "-2 on magical rolls" but with no general system. | ❌ MISSING — **HIGH** |
+| Short rest vs. long rest (partial recovery) | PARTIAL — narration_bible_kernel.md distinguishes "light rest" from "safe sleep" but with no values. | PARTIAL — **HIGH** |
+| Death saving throws | Does not exist. Permadeath is confirmed but with no limbo mechanic before death. | ❌ MISSING — **CRITICAL** |
+| Opportunity attack | Does not exist. | ❌ MISSING — **MEDIUM** |
+| Flanking (positioning bonus) | Does not exist. | ❌ MISSING — **MEDIUM** |
+| Cover (cover on ranged attacks) | Does not exist. | ❌ MISSING — **MEDIUM** |
+| Grapple and the restrained condition | Does not exist as a defined condition. | ❌ MISSING — **MEDIUM** |
+| Concentration break from damage | Does not exist. | ❌ MISSING — **HIGH** |
 
 ---
 
-### Comparação com Blades in the Dark
+### Comparison with Blades in the Dark
 
-| Conceito | Equivalente no Aerum | Status |
+| Concept | Equivalent in Aerum | Status |
 |---|---|---|
-| Clock de pressão | PARTIAL — campaign.yaml tem `tension_thresholds` (1-10) que afeta modelo escolhido. Mas sem relógio visual ou protocolo narrativo de progresso. | PARTIAL — **ALTO** |
-| Flashback | Não existe. | ❌ MISSING — **MÉDIO** |
-| Resistência (sofrer consequência menor pagando custo) | Não existe. | ❌ MISSING — **ALTO** |
-| Escala de consequência (reduzida/normal/aumentada/catastrófica) | PARTIAL — aerus_gm_guide.md §Consequences tem padrões gerais mas sem escala formal. | PARTIAL — **ALTO** |
-| Position e Effect (risco vs impacto antes de rolar) | Não existe. narration_bible_kernel.md pede "explicitar antes do resultado: quem rola, qual dado e o que está em jogo" mas sem framework de Position/Effect. | ❌ MISSING — **CRÍTICO** |
-| Devil's Bargain | Não existe formalmente. Mas aerus_gm_guide.md §Table Rules "Let victory cost something" se aproxima. | ❌ MISSING — **ALTO** |
-| Downtime actions | Não existe. Sem definição do que os personagens fazem entre sessões. | ❌ MISSING — **ALTO** |
-| Heat e Wanted Level | PARTIAL — reputation_gates.yaml tem "faction_pressure" como tipo de gate (ex: inquisidores rastreando, wanted notices). Mas sem sistema numérico de calor. | PARTIAL — **MÉDIO** |
-| Trauma (consequência permanente de falha grave não-morte) | Não existe formalmente. aerus_mechanics_races.md §Corrupted Fae tem "Lose permanent vitality" mas não generalizado. | ❌ MISSING — **ALTO** |
+| Pressure clock | PARTIAL — campaign.yaml has `tension_thresholds` (1-10) that affect the chosen model. But with no visual clock or narrative protocol for progress. | PARTIAL — **HIGH** |
+| Flashback | Does not exist. | ❌ MISSING — **MEDIUM** |
+| Resistance (taking a lesser consequence by paying a cost) | Does not exist. | ❌ MISSING — **HIGH** |
+| Consequence scale (reduced/normal/increased/catastrophic) | PARTIAL — aerus_gm_guide.md §Consequences has general patterns but no formal scale. | PARTIAL — **HIGH** |
+| Position and Effect (risk vs. impact before rolling) | Does not exist. narration_bible_kernel.md asks to "state it before the result: who rolls, which die, and what is at stake" but with no Position/Effect framework. | ❌ MISSING — **CRITICAL** |
+| Devil's Bargain | Does not exist formally. But aerus_gm_guide.md §Table Rules "Let victory cost something" comes close. | ❌ MISSING — **HIGH** |
+| Downtime actions | Does not exist. No definition of what the characters do between sessions. | ❌ MISSING — **HIGH** |
+| Heat and Wanted Level | PARTIAL — reputation_gates.yaml has "faction_pressure" as a gate type (e.g. inquisitors tracking, wanted notices). But with no numerical heat system. | PARTIAL — **MEDIUM** |
+| Trauma (permanent consequence of a severe non-death failure) | Does not exist formally. aerus_mechanics_races.md §Corrupted Fae has "Lose permanent vitality" but is not generalized. | ❌ MISSING — **HIGH** |
 
 ---
 
-### Comparação com Vampire: The Masquerade
+### Comparison with Vampire: The Masquerade
 
-| Conceito | Equivalente no Aerum | Status |
+| Concept | Equivalent in Aerum | Status |
 |---|---|---|
-| Conflito social com mecânica (Persuasão, Intimidação com dados) | PARTIAL — aerus_mechanics_systems.md §Faction Reputation tem faixas e aerus_main_npcs.md tem `bribe_threshold` e `disposition`, mas sem roll de persuasão/intimidação. | PARTIAL — **CRÍTICO** |
-| Frenesi/perda de controle (gatilho e narrativa) | Não existe. Mencionado como conceito para Chimerics mas sem mecânica. | ❌ MISSING — **ALTO** |
-| Blood pool / recurso limitado de poder | PARTIAL — MP existe nos stat blocks de NPC mas sem regras de recuperação/esgotamento para jogadores. | PARTIAL — **ALTO** |
-| Masquerade (segredo dos Viajantes exposto) | PARTIAL — aerus_mechanics_magic_isekai.md §How NPCs React to the Mark tem reações regionais. aerus_lore_dome_factions.md tem "The Dome Mark cannot be permanently removed." Mas sem escala de exposição pública com consequências crescentes. | PARTIAL — **ALTO** |
-| Diablerie (absorver poder de outro) | Não existe. | ❌ MISSING — **MÉDIO** |
-| Compulsion (comportamento forçado por natureza) | PARTIAL — Onus Entis das raças é o equivalente mais próximo, mas sem mecânica de trigger. | PARTIAL — **MÉDIO** |
-| Humanity/moralidade | Não existe. aerus_gm_guide.md tem "consequences are durable" mas sem track de moralidade. | ❌ MISSING — **MÉDIO** |
+| Social conflict with a mechanic (Persuasion, Intimidation with dice) | PARTIAL — aerus_mechanics_systems.md §Faction Reputation has bands and aerus_main_npcs.md has `bribe_threshold` and `disposition`, but with no persuasion/intimidation roll. | PARTIAL — **CRITICAL** |
+| Frenzy/loss of control (trigger and narrative) | Does not exist. Mentioned as a concept for Chimerics but with no mechanic. | ❌ MISSING — **HIGH** |
+| Blood pool / limited power resource | PARTIAL — MP exists in NPC stat blocks but with no recovery/depletion rules for players. | PARTIAL — **HIGH** |
+| Masquerade (the Travelers' secret being exposed) | PARTIAL — aerus_mechanics_magic_isekai.md §How NPCs React to the Mark has regional reactions. aerus_lore_dome_factions.md has "The Dome Mark cannot be permanently removed." But with no public-exposure scale with escalating consequences. | PARTIAL — **HIGH** |
+| Diablerie (absorbing another's power) | Does not exist. | ❌ MISSING — **MEDIUM** |
+| Compulsion (behavior forced by one's nature) | PARTIAL — the races' Onus Entis is the closest equivalent, but with no trigger mechanic. | PARTIAL — **MEDIUM** |
+| Humanity/morality | Does not exist. aerus_gm_guide.md has "consequences are durable" but with no morality track. | ❌ MISSING — **MEDIUM** |
 
 ---
 
-### Comparação com Ironsworn / Forbidden Lands
+### Comparison with Ironsworn / Forbidden Lands
 
-| Conceito | Equivalente no Aerum | Status |
+| Concept | Equivalent in Aerum | Status |
 |---|---|---|
-| Move triggers (o que obriga rolagem vs o que é automático) | PARTIAL — narration_bible_kernel.md: "Se houver rolagem de dado, explicitar antes..." mas sem lista de triggers de roll. | PARTIAL — **CRÍTICO** |
-| Supply como recurso narrativo (comida, tocha, etc.) | PARTIAL — items.yaml tem peso e aerus_mechanics_languages_crafting.md §Required Tools tem ferramentas, mas sem sistema de supply/depletion. | PARTIAL — **ALTO** |
-| Corruption track progressivo com marcos narrativos | PARTIAL — aerus_mechanics_magic_isekai.md tem Rooting como track, world_kernel.md tem backfires. Mas sem corruption track com marcos definidos (ex: Stage 1 = visões; Stage 3 = perda de controle parcial). | PARTIAL — **CRÍTICO** |
-| Oráculos (GM rola para determinar detalhes do mundo) | Não existe. rumors.yaml é o mais próximo (geração de eventos do mundo), mas sem framework de oracle rolls. | ❌ MISSING — **MÉDIO** |
-| Solo vs group mechanics (diferença quando um jogador está só) | Não existe. | ❌ MISSING — **MÉDIO** |
+| Move triggers (what forces a roll vs. what is automatic) | PARTIAL — narration_bible_kernel.md: "If there is a die roll, state it before..." but with no list of roll triggers. | PARTIAL — **CRITICAL** |
+| Supply as a narrative resource (food, torch, etc.) | PARTIAL — items.yaml has weight and aerus_mechanics_languages_crafting.md §Required Tools has tools, but with no supply/depletion system. | PARTIAL — **HIGH** |
+| Progressive corruption track with narrative milestones | PARTIAL — aerus_mechanics_magic_isekai.md has Rooting as a track, world_kernel.md has backfires. But with no corruption track with defined milestones (e.g. Stage 1 = visions; Stage 3 = partial loss of control). | PARTIAL — **CRITICAL** |
+| Oracles (the GM rolls to determine details of the world) | Does not exist. rumors.yaml is the closest (world event generation), but with no oracle-roll framework. | ❌ MISSING — **MEDIUM** |
+| Solo vs. group mechanics (the difference when a player is alone) | Does not exist. | ❌ MISSING — **MEDIUM** |
 
 ---
 
 ---
 
-## SEÇÃO 3 — SITUAÇÕES QUE O SLM VAI ENCONTRAR SEM RESPOSTA
+## SECTION 3 — SITUATIONS THE SLM WILL HIT WITHOUT AN ANSWER
 
-As 30 perguntas mais prováveis em sessão sem resposta clara na documentação atual:
+The 30 most likely in-session questions with no clear answer in the current documentation:
 
 ---
 
-| # | Pergunta que o GM precisaria responder | Documento mais próximo | Prioridade |
+| # | Question the GM would need to answer | Closest document | Priority |
 |---|---|---|---|
-| 1 | "Eu ataco com minha espada. Jogo qual dado? Qual atributo?" | aerus_base_classes.md §Blade — mas sem mecânica de ataque | **CRÍTICO** |
-| 2 | "Quantos HP perco com esse ataque?" | Stat blocks de NPCs em aerus_main_npcs.md têm HP mas sem fórmula de dano para players | **CRÍTICO** |
-| 3 | "Meu personagem tem 0 HP. Estou morto ou posso ser estabilizado?" | campaign.yaml `permadeath: true` + aerus_mechanics_magic_isekai.md "Death is real death" mas sem limiar | **CRÍTICO** |
-| 4 | "Qual dado eu rolo para resistir a uma condição (veneno, atordoamento)?" | Nenhum | **CRÍTICO** |
-| 5 | "Eu casto um feitiço de nível 3 em zona corrompida. Qual a chance de backfire?" | world_kernel.md lista tipos mas sem probabilidade por zona/nível | **CRÍTICO** |
-| 6 | "Quanto XP ganha por matar um inimigo Tier 2?" | narration_bible_kernel.md menciona XP por ações impactantes mas sem tabela | **CRÍTICO** |
-| 7 | "Quero fugir do combate. O que rolo e qual o custo?" | Nenhum | **CRÍTICO** |
-| 8 | "Eu estou envenenado. Quando o efeito termina e como narro isso?" | Nenhum — lista de condições não existe | **CRÍTICO** |
-| 9 | "Dois jogadores usam feitiços diferentes no mesmo turno. Qual eu resolvo primeiro?" | CLAUDE.md descreve batching de 3s mas sem arbitration narrativa | **CRÍTICO** |
-| 10 | "Consigo negociar preço com esse comerciante? Qual atributo rolo?" | aerus_lore_geopolitics_economy.md tem preços mas sem mecânica de barganha | **CRÍTICO** |
-| 11 | "Meu personagem descansou numa taverna. Quanto HP recupero?" | narration_bible_kernel.md fala de descanso seguro sem números | **ALTO** |
-| 12 | "Eu quero fazer craft de Minor Stability Amulet numa zona T3. É possível? Qual o modificador?" | aerus_mechanics_languages_crafting.md tem DC mas sem penalidade de zona | **ALTO** |
-| 13 | "O boss chegou a 50% de HP. Qual o gatilho da fase 2?" | aerus_gm_guide.md §Boss Phase Change tem exemplo de narração mas sem gatilho numérico | **ALTO** |
-| 14 | "Estou com reputação -51 na Igreja. O inquisidor que encontrei me ataca imediatamente?" | reputation_gates.yaml cita rastreamento e "confrontar à vista" para soldados imperiais mas sem regra geral | **ALTO** |
-| 15 | "Meu aliado NPC foi controlado mentalmente e está me atacando. Como funciona o combate?" | Nenhum | **ALTO** |
-| 16 | "Jogador B está a 500km de distância numa viagem enquanto Jogador A está em combate. Narro as duas cenas?" | Nenhum | **ALTO** |
-| 17 | "Meu personagem falhou em 3 tentativas de magia consecutivas. Ele acumulou corrupção?" | world_kernel.md lista backfires mas sem track acumulativo | **ALTO** |
-| 18 | "Qual atributo uso para intimidar o guarda da fronteira?" | Nenhum — sem mapeamento explícito ação social → atributo | **ALTO** |
-| 19 | "Minha mutação de nível 25 foi desbloqueada durante o combate. Eu recebo agora ou depois?" | aerus_class_mutations.md descreve outcomes mas sem timing | **ALTO** |
-| 20 | "Eu estou no Cinturão Pálido (Void Zone). Posso usar magia normalmente?" | aerus_lore_geography.md menciona "permanent fog" mas sem regra de magic in Void Zone | **ALTO** |
-| 21 | "O jogador quer comprar Keth Grade 2 em Port Myr. É ilegal. O que acontece se for pego?" | aerus_lore_geopolitics_economy.md §Keth Gray Market cita riscos genéricos mas sem protocolo de flagrante | **ALTO** |
-| 22 | "Um jogador tentou suicidar o personagem. O que o GM faz?" | Nenhum | **ALTO** |
-| 23 | "O Fragmento Aeridiano de Valdek IV foi destruído pela party. O que acontece nos próximos 5 minutos narrativos?" | campaign_mission_arcs §Arc II menciona o evento mas sem protocolo imediato | **ALTO** |
-| 24 | "O jogador usa conhecimento OOC ('eu sei que o Weaver está na Pale Belt porque li a ficha'). Como o GM arbitra?" | Nenhum | **ALTO** |
-| 25 | "Meu personagem atacou e matou Thresh. Qual a penalidade de reputação exata com os Children?" | aerus_mechanics_systems.md §Typical Negative Triggers: "violence against members" mas sem delta específico | **MÉDIO** |
-| 26 | "Estamos acampando no wilderness. Quantas horas de guarda são necessárias para prevenir emboscada?" | Nenhum | **MÉDIO** |
-| 27 | "Vel'Arath — meu personagem Mist Elf tenta entrar. O bosque permite automaticamente?" | aerus_travel.md: "The forest decides who may enter" mas sem critério por raça | **MÉDIO** |
-| 28 | "O jogador quer criar um rumor falso sobre o Empire em Port Myr. Como rastrear o efeito?" | rumors.yaml tem sistema de rumores mas sem protocolo para rumor criado pelo jogador | **MÉDIO** |
-| 29 | "Dois jogadores têm reputações opostas com a Igreja. Um está em +60, outro em -55. Como o NPC reage à party?" | Nenhum — sem protocolo de reputação coletiva vs individual | **MÉDIO** |
-| 30 | "O jogador usa o atributo LUK para tentar algo. Qual o DC base e quando LUK é o atributo certo?" | aerus_mechanics_races.md menciona LUK mas sem framework de quando usar cada atributo | **MÉDIO** |
+| 1 | "I attack with my sword. Which die do I roll? Which attribute?" | aerus_base_classes.md §Blade — but with no attack mechanic | **CRITICAL** |
+| 2 | "How much HP do I lose from this attack?" | NPC stat blocks in aerus_main_npcs.md have HP but no damage formula for players | **CRITICAL** |
+| 3 | "My character is at 0 HP. Am I dead, or can I be stabilized?" | campaign.yaml `permadeath: true` + aerus_mechanics_magic_isekai.md "Death is real death" but with no threshold | **CRITICAL** |
+| 4 | "Which die do I roll to resist a condition (poison, stun)?" | None | **CRITICAL** |
+| 5 | "I cast a level 3 spell in a corrupted zone. What is the chance of a backfire?" | world_kernel.md lists types but with no probability by zone/level | **CRITICAL** |
+| 6 | "How much XP do I get for killing a Tier 2 enemy?" | narration_bible_kernel.md mentions XP for impactful actions but with no table | **CRITICAL** |
+| 7 | "I want to flee combat. What do I roll and what is the cost?" | None | **CRITICAL** |
+| 8 | "I am poisoned. When does the effect end and how do I narrate it?" | None — no list of conditions exists | **CRITICAL** |
+| 9 | "Two players cast different spells on the same turn. Which one do I resolve first?" | CLAUDE.md describes 3s batching but with no narrative arbitration | **CRITICAL** |
+| 10 | "Can I negotiate the price with this merchant? Which attribute do I roll?" | aerus_lore_geopolitics_economy.md has prices but with no haggling mechanic | **CRITICAL** |
+| 11 | "My character rested at a tavern. How much HP do I recover?" | narration_bible_kernel.md talks about safe rest with no numbers | **HIGH** |
+| 12 | "I want to craft a Minor Stability Amulet in a T3 zone. Is it possible? What is the modifier?" | aerus_mechanics_languages_crafting.md has a DC but with no zone penalty | **HIGH** |
+| 13 | "The boss reached 50% HP. What is the trigger for phase 2?" | aerus_gm_guide.md §Boss Phase Change has a narration example but with no numerical trigger | **HIGH** |
+| 14 | "I have -51 reputation with the Church. Does the inquisitor I met attack me immediately?" | reputation_gates.yaml cites tracking and "challenge on sight" for imperial soldiers but with no general rule | **HIGH** |
+| 15 | "My allied NPC has been mind-controlled and is attacking me. How does the combat work?" | None | **HIGH** |
+| 16 | "Player B is 500km away on a journey while Player A is in combat. Do I narrate both scenes?" | None | **HIGH** |
+| 17 | "My character failed 3 consecutive magic attempts. Has he accumulated corruption?" | world_kernel.md lists backfires but with no cumulative track | **HIGH** |
+| 18 | "Which attribute do I use to intimidate the border guard?" | None — no explicit mapping of social action → attribute | **HIGH** |
+| 19 | "My level 25 mutation was unlocked during combat. Do I get it now or later?" | aerus_class_mutations.md describes outcomes but with no timing | **HIGH** |
+| 20 | "I am in the Pale Belt (Void Zone). Can I use magic normally?" | aerus_lore_geography.md mentions "permanent fog" but with no rule for magic in the Void Zone | **HIGH** |
+| 21 | "The player wants to buy Keth Grade 2 in Port Myr. It is illegal. What happens if they get caught?" | aerus_lore_geopolitics_economy.md §Keth Gray Market cites generic risks but with no protocol for being caught | **HIGH** |
+| 22 | "A player tried to make their character commit suicide. What does the GM do?" | None | **HIGH** |
+| 23 | "The party destroyed the Aeridian Fragment of Valdek IV. What happens over the next 5 narrative minutes?" | campaign_mission_arcs §Arc II mentions the event but with no immediate protocol | **HIGH** |
+| 24 | "The player uses OOC knowledge ('I know the Weaver is in the Pale Belt because I read the sheet'). How does the GM arbitrate it?" | None | **HIGH** |
+| 25 | "My character attacked and killed Thresh. What is the exact reputation penalty with the Children?" | aerus_mechanics_systems.md §Typical Negative Triggers: "violence against members" but with no specific delta | **MEDIUM** |
+| 26 | "We are camping in the wilderness. How many hours of watch are needed to prevent an ambush?" | None | **MEDIUM** |
+| 27 | "Vel'Arath — my Mist Elf character tries to enter. Does the forest admit them automatically?" | aerus_travel.md: "The forest decides who may enter" but with no criterion by race | **MEDIUM** |
+| 28 | "The player wants to create a false rumor about the Empire in Port Myr. How do I track its effect?" | rumors.yaml has a rumor system but with no protocol for a player-created rumor | **MEDIUM** |
+| 29 | "Two players have opposing reputations with the Church. One is at +60, the other at -55. How does the NPC react to the party?" | None — no protocol for collective vs. individual reputation | **MEDIUM** |
+| 30 | "The player uses the LUK attribute to try something. What is the base DC and when is LUK the right attribute?" | aerus_mechanics_races.md mentions LUK but with no framework for when to use each attribute | **MEDIUM** |
 
 ---
 
 ---
 
-## SEÇÃO 4 — O QUE DOCUMENTAR ANTES DO FINE-TUNE
+## SECTION 4 — WHAT TO DOCUMENT BEFORE THE FINE-TUNE
 
 ---
 
-### CRÍTICO (sem isso o modelo quebra a sessão)
+### CRITICAL (without this the model breaks the session)
 
-- **`aerus_combat_core.md`** — Mecânica completa de combate: dado de ataque por classe, fórmula de dano base, iniciativa (atributo + dado), defesa (DEX + armadura), HP/0HP/morte. Sem isso o modelo inventa regras inconsistentes em cada sessão.
+- **`aerus_combat_core.md`** — Complete combat mechanics: attack die by class, base damage formula, initiative (attribute + die), defense (DEX + armor), HP/0HP/death. Without this the model invents inconsistent rules in every session.
 
-- **`aerus_conditions_list.md`** — Lista completa de condições de status (envenenado, atordoado, amedrontado, corrompido, imobilizado, etc.) com: duração padrão, efeito mecânico, como aplicar, como remover, e 1-2 frases de narração para cada.
+- **`aerus_conditions_list.md`** — Complete list of status conditions (poisoned, stunned, frightened, corrupted, immobilized, etc.) with: default duration, mechanical effect, how to apply it, how to remove it, and 1-2 narration sentences for each.
 
-- **`aerus_corruption_track.md`** — Corruption track progressivo com 4-5 estágios numerados: limiar de acumulação (ex: 3 falhas de magia = Stage 1), efeito mecânico por estágio, sinal narrativo por estágio, como remover cada estágio. Inclui interação com Keth e Fragmentos.
+- **`aerus_corruption_track.md`** — Progressive corruption track with 4-5 numbered stages: accumulation threshold (e.g. 3 magic failures = Stage 1), mechanical effect per stage, narrative sign per stage, how to remove each stage. Includes interaction with Keth and Fragments.
 
-- **`aerus_roll_triggers.md`** — Mapa de quando o GM pede rolagem vs quando a ação é automática. Inclui: qual atributo por tipo de ação (combate, social, exploração, craft, magia), o que é stake em cada roll, o que distingue sucesso de sucesso parcial de falha.
+- **`aerus_roll_triggers.md`** — A map of when the GM asks for a roll vs. when the action is automatic. Includes: which attribute per action type (combat, social, exploration, craft, magic), what is at stake in each roll, what distinguishes success from partial success from failure.
 
-- **`aerus_death_protocol.md`** — Protocolo completo de morte: limiar de 0 HP, "death window" (existe ou não?), permadeath imediata vs estabilização, transição para espectador, quando criar novo personagem, narração obrigatória de morte.
+- **`aerus_death_protocol.md`** — Complete death protocol: 0 HP threshold, "death window" (does it exist or not?), immediate permadeath vs. stabilization, transition to spectator, when to create a new character, mandatory death narration.
 
-- **`aerus_magic_resolution.md`** — Framework de resolução mágica: dado de spell, atributo base (INT para elementais, CAR para Spirit), DC por nível de magia (1-10), tabela de backfire por zona (normal/corrompida/Fragmento próximo/Void Zone), spell failure parcial vs total vs backfire.
+- **`aerus_magic_resolution.md`** — Magic resolution framework: spell die, base attribute (INT for elementals, CAR for Spirit), DC by magic level (1-10), backfire table by zone (normal/corrupted/Fragment nearby/Void Zone), partial vs. total spell failure vs. backfire.
 
-- **`aerus_xp_table.md`** — Tabela de XP por tipo de ação: combate por tier, objetivo de missão por tipo, diplomacia bem-sucedida, craft, descoberta de lore. Limiar de XP por nível (ou framework de milestone). Protocolo de quando o GM anuncia e narra o level up.
-
----
-
-### ALTO (sem isso o modelo improvisa errado)
-
-- **`aerus_social_mechanics.md`** — Mecânica de interação social: atributo para persuasão (CAR), intimidação (STR ou CAR), engano (DEX ou INT), DC base por disposição de NPC, modificadores de reputação por faixa, resultado de sucesso parcial em negociação. Exemplos narrativos por tipo de resultado.
-
-- **`aerus_rest_recovery.md`** — Tabela de recuperação por tipo de descanso: repouso leve (1-2h), sono seguro (6-8h), sono em zona corrupta, descanso com cura mágica. Valores de HP e MP recuperados. Protocolo de descanso interrompido por emboscada.
-
-- **`aerus_flee_surrender.md`** — Mecânica de fuga de combate (quando possível, roll de DEX vs inimigo, custo narrativo) e rendição de inimigo (o que acontece, como o GM narra, o que o jogador pode fazer com prisioneiro).
-
-- **`aerus_crafting_failure.md`** — O que acontece em falha de craft: falha por 1-4 (ingrediente principal perdido), falha por 5+ (todos ingredientes + dano ao artesão), falha crítica (acidente com efeito de backfire). Exemplos narrativos de cada nível.
-
-- **`aerus_multiplayer_protocol.md`** — Como o GM gerencia: ações simultâneas conflitantes (batch de 3s), jogadores em locais diferentes na mesma sessão, espectador após morte, ausência de jogador, objetivo secreto revelado acidentalmente, sabotagem entre jogadores.
-
-- **`aerus_npc_kill_consequences.md`** — Tabela de consequência por tipo de NPC morto: NPC de rua (delta leve), agente de facção (delta moderado por facção), NPC chave com missão ativa (missão cancelada + delta pesado), NPC com informação vital (informação perdida → protocolo de workaround). Exemplos por cada facção.
-
-- **`aerus_surge_protocol.md`** — Protocolo completo de Surge: raio por nível (1-10 de magia), efeitos narrativos por estágio, quem sabe/sente no mundo, consequência de facção após Surge público, diferença entre Surge normal e Surge por Fragmento destruído.
-
-- **`aerus_attribute_guide.md`** — Quando usar cada atributo (STR, DEX, INT, VIT, LUK, CAR) como base de roll em situações comuns. Inclui casos de LUK como atributo de roll e CAR para social. Essencial para consistência do GM.
-
-- **`aerus_faction_conflict_arbitration.md`** — Protocolo para: missões conflitantes simultâneas, dois jogadores com facções opostas na mesma cena, NPC que conhece um jogador como aliado e outro como inimigo, reputação individual vs coletiva da party.
-
-- **`aerus_combat_special_terrain.md`** — Modificadores mecânicos e narrativos para: zona corrupta (penalidade de magia), Ondrek Pass (magia bloqueada), Vel'Arath (magia instável/antiga), Heart of Ashes (zona T4-5), água (penalidade STR/DEX), altitude (penalidade VIT).
+- **`aerus_xp_table.md`** — XP table by action type: combat by tier, mission objective by type, successful diplomacy, craft, lore discovery. XP threshold per level (or milestone framework). Protocol for when the GM announces and narrates the level up.
 
 ---
 
-### MÉDIO (sem isso o modelo fica genérico)
+### HIGH (without this the model improvises wrong)
 
-- **`aerus_downtime.md`** — O que os personagens podem fazer entre sessões: treino de linguagem (sessões necessárias por idioma já documentadas), aprendizado de magia, recuperação de atributo permanente, crafting sem urgência, gestão de reputação.
+- **`aerus_social_mechanics.md`** — Social interaction mechanics: attribute for persuasion (CAR), intimidation (STR or CAR), deception (DEX or INT), base DC by NPC disposition, reputation modifiers by band, partial-success outcome in negotiation. Narrative examples by result type.
 
-- **`aerus_boss_design.md`** — Protocolo de boss fights: quando usar phase change (limiar de HP sugerido: 50%, 25%), o que muda na fase 2 (novos ataques, mobilidade, aura de corrupção), como narrar cada transição, quem pode ter múltiplas fases.
+- **`aerus_rest_recovery.md`** — Recovery table by rest type: light rest (1-2h), safe sleep (6-8h), sleep in a corrupted zone, rest with magical healing. HP and MP values recovered. Protocol for a rest interrupted by ambush.
 
-- **`aerus_ooc_handling.md`** — Como o GM recusa ações OOC sem quebrar imersão: ação impossível pelo lore (recusa com âncora narrativa), conhecimento OOC usado pelo jogador (diferença entre "meu personagem saberia disso?" e "eu sei isso"), ação que contradiz canon (como o mundo reage naturalmente).
+- **`aerus_flee_surrender.md`** — Flee-from-combat mechanic (when possible, DEX roll vs. enemy, narrative cost) and enemy surrender (what happens, how the GM narrates it, what the player can do with a prisoner).
 
-- **`aerus_travel_narrative.md`** — Exemplos narrativos por tipo de encounter de viagem: how to narrate each encounter type from travel.yaml (bandits, merchants, lesser leviathan, ghost ship, avalanche, etc.). Inclui exemplos de clima extremo e chegada a locais especiais.
+- **`aerus_crafting_failure.md`** — What happens on a crafting failure: failure by 1-4 (main ingredient lost), failure by 5+ (all ingredients + damage to the crafter), critical failure (accident with a backfire effect). Narrative examples for each level.
 
-- **`aerus_void_zone_rules.md`** — Regras específicas de Void Zone (Pale Belt, Red Sea, Limen Vel'Arath): efeito em magia, navegação, saúde de personagens, quanto tempo alguém pode aguentar, interação com raça Khorathi (Body Without Thread).
+- **`aerus_multiplayer_protocol.md`** — How the GM manages: conflicting simultaneous actions (3s batch), players in different locations in the same session, spectator after death, player absence, secret objective revealed accidentally, sabotage between players.
 
-- **`aerus_rumor_injection.md`** — Como o GM cria e rastreia rumores gerados pelos jogadores: formato, como afeta NPCs e facções, diferença entre rumor verdadeiro/falso espalhado, como o GM pode usar rumor de player como hook.
+- **`aerus_npc_kill_consequences.md`** — Consequence table by type of NPC killed: street NPC (light delta), faction agent (moderate delta by faction), key NPC with an active mission (mission canceled + heavy delta), NPC with vital information (information lost → workaround protocol). Examples for each faction.
 
-- **`aerus_vel_arath_entry.md`** — Critérios de entrada em Vel'Arath: quem o bosque admite (por raça, por histórico de ação, por intenção), o que acontece quando um membro é recusado, o que acontece dentro do bosque (tempo distorcido, efeito da Marca, magia do Fio antigo).
+- **`aerus_surge_protocol.md`** — Complete Surge protocol: radius by level (1-10 of magic), narrative effects by stage, who knows/feels it in the world, faction consequence after a public Surge, the difference between a normal Surge and a Surge from a destroyed Fragment.
 
-- **`aerus_morality_track.md`** — Track simples de moralidade/humanidade para o Aerum: ações que movem para cima/baixo, marcadores narrativos visíveis por faixa, consequência de faixa baixa (NPCs distantes, Marca reage diferente, facções desconfiam). Não precisa ser tão complexo quanto VtM.
+- **`aerus_attribute_guide.md`** — When to use each attribute (STR, DEX, INT, VIT, LUK, CAR) as the basis for a roll in common situations. Includes cases of LUK as a roll attribute and CAR for social. Essential for GM consistency.
 
-- **`aerus_leveling_narration.md`** — Protocolo narrativo completo de level up: quando interromper a cena, frases padrão do GM, como narrar mutação formal em cada classe (exemplos por Blade, Sorcerer, Channeler), como apresentar escolha de path ao jogador.
+- **`aerus_faction_conflict_arbitration.md`** — Protocol for: simultaneous conflicting missions, two players with opposing factions in the same scene, an NPC who knows one player as an ally and another as an enemy, individual vs. collective party reputation.
+
+- **`aerus_combat_special_terrain.md`** — Mechanical and narrative modifiers for: corrupted zone (magic penalty), Ondrek Pass (magic blocked), Vel'Arath (unstable/ancient magic), Heart of Ashes (T4-5 zone), water (STR/DEX penalty), altitude (VIT penalty).
 
 ---
 
-> FIM DO DOCUMENTO
-> Total de gaps identificados: ~130 itens (Seção 1) + 25 itens (Seção 2) + 30 situações (Seção 3)
-> Prioridade total de documentos a criar: 7 CRÍTICO + 10 ALTO + 9 MÉDIO = 26 documentos
+### MEDIUM (without this the model stays generic)
+
+- **`aerus_downtime.md`** — What the characters can do between sessions: language training (sessions required per language already documented), learning magic, recovering a permanent attribute, crafting without urgency, reputation management.
+
+- **`aerus_boss_design.md`** — Boss-fight protocol: when to use a phase change (suggested HP threshold: 50%, 25%), what changes in phase 2 (new attacks, mobility, corruption aura), how to narrate each transition, who can have multiple phases.
+
+- **`aerus_ooc_handling.md`** — How the GM refuses OOC actions without breaking immersion: an action impossible by the lore (refusal with a narrative anchor), OOC knowledge used by the player (the difference between "would my character know this?" and "I know this"), an action that contradicts canon (how the world reacts naturally).
+
+- **`aerus_travel_narrative.md`** — Narrative examples by travel encounter type: how to narrate each encounter type from travel.yaml (bandits, merchants, lesser leviathan, ghost ship, avalanche, etc.). Includes examples of extreme weather and arrival at special locations.
+
+- **`aerus_void_zone_rules.md`** — Specific Void Zone rules (Pale Belt, Red Sea, Limen Vel'Arath): effect on magic, navigation, character health, how long someone can endure, interaction with the Khorathi race (Body Without Thread).
+
+- **`aerus_rumor_injection.md`** — How the GM creates and tracks player-generated rumors: format, how it affects NPCs and factions, the difference between a true/false rumor being spread, how the GM can use a player rumor as a hook.
+
+- **`aerus_vel_arath_entry.md`** — Entry criteria for Vel'Arath: whom the forest admits (by race, by action history, by intent), what happens when a member is refused, what happens inside the forest (distorted time, the Mark's effect, ancient Thread magic).
+
+- **`aerus_morality_track.md`** — A simple morality/humanity track for Aerum: actions that move it up/down, visible narrative markers by band, the consequence of a low band (NPCs distant, the Mark reacts differently, factions distrust). It does not need to be as complex as VtM.
+
+- **`aerus_leveling_narration.md`** — Complete narrative protocol for level up: when to interrupt the scene, the GM's standard sentences, how to narrate a formal mutation in each class (examples for Blade, Sorcerer, Channeler), how to present the path choice to the player.
+
+---
+
+> END OF DOCUMENT
+> Total gaps identified: ~130 items (Section 1) + 25 items (Section 2) + 30 situations (Section 3)
+> Total priority of documents to create: 7 CRITICAL + 10 HIGH + 9 MEDIUM = 26 documents

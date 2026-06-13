@@ -26,28 +26,28 @@ CASES = [
     Case(
         name="summarizer_memory",
         system=(
-            "VocÃª Ã© um sumarizador de RPG. Resuma fatos permanentes e consequÃªncias "
-            "em atÃ© 6 linhas curtas em pt-BR. NÃ£o invente fatos."
+            "Você é um sumarizador de RPG. Resuma fatos permanentes e consequências "
+            "em até 6 linhas curtas em pt-BR. Não invente fatos."
         ),
         user=(
             "Turnos:\n"
-            "Jogadores: Kael ataca o capitÃ£o cultista e toma 18 de dano.\n"
-            "GM: O capitÃ£o recua, derruba um amuleto e foge para a cripta.\n"
+            "Jogadores: Kael ataca o capitão cultista e toma 18 de dano.\n"
+            "GM: O capitão recua, derruba um amuleto e foge para a cripta.\n"
             "Jogadores: Lyra usa magia de fogo para selar a porta da cripta.\n"
-            "GM: A porta sela, mas a cidade entra em pÃ¢nico e o fogo se espalha para o mercado.\n"
-            "Resuma focando em consequÃªncias permanentes e ganchos."
+            "GM: A porta sela, mas a cidade entra em pânico e o fogo se espalha para o mercado.\n"
+            "Resuma focando em consequências permanentes e ganchos."
         ),
         max_tokens=220,
     ),
     Case(
         name="state_json_strict",
         system=(
-            "VocÃª Ã© um parser de estado. Responda APENAS JSON vÃ¡lido sem markdown. "
-            "Campos obrigatÃ³rios: tension_level (int), state_delta (obj), game_events (array)."
+            "Você é um parser de estado. Responda APENAS JSON válido sem markdown. "
+            "Campos obrigatórios: tension_level (int), state_delta (obj), game_events (array)."
         ),
         user=(
             "Cena: Kael recebeu 12 de dano, ganhou 40 xp, Lyra ganhou item 'Runa Cinzenta'. "
-            "A tensÃ£o subiu para 8 por causa da chegada do boss."
+            "A tensão subiu para 8 por causa da chegada do boss."
         ),
         max_tokens=220,
         expects_json=True,
@@ -55,12 +55,12 @@ CASES = [
     Case(
         name="secret_objective_hint",
         system=(
-            "VocÃª Ã© GM tÃ¡tico. Gere um hint curto e indireto sobre objetivo secreto de facÃ§Ã£o, "
+            "Você é GM tático. Gere um hint curto e indireto sobre objetivo secreto de facção, "
             "sem revelar explicitamente o objetivo."
         ),
         user=(
-            "FacÃ§Ã£o: guild_of_threads. Objetivo secreto: recuperar o artefato sem a Igreja perceber. "
-            "Progresso atual: 60%. Gere 1 hint narrativo em atÃ© 2 frases."
+            "Facção: guild_of_threads. Objetivo secreto: recuperar o artefato sem a Igreja perceber. "
+            "Progresso atual: 60%. Gere 1 hint narrativo em até 2 frases."
         ),
         max_tokens=120,
     ),
@@ -135,7 +135,7 @@ def print_model_case_result(case: Case, model: str, result: dict) -> None:
     last_text = str(result["last_text"])
 
     if not durations:
-        print(f"- {model}: falhou em todas as execuÃ§Ãµes ({failures}/{RUNS_PER_CASE})")
+        print(f"- {model}: falhou em todas as execuções ({failures}/{RUNS_PER_CASE})")
         print(f"  preview: {last_text[:180]}")
         return
 

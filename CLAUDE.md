@@ -174,21 +174,21 @@ Modules: `gm_eval.py` (orchestrator) → `gm_eval_runtime.py` (scenario executio
 
 ## AXON MCP (memory & context)
 
-AXON está disponível globalmente via MCP (`mcp__axon__*` tools). Antes
-de explorar este repo com `read`/`grep`, use:
+AXON is available globally via MCP (`mcp__axon__*` tools). Before exploring
+this repo with `read`/`grep`, use:
 
 ```
-mcp__axon__search_code(query="...")            # busca semântica indexada
-mcp__axon__get_session_memory(project="aerus")  # contexto de sessões anteriores
-mcp__axon__get_adrs(project="aerus")            # decisões arquiteturais registradas
-mcp__axon__ask("dúvida sobre domínio/decisão")
+mcp__axon__search_code(query="...")              # indexed semantic search
+mcp__axon__get_session_memory(project="aerus")   # context from previous sessions
+mcp__axon__get_adrs(project="aerus")             # recorded architectural decisions
+mcp__axon__ask("question about a domain/decision")
 ```
 
-Para registrar uma decisão arquitetural durante o trabalho, prefira:
-- Commit com prefix `arch:` ou `decision:` → captura automática via hook
-  post-commit (NIM 3.3-70B classifica, gates dec-111 filtram, vai pra
-  vault ou draft pool)
-- Ou `mcp__axon__save_adr(project="aerus", title=..., context=...,
-  decision=..., rationale=...)` para registrar manual.
+To record an architectural decision while working, prefer:
+- A commit with the `arch:` or `decision:` prefix → captured automatically via the
+  post-commit hook (NIM 3.3-70B classifies, the dec-111 gates filter, and it lands in
+  the vault or the draft pool)
+- Or `mcp__axon__save_adr(project="aerus", title=..., context=...,
+  decision=..., rationale=...)` to record it manually.
 
-Indexação one-shot: `pb index .` (recomendado após mudanças estruturais).
+One-shot indexing: `pb index .` (recommended after structural changes).

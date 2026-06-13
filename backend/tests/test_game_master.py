@@ -1,6 +1,9 @@
 """
-test_game_master.py — Testes das funções puras do game_master.py.
-Sem chamadas de rede ou banco — apenas lógica de parse e formatação.
+test_game_master.py — Tests for the pure functions in game_master.py.
+No network or database calls — only parsing and formatting logic.
+
+Note: Portuguese narrative/action string literals below are intentional test
+fixtures; the inference helpers under test match Portuguese player input.
 """
 import pytest
 
@@ -98,7 +101,7 @@ def test_parse_gm_response_valid():
 
 
 def test_parse_gm_response_no_game_state_marker():
-    """Sem marcador <game_state>, retorna GMResponse só com a narrativa."""
+    """Without a <game_state> marker, returns a GMResponse with the narrative only."""
     raw = "A batalha continua. Sem estrutura JSON aqui."
     result = _parse_gm_response(raw)
     assert isinstance(result, GMResponse)
@@ -110,7 +113,7 @@ def test_parse_gm_response_no_game_state_marker():
 
 
 def test_parse_gm_response_malformed_json():
-    """JSON inválido dentro de <game_state> deve retornar GMResponse padrão."""
+    """Invalid JSON inside <game_state> must return a default GMResponse."""
     raw = (
         "Narrativa normal.\n"
         "<game_state>\n"
@@ -125,7 +128,7 @@ def test_parse_gm_response_malformed_json():
 
 
 def test_parse_gm_response_empty_game_state():
-    """game_state vazio não deve estourar KeyError."""
+    """An empty game_state must not raise KeyError."""
     raw = (
         "Narrativa.\n"
         "<game_state>\n"
@@ -139,16 +142,16 @@ def test_parse_gm_response_empty_game_state():
 
 
 def test_parse_gm_response_preserves_is_critical_absence():
-    """dice_rolls não têm is_critical/is_fumble no parse — são adicionados em _apply_deltas."""
+    """dice_rolls have no is_critical/is_fumble at parse time — they are added in _apply_deltas."""
     result = _parse_gm_response(VALID_RESPONSE)
     roll = result.dice_rolls[0]
-    # Parse não enriquece — enriquecimento é feito em _apply_deltas_and_events
+    # Parsing does not enrich — enrichment happens in _apply_deltas_and_events
     assert "is_critical" not in roll
     assert "is_fumble" not in roll
 
 
 def test_parse_gm_response_tension_level_cast_to_int():
-    """tension_level deve ser sempre int, mesmo que LLM retorne float."""
+    """tension_level must always be int, even if the LLM returns a float."""
     raw = (
         "Narrativa.\n"
         '<game_state>{"tension_level": 6.9}</game_state>'
@@ -181,7 +184,7 @@ def test_parse_gm_response_image_prompt_from_next_scene_query():
 # ---------------------------------------------------------------------------
 
 def _make_batch(*actions: tuple[str, str, str]) -> ActionBatch:
-    """Helper: cria ActionBatch a partir de tuplas (player_id, name, text)."""
+    """Helper: builds an ActionBatch from (player_id, name, text) tuples."""
     player_actions = [
         PlayerAction(player_id=pid, player_name=name, action_text=text, timestamp=0.0)
         for pid, name, text in actions
@@ -216,7 +219,7 @@ def test_format_batch_includes_turn_number():
 
 
 def test_format_batch_empty_actions():
-    """Batch sem ações deve retornar pelo menos o header de turno."""
+    """A batch with no actions must return at least the turn header."""
     batch = ActionBatch(actions=[], turn_number=1)
     msg = _format_batch_as_user_message(batch)
     assert "[Turn 1]" in msg
@@ -235,7 +238,7 @@ def test_flush_buffer_splits_on_game_state_marker():
 
 
 def test_flush_buffer_short_no_marker_emits_nothing():
-    """Buffer curto sem marcador: não emite, mantém no buffer."""
+    """Short buffer without a marker: emits nothing, keeps it buffered."""
     buffer = "curto"
     to_emit, new_buffer, should_stop = _flush_buffer(buffer)
     assert to_emit == ""
@@ -244,7 +247,7 @@ def test_flush_buffer_short_no_marker_emits_nothing():
 
 
 def test_flush_buffer_long_no_marker_emits_partial():
-    """Buffer longo sem marcador: emite parte, retém os últimos 20 chars."""
+    """Long buffer without a marker: emits part, retains the last 20 chars."""
     buffer = "A" * 60
     to_emit, new_buffer, should_stop = _flush_buffer(buffer)
     assert len(to_emit) == 40   # 60 - 20
@@ -253,7 +256,7 @@ def test_flush_buffer_long_no_marker_emits_partial():
 
 
 def test_flush_buffer_exactly_50_chars_emits_partial():
-    """Buffer com exatamente 51 chars (> 50) deve emitir."""
+    """Buffer with exactly 51 chars (> 50) must emit."""
     buffer = "B" * 51
     to_emit, new_buffer, should_stop = _flush_buffer(buffer)
     assert len(to_emit) == 31
@@ -262,7 +265,7 @@ def test_flush_buffer_exactly_50_chars_emits_partial():
 
 
 def test_flush_buffer_marker_at_start():
-    """Marcador no início: nada a emitir antes."""
+    """Marker at the start: nothing to emit before it."""
     buffer = "<game_state>resto"
     to_emit, new_buffer, should_stop = _flush_buffer(buffer)
     assert to_emit == ""
