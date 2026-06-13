@@ -23,6 +23,7 @@ class BillingConfig:
     base_url: str = "https://openrouter.ai/api/v1"
     is_byok: bool = False
     is_slm: bool = False
+    is_hosted_narrator: bool = False
     player_id: str | None = None
 
 
@@ -38,6 +39,25 @@ def select_billing_config(
     Phase 2: prefer the player's BYOK when available.
     Phase 3 (SLM): route to local fine-tuned model when SLM_ENABLED=true.
     """
+    # Hosted narrator — frontier model + RAG + guardrail (the recommended path; see
+    # aerum-narrator/DECISAO_NARRADOR.md). DeepSeek for value, Haiku for premium.
+    # Rollback: set HOSTED_NARRATOR_ENABLED=false to fall back to SLM/OpenRouter.
+    if os.getenv("HOSTED_NARRATOR_ENABLED", "false").lower() == "true":
+        hn_key = os.getenv("HOSTED_NARRATOR_API_KEY") or os.getenv("OPENROUTER_API_KEY")
+        if hn_key:
+            hn_base = os.getenv("HOSTED_NARRATOR_BASE_URL", "https://openrouter.ai/api/v1")
+            hn_model = os.getenv("HOSTED_NARRATOR_MODEL", "deepseek/deepseek-chat")
+            logger.debug("HOSTED_NARRATOR_ENABLED — routing narrative to %s at %s", hn_model, hn_base)
+            return BillingConfig(
+                api_key=hn_key,
+                model=hn_model,
+                base_url=hn_base,
+                is_byok=False,
+                is_hosted_narrator=True,
+                player_id=player_id,
+            )
+        logger.warning("HOSTED_NARRATOR_ENABLED but no API key set — falling through")
+
     # SLM integration — routes narrative to local fine-tuned model (aerum-narrator).
     # Rollback: set SLM_ENABLED=false in .env to return to OpenRouter instantly.
     if os.getenv("SLM_ENABLED", "false").lower() == "true":

@@ -83,9 +83,10 @@ async def lifespan(_app: FastAPI):
     load_recipes()
     bestiary_count = await vector_store.ingest_bestiary()
     world_count = await vector_store.ingest_world_lore()
+    narration_count = await vector_store.ingest_narration_examples()
     logger.info(
-        "Startup complete. ChromaDB: %d bestiary + %d world lore docs",
-        bestiary_count, world_count,
+        "Startup complete. ChromaDB: %d bestiary + %d world lore + %d narration examples",
+        bestiary_count, world_count, narration_count,
     )
     yield
 

@@ -249,3 +249,95 @@ async def retrieve_lore(query: str, n_results: int = 3) -> LoreResult:
     documents = results.get("documents", [[]])[0] or []
     metadatas = results.get("metadatas", [[]])[0] or []
     return LoreResult(documents=documents, metadatas=metadatas)
+
+
+# ── Narration examples (RAG for the hosted narrator) ────────────────────────
+# A curated, gate-passing bank of (player_action -> narration) pairs, indexed by
+# the player action so the most SIMILAR situations are retrieved as few-shot
+# examples — teaching the hosted model the per-scene length + voice on the fly.
+
+NARRATION_COLLECTION = "aerus_narration_examples"
+_narration_collection: chromadb.Collection | None = None
+_NARRATION_SOURCE = Path("config/narration_examples.jsonl")
+
+
+def _get_narration_collection() -> chromadb.Collection:
+    global _narration_collection
+    if _narration_collection is None:
+        _narration_collection = _get_client().get_or_create_collection(
+            name=NARRATION_COLLECTION,
+            metadata={"hnsw:space": "cosine"},
+        )
+    return _narration_collection
+
+
+async def ingest_narration_examples(path: str | Path = _NARRATION_SOURCE) -> int:
+    """Ingest the curated narration examples (JSONL) into ChromaDB. Idempotent.
+
+    Each line: {"input": str, "narration": str, "scene_type": str, "tension": int}
+    The document embedded is the player action (input); the narration is stored in
+    metadata and returned at retrieval time.
+    """
+    import json
+
+    collection = _get_narration_collection()
+    if collection.count() > 0:
+        logger.info("Narration examples already ingested (%d) - skipping", collection.count())
+        return collection.count()
+
+    p = Path(path)
+    if not p.exists():
+        logger.warning("Narration examples file not found: %s", p)
+        return 0
+
+    ids, docs, metas = [], [], []
+    for i, line in enumerate(p.read_text(encoding="utf-8").splitlines()):
+        line = line.strip()
+        if not line:
+            continue
+        e = json.loads(line)
+        inp, narr = e.get("input", ""), e.get("narration", "")
+        if not inp or not narr:
+            continue
+        ids.append(f"narr_{i}")
+        docs.append(inp)
+        metas.append({
+            "narration": narr,
+            "scene_type": e.get("scene_type", "unknown"),
+            "tension": int(e.get("tension", 5)),
+        })
+
+    for i in range(0, len(ids), 100):
+        collection.add(ids=ids[i:i + 100], documents=docs[i:i + 100], metadatas=metas[i:i + 100])
+    logger.info("Narration examples ingestion complete: %d in ChromaDB", len(ids))
+    return len(ids)
+
+
+async def retrieve_narration_examples(
+    query: str, scene_type: str | None = None, n_results: int = 3
+) -> list[dict[str, str]]:
+    """Return up to n similar curated examples as [{input, narration}, ...].
+
+    Filters by scene_type when provided (and available), else falls back to pure
+    semantic similarity on the player action.
+    """
+    collection = _get_narration_collection()
+    if collection.count() == 0:
+        return []
+
+    where = {"scene_type": scene_type} if scene_type else None
+    try:
+        results = collection.query(
+            query_texts=[query or "narração"],
+            n_results=min(n_results, collection.count()),
+            where=where,
+        )
+    except Exception:  # noqa: BLE001 - fall back to unfiltered on any query error
+        results = collection.query(query_texts=[query or "narração"], n_results=n_results)
+
+    docs = results.get("documents", [[]])[0] or []
+    metas = results.get("metadatas", [[]])[0] or []
+    out: list[dict[str, str]] = []
+    for doc, meta in zip(docs, metas):
+        out.append({"input": doc, "narration": str(meta.get("narration", ""))})
+    return out

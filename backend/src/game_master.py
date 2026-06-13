@@ -23,6 +23,7 @@ from .debug_tools import clip_text, log_debug, log_flow, summarize_payload
 from . import memory_manager
 from . import local_llm
 from . import state_manager, travel_manager, vector_store
+from . import hosted_narrator
 from .application.billing.billing_router import select_billing_config
 from .context_builder import build_context, build_gm_system_prompt, build_slm_system_prompt
 from .infrastructure.config.config_loader import get_campaign_value as _get_campaign_value
@@ -509,6 +510,38 @@ async def process_batch(
             )
             thinking_task.cancel()
             full_response, _ = await _stream_slm_narrative(billing, slm_messages)
+            await cm.manager.broadcast({"type": WSMessageType.STREAM_END})
+            gm_response = await _extract_game_state_b1(
+                conn, full_response, batch, context, current_tension, valid_player_ids
+            )
+        elif billing and billing.is_hosted_narrator:
+            # ── Hosted frontier narrator + RAG + guardrail (see DECISAO_NARRADOR.md) ──
+            # Frontier model narrates (DeepSeek/Haiku); curated 794 examples are RAG;
+            # a guardrail validates each output; the Ollama extractor builds game_state.
+            thinking_task.cancel()
+            loc_match = re.match(r"Current location:\s*(.+)", context.l2_state or "")
+            location = loc_match.group(1).strip() if loc_match else "Aerus"
+            player_name = batch.actions[0].player_name if batch.actions else "Jogador"
+            player_names = [a.player_name for a in batch.actions]
+            rag_examples = await vector_store.retrieve_narration_examples(user_message, n_results=3)
+            result = await hosted_narrator.narrate(
+                api_key=billing.api_key,
+                base_url=billing.base_url,
+                model=billing.model,
+                user_message=user_message,
+                rag_examples=rag_examples,
+                location=location,
+                tension=current_tension,
+                language=language,
+                player_name=player_name,
+                player_names=player_names,
+            )
+            full_response = result["text"]
+
+            async def _stream_once() -> AsyncIterator[str]:
+                yield full_response
+
+            await cm.manager.broadcast_stream(_stream_once())
             await cm.manager.broadcast({"type": WSMessageType.STREAM_END})
             gm_response = await _extract_game_state_b1(
                 conn, full_response, batch, context, current_tension, valid_player_ids
