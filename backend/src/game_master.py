@@ -515,7 +515,7 @@ async def process_batch(
                 conn, full_response, batch, context, current_tension, valid_player_ids
             )
         elif billing and billing.is_hosted_narrator:
-            # ── Hosted frontier narrator + RAG + guardrail (see DECISAO_NARRADOR.md) ──
+            # ── Hosted frontier narrator + RAG + guardrail (see docs/GAP_ANALYSIS_NARRATOR.md) ──
             # Frontier model narrates (DeepSeek/Haiku); curated 794 examples are RAG;
             # a guardrail validates each output; the Ollama extractor builds game_state.
             thinking_task.cancel()

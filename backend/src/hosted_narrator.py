@@ -1,6 +1,6 @@
 """hosted_narrator.py - Hosted frontier narrator (DeepSeek/Haiku) with RAG + guardrail.
 
-Why this exists: a controlled investigation (see aerum-narrator/DECISAO_NARRADOR.md)
+Why this exists: a controlled investigation (see docs/GAP_ANALYSIS_NARRATOR.md)
 showed that a cheap hosted model + the curated 794 examples as RAG + a deterministic
 guardrail beats a locally fine-tuned SLM on human-judged quality, at a fraction of the
 cost/effort. This module is that narrator.
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 GLOBAL_MAX_SENTENCES = 6  # soft sanity ceiling; per-scene length comes from RAG examples
 
-# Kept in sync with aerum-narrator/eval/cliche_detection.py + the narration bible.
+# Cliché blocklist — kept in sync with the narration bible (config/narration_bible.md).
 _FORBIDDEN = [
     "você sente", "você percebe", "você nota", "sua mente", "seu coração",
     "no fundo do seu ser", "algo dentro de você", "você treme", "você hesita",
