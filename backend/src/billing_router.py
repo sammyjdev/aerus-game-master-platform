@@ -40,7 +40,7 @@ def select_billing_config(
     Phase 3 (SLM): route to local fine-tuned model when SLM_ENABLED=true.
     """
     # Hosted narrator — frontier model + RAG + guardrail (the recommended path; see
-    # aerum-narrator/DECISAO_NARRADOR.md). DeepSeek for value, Haiku for premium.
+    # docs/GAP_ANALYSIS_NARRATOR.md). DeepSeek for value, Haiku for premium.
     # Rollback: set HOSTED_NARRATOR_ENABLED=false to fall back to SLM/OpenRouter.
     if os.getenv("HOSTED_NARRATOR_ENABLED", "false").lower() == "true":
         hn_key = os.getenv("HOSTED_NARRATOR_API_KEY") or os.getenv("OPENROUTER_API_KEY")
@@ -58,8 +58,9 @@ def select_billing_config(
             )
         logger.warning("HOSTED_NARRATOR_ENABLED but no API key set — falling through")
 
-    # SLM integration — routes narrative to local fine-tuned model (aerum-narrator).
-    # Rollback: set SLM_ENABLED=false in .env to return to OpenRouter instantly.
+    # SLM integration ("B1" path) — routes narrative to a local fine-tuned model.
+    # Dormant by default and superseded by the hosted narrator above; see
+    # docs/GAP_ANALYSIS_NARRATOR.md. Rollback: set SLM_ENABLED=false to return to OpenRouter.
     if os.getenv("SLM_ENABLED", "false").lower() == "true":
         slm_base_url = os.getenv("SLM_BASE_URL", "http://localhost:8001/v1")
         slm_model = os.getenv("SLM_MODEL", "aerum-gm")

@@ -677,7 +677,7 @@ def build_slm_system_prompt(
 
     The SLM specialises in narrative prose only.  game_state is extracted
     separately by the extractor model after the narrative is streamed.
-    Format must stay in sync with aerum-narrator/generator/_build_slm_components().
+    The prompt format mirrors the layout the local narrator model was fine-tuned on.
     """
     kernel = _sanitize_slm_kernel(load_narration_bible_kernel())
     language_name = "Brazilian Portuguese" if language == "pt" else "English"

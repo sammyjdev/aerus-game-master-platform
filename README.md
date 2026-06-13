@@ -20,6 +20,21 @@ The project combines:
 
 The main flow already covers invite-based authentication, character creation, isekai intro, the core gameplay loop with streaming narrative, the initial cooperative mission, macros, aliases, debug tools, audio, and basic travel tracking.
 
+## The narrator: a build-vs-buy investigation
+
+The most interesting engineering story in this repo is how the GM narrator is generated — and it is a build-vs-buy decision settled by evidence, not opinion.
+
+The original plan was to **build**: fine-tune a local Small Language Model (Mistral 7B→12B) on a consumer GPU to act as the narrator, for "zero marginal cost and a model that's all mine." After curating **794 high-quality examples**, fixing a one-line training bug (`completion_only_loss`), and pushing the fine-tune as far as it would go, the local model plateaued at roughly two-thirds quality — and a **blind human A/B test** showed it losing to cheap hosted frontier models it had never been trained on.
+
+The decision flipped to **buy**, with a twist: the 794 curated examples were **too valuable to throw away**, so instead of using them as *training data* they became a **RAG bank**. The shipping narrator is now a cheap hosted frontier model (DeepSeek for value, Claude Haiku for premium) conditioned on those examples via RAG and validated by a small deterministic guardrail (~50 lines). It delivered higher human-judged quality at a fraction of the cost and effort.
+
+The lesson: the value was never in the model — it was in **knowing what "good" looks like and having a way to measure and enforce it**. The curated dataset, the voice spec, and the guardrail outlived the model they were built for.
+
+- Full investigation: [`docs/GAP_ANALYSIS_NARRATOR.md`](docs/GAP_ANALYSIS_NARRATOR.md)
+- Narrative write-up: [`docs/ARTIGO_LINKEDIN_CORE.md`](docs/ARTIGO_LINKEDIN_CORE.md)
+- Shipping implementation: [`backend/src/hosted_narrator.py`](backend/src/hosted_narrator.py) (toggled via `HOSTED_NARRATOR_ENABLED`)
+- The dormant local-SLM path ("B1") is preserved behind `SLM_ENABLED=false` as a documented fallback.
+
 ## Repository structure
 
 ```text
@@ -70,6 +85,12 @@ For task-oriented AI workflows (Specs, Rules, Agent playbooks, Skills, Harness, 
 
 ## Local setup
 
+> **Cross-platform note.** The commands below use Windows PowerShell. On macOS/Linux,
+> substitute the virtualenv path `.venv\Scripts\` → `.venv/bin/` (so e.g.
+> `.venv\Scripts\python` becomes `.venv/bin/python`, or just `source .venv/bin/activate`
+> once and call `python`/`pip`/`uvicorn` directly), and replace `Copy-Item a b` with
+> `cp a b`. Everything else is identical.
+
 ### 1. Backend
 
 ```powershell
@@ -79,6 +100,20 @@ python -m venv .venv
 .venv\Scripts\pip install chromadb --prefer-binary
 .venv\Scripts\pip install -r requirements.txt
 Copy-Item .env.example .env
+```
+
+macOS/Linux equivalent:
+
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install chromadb --prefer-binary
+pip install -r requirements.txt
+cp .env.example .env
+# then run the server with:
+python -m uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --env-file .env
 ```
 
 Fill at least these variables in `backend/.env`:
@@ -367,4 +402,4 @@ Selected repository name:
 
 ## License
 
-Define before making the repository public on GitHub.
+Released under the [MIT License](LICENSE).
