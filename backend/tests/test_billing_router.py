@@ -1,6 +1,6 @@
 """
-test_billing_router.py — Testes do billing_router.py.
-Cobre seleção de modelo por tension_level e fallback de chaves.
+test_billing_router.py — Tests for billing_router.py.
+Covers model selection by tension_level and key fallback.
 """
 import os
 from unittest.mock import patch
@@ -15,7 +15,7 @@ from src.billing_router import (
 )
 
 # ---------------------------------------------------------------------------
-# Constantes de teste
+# Test constants
 # ---------------------------------------------------------------------------
 
 ADMIN_KEY = "sk-admin-test-key"
@@ -31,7 +31,7 @@ HIGH_MODEL = "anthropic/claude-opus-4-6"
 # ---------------------------------------------------------------------------
 
 class TestSelectModelPhase1:
-    """Fase 1 sempre usa o modelo padrão econômico independente da tensão."""
+    """Phase 1 always uses the economical default model regardless of tension."""
 
     def _call(self, tension: int) -> str:
         with patch("src.billing_router.get_campaign_value") as mock_cv:
@@ -51,7 +51,7 @@ class TestSelectModelPhase1:
         assert self._call(10) == PHASE1_DEFAULT_MODEL
 
     def test_returns_campaign_default_model(self):
-        """Modelo vem do campaign.yaml, não hardcoded."""
+        """The model comes from campaign.yaml, not hardcoded."""
         with patch("src.billing_router.get_campaign_value") as mock_cv:
             mock_cv.side_effect = lambda key, default=None: {
                 "model_selection.default": "custom/model-x",
@@ -82,11 +82,11 @@ class TestSelectModelByTension:
 
 
 # ---------------------------------------------------------------------------
-# select_billing_config — sem BYOK
+# select_billing_config — without BYOK
 # ---------------------------------------------------------------------------
 
 class TestSelectBillingConfigAdminKey:
-    """Quando não há BYOK, deve usar a chave admin do ambiente."""
+    """When there is no BYOK, it must use the admin key from the environment."""
 
     def test_uses_admin_key_when_no_byok(self):
         with patch.dict(os.environ, {"OPENROUTER_API_KEY": ADMIN_KEY}):
@@ -127,7 +127,7 @@ class TestSelectBillingConfigAdminKey:
         assert "openrouter.ai" in config.base_url
 
     def test_raises_when_no_admin_key_and_no_byok(self):
-        """Sem OPENROUTER_API_KEY e sem BYOK deve levantar RuntimeError."""
+        """Without OPENROUTER_API_KEY and without BYOK it must raise RuntimeError."""
         env = {k: v for k, v in os.environ.items() if k != "OPENROUTER_API_KEY"}
         with patch.dict(os.environ, env, clear=True):
             with pytest.raises(RuntimeError, match="OPENROUTER_API_KEY"):
@@ -147,11 +147,11 @@ class TestSelectBillingConfigAdminKey:
 
 
 # ---------------------------------------------------------------------------
-# select_billing_config — com BYOK
+# select_billing_config — with BYOK
 # ---------------------------------------------------------------------------
 
 class TestSelectBillingConfigBYOK:
-    """Quando BYOK é fornecido e válido, deve preferir a chave do jogador."""
+    """When BYOK is provided and valid, it must prefer the player's key."""
 
     ENCRYPTED = "fernet-encrypted-key"
     DECRYPTED = "sk-player-real-key"
@@ -175,7 +175,7 @@ class TestSelectBillingConfigBYOK:
         assert config.player_id == "pid-1"
 
     def test_byok_invalid_key_falls_back_to_admin(self):
-        """Se decrypt falhar com ValueError, deve usar chave admin como fallback."""
+        """If decrypt fails with ValueError, it must use the admin key as fallback."""
         with patch("src.billing_router.decrypt_api_key", side_effect=ValueError("bad key")):
             with patch.dict(os.environ, {"OPENROUTER_API_KEY": ADMIN_KEY}):
                 with patch("src.billing_router.get_campaign_value") as mock_cv:
@@ -194,7 +194,7 @@ class TestSelectBillingConfigBYOK:
         assert config.is_byok is False
 
     def test_byok_none_uses_admin(self):
-        """player_byok_encrypted=None deve usar admin sem tentar decrypt."""
+        """player_byok_encrypted=None must use admin without attempting decrypt."""
         with patch.dict(os.environ, {"OPENROUTER_API_KEY": ADMIN_KEY}):
             with patch("src.billing_router.get_campaign_value") as mock_cv:
                 mock_cv.return_value = {
@@ -213,12 +213,12 @@ class TestSelectBillingConfigBYOK:
 
 
 # ---------------------------------------------------------------------------
-# BUG: tension_level hardcoded em _resolve_billing do game_master
+# BUG: tension_level hardcoded in game_master's _resolve_billing
 # ---------------------------------------------------------------------------
 
 class TestPhase1ModelFunctionStillDeterministic:
     """
-    Documenta função legada da Fase 1 (ainda disponível por compatibilidade).
+    Documents the legacy Phase 1 function (still available for compatibility).
     """
 
     def test_phase1_model_ignores_tension_level(self):

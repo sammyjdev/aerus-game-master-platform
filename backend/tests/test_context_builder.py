@@ -1,6 +1,6 @@
 """
-test_context_builder.py — Testes do context_builder.py.
-Cobre construção de camadas L0, L1 e utilitários de lore.
+test_context_builder.py — Tests for context_builder.py.
+Covers building the L0 and L1 layers and the lore utilities.
 """
 from pathlib import Path
 from unittest.mock import patch
@@ -16,12 +16,12 @@ from src.models import LoreResult
 
 
 # ---------------------------------------------------------------------------
-# L0 — kernel estático
+# L0 — static kernel
 # ---------------------------------------------------------------------------
 
 class TestBuildL0Static:
     def test_build_l0_uses_kernel_not_world_md(self):
-        """_build_l0_static deve usar load_world_kernel, não load_world_md."""
+        """_build_l0_static must use load_world_kernel, not load_world_md."""
         with patch("src.context_builder.load_world_kernel", return_value="kernel content here") as mock_kernel:
             result = _build_l0_static()
 
@@ -40,7 +40,7 @@ class TestBuildL0Static:
 
 
 # ---------------------------------------------------------------------------
-# L1 — configuração de campanha
+# L1 — campaign configuration
 # ---------------------------------------------------------------------------
 
 class TestBuildL1Campaign:
@@ -77,17 +77,17 @@ class TestBuildL1Campaign:
 
 class TestLoreCharLimit:
     def test_lore_char_limit_is_expanded(self):
-        """_LORE_CHAR_LIMIT deve ser exatamente 3200."""
+        """_LORE_CHAR_LIMIT must be exactly 3200."""
         assert _LORE_CHAR_LIMIT == 3200
 
 
 # ---------------------------------------------------------------------------
-# _build_lore_text — truncamento por documento
+# _build_lore_text — per-document truncation
 # ---------------------------------------------------------------------------
 
 class TestBuildLoreText:
     def test_build_lore_text_truncates_per_doc(self):
-        """Cada documento deve ser truncado a ~600 chars individualmente."""
+        """Each document must be truncated to ~600 chars individually."""
         doc_content = "a" * 800
         lore = LoreResult(
             documents=[doc_content, doc_content],
@@ -96,9 +96,9 @@ class TestBuildLoreText:
 
         result = _build_lore_text(lore)
 
-        # O conteúdo original de 800 chars não deve aparecer intacto
+        # The original 800-char content must not appear intact
         assert "a" * 800 not in result
-        # Mas os primeiros 600 chars devem estar presentes (via truncagem)
+        # But the first 600 chars must still be present (via truncation)
         assert "a" * 600 in result
 
 

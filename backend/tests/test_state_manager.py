@@ -1,7 +1,7 @@
 ﻿"""
-test_state_manager.py â€” Testes de integraÃ§Ã£o para state_manager.py.
-Usa banco SQLite em arquivo temporÃ¡rio (nÃ£o in-memory) para simular WAL mode.
-Cobre: invites, players, history, world_state, memory, delta de estado.
+test_state_manager.py — Integration tests for state_manager.py.
+Uses a file-based SQLite database (not in-memory) to simulate WAL mode.
+Covers: invites, players, history, world_state, memory, state delta.
 """
 import json
 import uuid
@@ -24,7 +24,7 @@ from src.state_manager import (
 # ---------------------------------------------------------------------------
 
 def _make_row(**kwargs) -> dict:
-    """Substituto de aiosqlite.Row para testar funÃ§Ãµes puras."""
+    """Stand-in for aiosqlite.Row to test pure functions."""
     defaults = {
         "current_hp": 100, "max_hp": 100,
         "current_mp": 50,  "max_mp": 50,
@@ -37,14 +37,14 @@ def _make_row(**kwargs) -> dict:
 
 
 async def _seed_player(conn, player_id="player-1", username=None, pw_hash="testhash"):
-    """Cria e retorna um jogador base."""
+    """Create and return a base player."""
     username = username or f"user-{player_id}"
     await state_manager.create_player(conn, player_id, username, pw_hash)
     return player_id
 
 
 async def _seed_character(conn, player_id="player-1", username=None):
-    """Cria jogador com personagem completo."""
+    """Create a player with a fully configured character."""
     await _seed_player(conn, player_id, username=username)
     await state_manager.set_character(
         conn,
@@ -80,18 +80,18 @@ async def test_init_db_creates_all_tables(db):
 
 
 async def test_init_db_is_idempotent(db, tmp_db, monkeypatch):
-    """Chamar init_db duas vezes nÃ£o deve falhar nem duplicar tabelas."""
+    """Calling init_db twice should not fail or duplicate tables."""
     monkeypatch.setattr(state_manager, "DB_PATH", tmp_db)
-    await state_manager.init_db()  # segunda chamada
+    await state_manager.init_db()  # second call
     async with db.execute(
         "SELECT COUNT(*) as n FROM sqlite_master WHERE type='table'"
     ) as cursor:
         row = await cursor.fetchone()
-    assert row["n"] >= 13  # sem duplicatas extras
+    assert row["n"] >= 13  # no extra duplicates
 
 
 async def test_wal_mode_is_active(db):
-    """WAL mode deve estar ativo na conexÃ£o fornecida pelo fixture."""
+    """WAL mode must be active on the connection provided by the fixture."""
     async with db.execute("PRAGMA journal_mode") as cursor:
         row = await cursor.fetchone()
     assert row[0] == "wal"
@@ -128,7 +128,7 @@ async def test_redeem_nonexistent_invite_fails(db):
 
 
 # ---------------------------------------------------------------------------
-# Players â€” CRUD
+# Players — CRUD
 # ---------------------------------------------------------------------------
 
 async def test_create_player_and_retrieve_by_username(db):
@@ -154,11 +154,11 @@ async def test_get_player_nonexistent_returns_none(db):
 
 
 async def test_get_all_alive_players_only_with_name(db):
-    """get_all_alive_players deve excluir jogadores sem personagem criado."""
+    """get_all_alive_players must exclude players without a created character."""
     pid1 = str(uuid.uuid4())
     pid2 = str(uuid.uuid4())
 
-    # pid1: tem personagem; pid2: sÃ³ conta, sem nome
+    # pid1: has a character; pid2: account only, no name
     await _seed_character(db, player_id=pid1)
     await _seed_player(db, player_id=pid2, username="sem-personagem")
 
@@ -171,7 +171,7 @@ async def test_get_all_alive_players_only_with_name(db):
 
 async def test_get_all_alive_players_excludes_dead(db):
     pid = await _seed_character(db)
-    # Mata o jogador diretamente
+    # Kill the player directly
     await db.execute("UPDATE players SET status = 'dead' WHERE player_id = ?", (pid,))
     await db.commit()
 
@@ -197,7 +197,7 @@ async def test_set_character_sets_max_hp(db):
 
 
 # ---------------------------------------------------------------------------
-# apply_state_delta â€” integraÃ§Ã£o
+# apply_state_delta — integration
 # ---------------------------------------------------------------------------
 
 async def test_apply_state_delta_reduces_hp(db):
@@ -226,9 +226,9 @@ async def test_apply_state_delta_hp_zero_marks_player_dead(db):
 
 async def test_apply_state_delta_hp_cannot_exceed_max(db):
     pid = await _seed_character(db)
-    # Reduz HP para 50 primeiro
+    # Reduce HP to 50 first
     await state_manager.apply_state_delta(db, pid, {"hp_change": -70})
-    # Tenta curar 9999 â€” nÃ£o pode ultrapassar max_hp
+    # Try to heal 9999 — cannot exceed max_hp
     await state_manager.apply_state_delta(db, pid, {"hp_change": 9999})
 
     row = await state_manager.get_player_by_id(db, pid)
@@ -237,7 +237,7 @@ async def test_apply_state_delta_hp_cannot_exceed_max(db):
 
 async def test_apply_state_delta_experience_gain_and_level_up(db):
     pid = await _seed_character(db)
-    # NÃ­vel 1 precisa de 100 XP para avanÃ§ar (_xp_threshold(1) == 100)
+    # Level 1 needs 100 XP to advance (_xp_threshold(1) == 100)
     await state_manager.apply_state_delta(db, pid, {"experience_gain": 150})
 
     row = await state_manager.get_player_by_id(db, pid)
@@ -255,22 +255,22 @@ async def test_apply_state_delta_attribute_changes(db):
 
 
 async def test_apply_state_delta_missing_player_is_noop(db):
-    """Delta para player inexistente nÃ£o deve levantar exceÃ§Ã£o."""
+    """A delta for a nonexistent player must not raise an exception."""
     await state_manager.apply_state_delta(db, "player-inexistente", {"hp_change": -10})
 
 
 # ---------------------------------------------------------------------------
-# apply_state_delta â€” inventory e conditions (bugs corrigidos)
+# apply_state_delta — inventory and conditions (fixed bugs)
 # ---------------------------------------------------------------------------
 
 async def test_apply_state_delta_inventory_add_persists(db):
-    """inventory_add deve inserir itens na tabela inventory."""
+    """inventory_add must insert items into the inventory table."""
     pid = await _seed_character(db)
     item_id = str(uuid.uuid4())
     item = {
         "item_id": item_id,
         "name": "Espada das Cinzas",
-        "description": "Forjada nas ruÃ­nas.",
+        "description": "Forjada nas ruínas.",
         "rarity": "epico",
         "quantity": 1,
         "equipped": False,
@@ -285,10 +285,10 @@ async def test_apply_state_delta_inventory_add_persists(db):
 
 
 async def test_apply_state_delta_inventory_remove(db):
-    """inventory_remove deve excluir itens pelo item_id."""
+    """inventory_remove must delete items by item_id."""
     pid = await _seed_character(db)
     item_id = str(uuid.uuid4())
-    item = {"item_id": item_id, "name": "PoÃ§Ã£o", "description": "", "rarity": "comum", "quantity": 1, "equipped": False}
+    item = {"item_id": item_id, "name": "Poção", "description": "", "rarity": "comum", "quantity": 1, "equipped": False}
 
     await state_manager.apply_state_delta(db, pid, {"inventory_add": [item]})
     await state_manager.apply_state_delta(db, pid, {"inventory_remove": [item_id]})
@@ -298,7 +298,7 @@ async def test_apply_state_delta_inventory_remove(db):
 
 
 async def test_apply_state_delta_inventory_add_upserts_quantity(db):
-    """Adicionar o mesmo item_id atualiza a quantidade, nÃ£o duplica."""
+    """Adding the same item_id updates the quantity instead of duplicating."""
     pid = await _seed_character(db)
     item_id = str(uuid.uuid4())
     item = {"item_id": item_id, "name": "Seta", "description": "", "rarity": "comum", "quantity": 10, "equipped": False}
@@ -313,7 +313,7 @@ async def test_apply_state_delta_inventory_add_upserts_quantity(db):
 
 
 async def test_conditions_table_has_is_buff_column(db):
-    """A tabela conditions deve ter a coluna is_buff apÃ³s a migration."""
+    """The conditions table must have the is_buff column after the migration."""
     async with db.execute("PRAGMA table_info(conditions)") as cursor:
         rows = await cursor.fetchall()
     columns = {r["name"] for r in rows}
@@ -321,7 +321,7 @@ async def test_conditions_table_has_is_buff_column(db):
 
 
 async def test_apply_state_delta_conditions_add_persists(db):
-    """conditions_add deve inserir condiÃ§Ãµes na tabela conditions."""
+    """conditions_add must insert conditions into the conditions table."""
     pid = await _seed_character(db)
     cond_id = str(uuid.uuid4())
     cond = {
@@ -342,11 +342,11 @@ async def test_apply_state_delta_conditions_add_persists(db):
 
 
 async def test_apply_state_delta_conditions_buff_flag(db):
-    """is_buff deve ser corretamente armazenado como 1 para buffs."""
+    """is_buff must be correctly stored as 1 for buffs."""
     pid = await _seed_character(db)
     cond = {
         "condition_id": str(uuid.uuid4()),
-        "name": "BÃªnÃ§Ã£o",
+        "name": "Bênção",
         "description": "+2 em todos os testes.",
         "duration_turns": 5,
         "applied_at_turn": 1,
@@ -359,7 +359,7 @@ async def test_apply_state_delta_conditions_buff_flag(db):
 
 
 async def test_apply_state_delta_conditions_remove(db):
-    """conditions_remove deve excluir condiÃ§Ãµes pelo condition_id."""
+    """conditions_remove must delete conditions by condition_id."""
     pid = await _seed_character(db)
     cond_id = str(uuid.uuid4())
     cond = {"condition_id": cond_id, "name": "Lento", "description": "", "duration_turns": 2, "applied_at_turn": 1, "is_buff": False}
@@ -398,7 +398,7 @@ async def test_process_condition_turn_ticks_damage_and_expires(db):
 
 
 # ---------------------------------------------------------------------------
-# get_player_inventory e get_player_conditions
+# get_player_inventory and get_player_conditions
 # ---------------------------------------------------------------------------
 
 async def test_get_player_inventory_empty(db):
@@ -424,7 +424,7 @@ async def test_get_player_inventory_multiple_items(db):
 
 
 # ---------------------------------------------------------------------------
-# FunÃ§Ãµes puras â€” _apply_resource_changes / _apply_xp_and_attrs
+# Pure functions — _apply_resource_changes / _apply_xp_and_attrs
 # ---------------------------------------------------------------------------
 
 def test_apply_resource_changes_normal_damage():
@@ -482,21 +482,21 @@ def test_apply_xp_and_attrs_triggers_level_up():
     row = _make_row(experience=80, level=1)
     attrs = {}
     exp, level, _ap, _pp = _apply_xp_and_attrs(row, {"experience_gain": 50}, attrs)
-    # 80 + 50 = 130 >= 100 (threshold nível 1) → level up, residual = 30
+    # 80 + 50 = 130 >= 100 (level 1 threshold) → level up, residual = 30
     assert level == 2
     assert exp == 30
 
 
 def test_apply_xp_and_attrs_attribute_floor_is_10():
-    """Atributo não pode cair abaixo de 10."""
+    """An attribute cannot drop below 10."""
     row = _make_row(experience=0, level=1)
     attrs = {"strength": 10}
     _exp, _lvl, _ap, _pp = _apply_xp_and_attrs(row, {"attribute_changes": {"strength": -50}}, attrs)
-    assert attrs["strength"] == 10  # clampado
+    assert attrs["strength"] == 10  # clamped
 
 
 def test_apply_xp_and_attrs_ignores_unknown_attributes():
-    """Delta de atributos desconhecidos não deve inserir chaves novas."""
+    """A delta for unknown attributes must not insert new keys."""
     row = _make_row(experience=0, level=1)
     attrs = {"strength": 10}
     _exp, _lvl, _ap, _pp = _apply_xp_and_attrs(row, {"attribute_changes": {"luck": 5}}, attrs)
@@ -511,20 +511,20 @@ async def test_append_history_and_retrieve_in_order(db):
     h1, h2, h3 = str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
     await state_manager.append_history(db, h1, turn_number=1, role="user", content="Ataco o goblin")
     await state_manager.append_history(db, h2, turn_number=1, role="assistant", content="O goblin morre.")
-    await state_manager.append_history(db, h3, turn_number=2, role="user", content="AvanÃ§o para a caverna.")
+    await state_manager.append_history(db, h3, turn_number=2, role="user", content="Avanço para a caverna.")
 
     rows = await state_manager.get_recent_history(db, limit=10)
 
     assert len(rows) == 3
     assert rows[0]["role"] == "user"
     assert rows[0]["content"] == "Ataco o goblin"
-    assert rows[-1]["content"] == "AvanÃ§o para a caverna."
+    assert rows[-1]["content"] == "Avanço para a caverna."
 
 
 async def test_get_recent_history_respects_limit(db):
     for i in range(15):
         await state_manager.append_history(
-            db, str(uuid.uuid4()), turn_number=i, role="user", content=f"AÃ§Ã£o {i}"
+            db, str(uuid.uuid4()), turn_number=i, role="user", content=f"Ação {i}"
         )
     rows = await state_manager.get_recent_history(db, limit=10)
     assert len(rows) == 10
@@ -751,7 +751,7 @@ async def test_resolve_dice_roll_accept_with_bonus(db):
         roll_id=roll_id,
         verdict="accept_with_bonus",
         circumstance_bonus=2,
-        explanation="BÃ´nus aceito.",
+        explanation="Bônus aceito.",
     )
 
     assert row is not None
@@ -764,7 +764,7 @@ async def test_set_and_get_character_macros(db):
     pid = await _seed_character(db)
     macros = [
         {"name": "/corte", "template": "Executo um corte horizontal."},
-        {"name": "/estocar", "template": "FaÃ§o uma estocada precisa."},
+        {"name": "/estocar", "template": "Faço uma estocada precisa."},
     ]
 
     ok = await state_manager.set_character_macros(db, pid, macros)
@@ -799,7 +799,7 @@ async def test_seed_starter_inventory_creates_default_items_and_weight(db):
 async def test_set_and_get_spell_aliases(db):
     pid = await _seed_character(db)
     aliases = {
-        "fogo": "LÃ¢mina Rubra",
+        "fogo": "Lâmina Rubra",
         "ar": "Corte de Vendaval",
     }
 

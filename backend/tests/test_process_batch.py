@@ -1,8 +1,8 @@
 ﻿"""
-test_process_batch.py â€” Teste de integraÃ§Ã£o do pipeline completo do game loop.
+test_process_batch.py — Integration test for the full game-loop pipeline.
 
-Testa process_batch com LLM mockado: verifica que parse, aplicaÃ§Ã£o de delta,
-histÃ³rico e broadcasts ocorrem corretamente sem chamadas de rede reais.
+Tests process_batch with a mocked LLM: verifies that parsing, delta application,
+history, and broadcasts happen correctly without real network calls.
 """
 from __future__ import annotations
 
@@ -46,7 +46,7 @@ def _make_batch(player_id: str, text: str = "Ataco o goblin.") -> ActionBatch:
     )
 
 
-# Resposta simulada de LLM com estrutura completa
+# Simulated LLM response with the complete structure
 def _make_llm_response(player_id: str) -> str:
     delta = json.dumps({player_id: {"hp_change": -20, "experience_gain": 30}})
     return (
@@ -64,7 +64,7 @@ def _make_llm_response(player_id: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Testes de _apply_deltas_and_events
+# Tests for _apply_deltas_and_events
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
@@ -85,11 +85,11 @@ async def test_apply_deltas_updates_hp_in_db(db):
 
         await _apply_deltas_and_events(db, gm_response)
 
-    # Verifica que HP foi reduzido no banco
+    # Verify HP was reduced in the database
     row = await state_manager.get_player_by_id(db, player_id)
     assert row["current_hp"] == 80
 
-    # Verifica que state_update foi broadcast
+    # Verify state_update was broadcast
     state_updates = [c for c in broadcast_calls if c.get("type") == "state_update"]
     assert len(state_updates) == 1
 
@@ -110,7 +110,7 @@ async def test_apply_deltas_broadcasts_dice_roll(db):
 
         await _apply_deltas_and_events(db, gm_response)
 
-    # dice_roll broadcast foi chamado uma vez
+    # dice_roll broadcast was called once
     mock_manager.broadcast_dice_roll.assert_called_once()
     call_arg = mock_manager.broadcast_dice_roll.call_args[0][0]
     assert call_arg["is_critical"] is True   # result == die
@@ -145,7 +145,7 @@ async def test_apply_deltas_broadcasts_game_event(db):
     player_id = await _seed_player(db)
 
     gm_response = GMResponse(
-        narrative="Kael subiu de nÃ­vel!",
+        narrative="Kael subiu de nível!",
         game_events=[{"type": "LEVELUP", "player_id": player_id, "player_name": "Kael", "new_level": 2}],
     )
 
@@ -167,7 +167,7 @@ async def test_apply_deltas_persists_tension_level(db):
     await _seed_player(db)
 
     gm_response = GMResponse(
-        narrative="A pressÃ£o aumenta.",
+        narrative="A pressão aumenta.",
         tension_level=8,
     )
 
@@ -194,7 +194,7 @@ async def test_build_messages_uses_dynamic_tension_level(db):
     messages = await _build_messages(
         conn=db,
         context=mock_context,
-        user_message="AÃ§Ã£o do turno",
+        user_message="Ação do turno",
         batch=batch,
         party_size=1,
     )
@@ -203,18 +203,18 @@ async def test_build_messages_uses_dynamic_tension_level(db):
 
 
 # ---------------------------------------------------------------------------
-# Teste de integraÃ§Ã£o: process_batch completo com LLM mockado
+# Integration test: full process_batch with a mocked LLM
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
 async def test_process_batch_full_pipeline(db):
     """
-    Verifica que process_batch:
-    - chama o LLM (mockado)
-    - faz streaming dos tokens narrativos
-    - aplica o delta de estado no banco
-    - salva histÃ³rico no banco
-    - nÃ£o lanÃ§a exceÃ§Ãµes
+    Verifies that process_batch:
+    - calls the LLM (mocked)
+    - streams the narrative tokens
+    - applies the state delta to the database
+    - saves history to the database
+    - does not raise exceptions
     """
     player_id = await _seed_player(db)
     batch = _make_batch(player_id)
@@ -226,15 +226,15 @@ async def test_process_batch_full_pipeline(db):
             narrative += token
         return narrative
 
-    # Monta um chunk stream simulado
+    # Build a simulated chunk stream
     def _make_chunk(text: str):
         chunk = MagicMock()
         chunk.choices = [MagicMock()]
         chunk.choices[0].delta.content = text
         return chunk
 
-    # _tokens_from_stream para de consumir o stream ao ver <game_state>,
-    # entÃ£o o bloco inteiro deve estar em um Ãºnico chunk para ir ao collector.
+    # _tokens_from_stream stops consuming the stream when it sees <game_state>,
+    # so the entire block must be in a single chunk to reach the collector.
     game_state_json = (
         '{"dice_rolls": [{"player": "Kael", "die": 20, "purpose": "ataque", "result": 15}],'
         f'"state_delta": {{"{player_id}": {{"hp_change": -20, "experience_gain": 30}}}},'
@@ -246,7 +246,7 @@ async def test_process_batch_full_pipeline(db):
     ]
 
     class FakeStream:
-        """Async iterable que simula o stream de chunks do OpenAI."""
+        """Async iterable that simulates the OpenAI chunk stream."""
         def __aiter__(self):
             return self._gen()
 
@@ -288,20 +288,20 @@ async def test_process_batch_full_pipeline(db):
 
         await process_batch(db, batch)
 
-    # HistÃ³rico deve ter sido gravado (user + assistant)
+    # History should have been recorded (user + assistant)
     history = await state_manager.get_recent_history(db, limit=10)
     roles = [h["role"] for h in history]
     assert "user" in roles
     assert "assistant" in roles
 
-    # HP deve ter sido reduzido
+    # HP should have been reduced
     row = await state_manager.get_player_by_id(db, player_id)
     assert row["current_hp"] == 80
 
-    # XP deve ter aumentado
+    # XP should have increased
     assert row["experience"] == 30
 
-    # stream_end foi broadcast
+    # stream_end was broadcast
     stream_ends = [c for c in broadcast_calls if c.get("type") == "stream_end"]
     assert len(stream_ends) >= 1
 
@@ -348,7 +348,7 @@ async def test_process_batch_full_pipeline_local_only(db, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_apply_deltas_triggers_ability_unlock_on_level_multiple_of_five(db):
-    """NÃ­vel 5: emite ABILITY_UNLOCK (sinal para GM), sem CLASS_MUTATION ainda."""
+    """Level 5: emits ABILITY_UNLOCK (signal to the GM), no CLASS_MUTATION yet."""
     player_id = await _seed_player(db)
     await db.execute(
         "UPDATE players SET inferred_class = ?, level = ?, experience = ? WHERE player_id = ?",
@@ -370,7 +370,7 @@ async def test_apply_deltas_triggers_ability_unlock_on_level_multiple_of_five(db
 
     row = await state_manager.get_player_by_id(db, player_id)
     assert row["level"] == 5
-    # NÃ­vel 5 â†’ apenas ABILITY_UNLOCK, sem mutaÃ§Ã£o de classe ainda (ocorre no 25)
+    # Level 5 → only ABILITY_UNLOCK, no class mutation yet (that happens at 25)
     assert row["inferred_class"] == "Guerreiro"
     mock_manager.broadcast_game_event.assert_any_call(
         "ABILITY_UNLOCK",
@@ -386,7 +386,7 @@ async def test_apply_deltas_triggers_ability_unlock_on_level_multiple_of_five(db
 
 @pytest.mark.asyncio
 async def test_apply_deltas_triggers_class_mutation_on_level_25(db):
-    """NÃ­vel 25: emite CLASS_MUTATION (mutaÃ§Ã£o formal) alÃ©m do ABILITY_UNLOCK."""
+    """Level 25: emits CLASS_MUTATION (formal mutation) in addition to ABILITY_UNLOCK."""
     player_id = await _seed_player(db)
     # _xp_threshold(24) = 2400; set XP to 2399 so +1 triggers exactly one level-up to 25
     await db.execute(
@@ -396,7 +396,7 @@ async def test_apply_deltas_triggers_class_mutation_on_level_25(db):
     await db.commit()
 
     gm_response = GMResponse(
-        narrative="Kael atinge a mutaÃ§Ã£o formal.",
+        narrative="Kael atinge a mutação formal.",
         state_delta={player_id: {"experience_gain": 1}},
     )
 

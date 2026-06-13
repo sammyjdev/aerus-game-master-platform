@@ -1,6 +1,6 @@
 """
-test_vector_store.py — Testes das funções de parsing de lore em vector_store.py.
-Cobre _parse_world_sections, _parse_bestiary_entries e helpers relacionados.
+test_vector_store.py — Tests for the lore parsing functions in vector_store.py.
+Covers _parse_world_sections, _parse_bestiary_entries and related helpers.
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def _get_world_entries():
 
 
 # ---------------------------------------------------------------------------
-# _parse_world_sections — skips bestiário
+# _parse_world_sections — skips bestiary
 # ---------------------------------------------------------------------------
 
 class TestParseWorldSectionsSkipsBestiary:

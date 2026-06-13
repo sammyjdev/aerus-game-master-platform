@@ -11,10 +11,10 @@ from src.main import _infer_class_from_backstory_local
 async def test_local_backstory_inference_uses_structured_output():
     with patch(
         "src.main.generate_text",
-        new=AsyncMock(return_value='{"inferred_class":"Ranger","rationale":"perfil de caÃ§a"}'),
+        new=AsyncMock(return_value='{"inferred_class":"Ranger","rationale":"perfil de caça"}'),
     ):
         inferred = await _infer_class_from_backstory_local(
-            "Passei anos caÃ§ando monstros nas florestas geladas.",
+            "Passei anos caçando monstros nas florestas geladas.",
             "guild_of_threads",
         )
 
