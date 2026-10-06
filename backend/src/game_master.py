@@ -85,28 +85,49 @@ async def submit_action(
 
 async def _process_batch_after_window() -> None:
     """
-    Waits for the batching window and processes all accumulated actions.
+    Drain successive batching windows until no actions remain.
     Opens its own connection - the WebSocket connection may already be closed.
     """
-    await asyncio.sleep(_BATCH_WINDOW_SECONDS)
+    global _batch_task
+    consumer = asyncio.current_task()
 
-    async with _batch_lock:
-        if not _pending_actions:
-            return
-        actions = list(_pending_actions)
-        _pending_actions.clear()
+    try:
+        while True:
+            await asyncio.sleep(_BATCH_WINDOW_SECONDS)
 
-    log_flow(
-        logger,
-        "batch_window_closed",
-        actions_count=len(actions),
-        players=[action.player_name for action in actions],
-    )
+            async with _batch_lock:
+                if not _pending_actions:
+                    _batch_task = None
+                    return
+                actions = list(_pending_actions)
+                _pending_actions.clear()
 
-    async with state_manager.db_context() as conn:
-        turn_number = await state_manager.get_current_turn_number(conn) + 1
-        batch = ActionBatch(actions=actions, turn_number=turn_number)
-        await process_batch(conn, batch)
+            log_flow(
+                logger,
+                "batch_window_closed",
+                actions_count=len(actions),
+                players=[action.player_name for action in actions],
+            )
+
+            try:
+                async with state_manager.db_context() as conn:
+                    turn_number = await state_manager.get_current_turn_number(conn) + 1
+                    batch = ActionBatch(actions=actions, turn_number=turn_number)
+                    await process_batch(conn, batch)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                # Do not replay a batch that may already have persisted changes.
+                logger.exception("Error while draining action batch")
+
+            async with _batch_lock:
+                if not _pending_actions:
+                    _batch_task = None
+                    return
+    finally:
+        async with _batch_lock:
+            if _batch_task is consumer:
+                _batch_task = None
 
 
 # ---------------------------------------------------------------------------
