@@ -9,13 +9,17 @@ from __future__ import annotations
 import json
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
+from typing import AsyncIterator
 
 import pytest
 import pytest_asyncio
+from openai.types.chat import ChatCompletionChunk
+from openai.types.chat.chat_completion_chunk import Choice, ChoiceDelta
 
 from src import state_manager
+from src.application.billing.billing_router import BillingConfig
 from src.game_master import _apply_deltas_and_events, _build_messages, _parse_gm_response, process_batch
-from src.models import ActionBatch, GMResponse, PlayerAction
+from src.models import ActionBatch, ContextLayers, GMResponse, PlayerAction
 
 
 # ---------------------------------------------------------------------------
@@ -207,7 +211,7 @@ async def test_build_messages_uses_dynamic_tension_level(db):
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_process_batch_full_pipeline(db):
+async def test_process_batch_full_pipeline(db, monkeypatch):
     """
     Verifies that process_batch:
     - calls the LLM (mocked)
@@ -219,22 +223,27 @@ async def test_process_batch_full_pipeline(db):
     player_id = await _seed_player(db)
     batch = _make_batch(player_id)
     broadcast_calls: list[dict] = []
+    streamed_tokens: list[str] = []
+    monkeypatch.setenv("AERUS_LOCAL_ONLY", "false")
 
-    async def fake_broadcast_stream(stream):
+    async def fake_broadcast_stream(stream: AsyncIterator[str]) -> str:
         narrative = ""
         async for token in stream:
+            streamed_tokens.append(token)
             narrative += token
         return narrative
 
     # Build a simulated chunk stream
-    def _make_chunk(text: str):
-        chunk = MagicMock()
-        chunk.choices = [MagicMock()]
-        chunk.choices[0].delta.content = text
-        return chunk
+    def _make_chunk(text: str) -> ChatCompletionChunk:
+        return ChatCompletionChunk(
+            id="test-chunk",
+            created=0,
+            model="google/gemini-flash-1.5",
+            object="chat.completion.chunk",
+            choices=[Choice(index=0, delta=ChoiceDelta(content=text))],
+        )
 
-    # _tokens_from_stream stops consuming the stream when it sees <game_state>,
-    # so the entire block must be in a single chunk to reach the collector.
+    # Structured state is collected for parsing but suppressed from narration.
     game_state_json = (
         '{"dice_rolls": [{"player": "Kael", "die": 20, "purpose": "ataque", "result": 15}],'
         f'"state_delta": {{"{player_id}": {{"hp_change": -20, "experience_gain": 30}}}},'
@@ -275,18 +284,25 @@ async def test_process_batch_full_pipeline(db):
         mock_client.chat.completions.create = AsyncMock(return_value=mock_stream)
 
         # Setup context
-        mock_ctx_obj = MagicMock()
-        mock_ctx_obj.to_system_prompt.return_value = "# MUNDO: AERUS"
-        mock_ctx.return_value = mock_ctx_obj
+        mock_ctx.return_value = ContextLayers(
+            l0_static="World: Aerus",
+            l1_campaign="A test campaign",
+            l2_state="Current location: Aerus",
+            l3_history="",
+            memory_injection="",
+            lore_retrieval="",
+        )
 
         # Setup billing
-        mock_billing_obj = MagicMock()
-        mock_billing_obj.api_key = "sk-test"
-        mock_billing_obj.base_url = "https://openrouter.ai/api/v1"
-        mock_billing_obj.model = "google/gemini-flash-1.5"
-        mock_billing.return_value = mock_billing_obj
+        mock_billing.return_value = BillingConfig(
+            api_key="sk-test",
+            model="google/gemini-flash-1.5",
+        )
 
         await process_batch(db, batch)
+
+    mock_client.chat.completions.create.assert_awaited_once()
+    assert "".join(streamed_tokens) == "O goblin recua ferido, uivando de dor.\n\n"
 
     # History should have been recorded (user + assistant)
     history = await state_manager.get_recent_history(db, limit=10)
