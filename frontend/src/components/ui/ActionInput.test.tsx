@@ -32,11 +32,12 @@ describe('ActionInput', () => {
     render(<ActionInput onSend={onSend} />);
 
     await user.type(
-      screen.getByPlaceholderText('Action... (↑↓ history · Ctrl+Enter to send)'),
+      screen.getByRole('textbox', { name: 'Player action' }),
       '/slash',
     );
     await user.click(screen.getByRole('button', { name: 'Send' }));
 
+    expect(onSend).toHaveBeenCalledTimes(1);
     expect(onSend).toHaveBeenCalledWith(
       'I swing my weapon in a wide arc.',
     );

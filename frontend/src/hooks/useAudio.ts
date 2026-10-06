@@ -78,7 +78,7 @@ export function useAudio() {
     idleMusicRef.current = null
   }, [])
 
-  const playNextIdleTrack = useCallback(() => {
+  const playNextIdleTrack = useCallback(function playNextTrack() {
     if (IDLE_TRACKS.length === 0) return
 
     stopIdleMusic()
@@ -91,7 +91,7 @@ export function useAudio() {
       volume: currentVolume.music,
       loop: false,
       onend: () => {
-        playNextIdleTrack()
+        playNextTrack()
       },
     })
 

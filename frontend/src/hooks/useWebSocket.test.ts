@@ -52,12 +52,10 @@ let mockWsInstance: MockWebSocket
 
 vi.stubGlobal(
   'WebSocket',
-  class extends MockWebSocket {
-    constructor(url: string) {
-      super(url)
-      mockWsInstance = this
-    }
-  },
+  Object.assign(vi.fn(function (url: string) {
+    mockWsInstance = new MockWebSocket(url)
+    return mockWsInstance
+  }), { OPEN: MockWebSocket.OPEN }),
 )
 
 // ── Test helpers ──────────────────────────────────────────────────────────
