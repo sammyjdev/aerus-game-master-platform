@@ -1,6 +1,13 @@
-PYTHON       = backend/.venv/Scripts/python
-PIP          = backend/.venv/Scripts/pip
-UVICORN      = backend/.venv/Scripts/uvicorn
+ifeq ($(OS),Windows_NT)
+VENV_BIN = Scripts
+BOOTSTRAP_PYTHON = python
+else
+VENV_BIN = bin
+BOOTSTRAP_PYTHON = python3
+endif
+PYTHON       = backend/.venv/$(VENV_BIN)/python
+PIP          = backend/.venv/$(VENV_BIN)/pip
+UVICORN      = backend/.venv/$(VENV_BIN)/uvicorn
 BACKEND_DIR  = backend
 FRONTEND_DIR = frontend
 NPM          = npm
@@ -45,7 +52,7 @@ help:
 	@:
 
 setup:
-	python -m venv $(BACKEND_DIR)/.venv
+	$(BOOTSTRAP_PYTHON) -m venv $(BACKEND_DIR)/.venv
 	$(PIP) install --upgrade pip --quiet
 	$(PIP) install chromadb --prefer-binary --quiet
 	$(PIP) install -r $(BACKEND_DIR)/requirements.txt --quiet
@@ -65,10 +72,10 @@ install:
 
 dev:
 	@echo "Starting backend in development mode..."
-	cd $(BACKEND_DIR) && ../$(UVICORN) src.main:app --host 0.0.0.0 --port 8000 --reload --env-file .env
+	cd $(BACKEND_DIR) && $(abspath $(UVICORN)) src.main:app --host 0.0.0.0 --port 8000 --reload --env-file .env
 
 run:
-	cd $(BACKEND_DIR) && ../$(UVICORN) src.main:app --host 0.0.0.0 --port 8000 --env-file .env
+	cd $(BACKEND_DIR) && $(abspath $(UVICORN)) src.main:app --host 0.0.0.0 --port 8000 --env-file .env
 
 frontend-install:
 	cd $(FRONTEND_DIR) && $(NPM) install
@@ -83,7 +90,7 @@ frontend-build:
 build: frontend-build
 
 serve:
-	cd $(BACKEND_DIR) && ../$(UVICORN) src.main:app --host 0.0.0.0 --port 8000 --env-file .env
+	cd $(BACKEND_DIR) && $(abspath $(UVICORN)) src.main:app --host 0.0.0.0 --port 8000 --env-file .env
 
 tunnel:
 	@echo "Run in a separate terminal: ngrok http 8000"
@@ -152,33 +159,33 @@ character:
 
 ws:
 	@if [ -z "$(TOKEN)" ]; then echo "  Usage: make ws TOKEN=eyJ..."; exit 1; fi
-	cd $(BACKEND_DIR) && ../$(PYTHON) ws_client.py $(TOKEN)
+	cd $(BACKEND_DIR) && $(abspath $(PYTHON)) ws_client.py $(TOKEN)
 
 sync-lore:
 	@bash scripts/sync_lore.sh
 
 test:
-	cd $(BACKEND_DIR) && ../$(PYTHON) -m pytest tests/ -v
+	cd $(BACKEND_DIR) && $(abspath $(PYTHON)) -m pytest tests/ -v
 
 backend-compile:
-	cd $(BACKEND_DIR) && ../$(PYTHON) -m compileall src eval
+	cd $(BACKEND_DIR) && $(abspath $(PYTHON)) -m compileall src eval
 
 check: test backend-compile frontend-test frontend-lint frontend-build
 
 e2e:
-	cd $(BACKEND_DIR) && ../$(PIP) install -r requirements-e2e.txt --quiet && ../$(PYTHON) -m pytest e2e/test_app_e2e_playwright.py -v -s
+	cd $(BACKEND_DIR) && $(abspath $(PIP)) install -r requirements-e2e.txt --quiet && $(abspath $(PYTHON)) -m pytest e2e/test_app_e2e_playwright.py -v -s
 
 gm-eval-default:
-	cd $(BACKEND_DIR) && AERUS_EVAL_PROFILE=default ../$(PYTHON) eval/gm_eval.py
+	cd $(BACKEND_DIR) && AERUS_EVAL_PROFILE=default $(abspath $(PYTHON)) eval/gm_eval.py
 
 gm-eval-core:
-	cd $(BACKEND_DIR) && AERUS_EVAL_PROFILE=core-full ../$(PYTHON) eval/gm_eval.py
+	cd $(BACKEND_DIR) && AERUS_EVAL_PROFILE=core-full $(abspath $(PYTHON)) eval/gm_eval.py
 
 gm-eval-extended:
-	cd $(BACKEND_DIR) && AERUS_EVAL_PROFILE=extended ../$(PYTHON) eval/gm_eval.py
+	cd $(BACKEND_DIR) && AERUS_EVAL_PROFILE=extended $(abspath $(PYTHON)) eval/gm_eval.py
 
 gm-eval-full:
-	cd $(BACKEND_DIR) && AERUS_EVAL_PROFILE=full-baseline ../$(PYTHON) eval/gm_eval.py
+	cd $(BACKEND_DIR) && AERUS_EVAL_PROFILE=full-baseline $(abspath $(PYTHON)) eval/gm_eval.py
 
 clean:
 	@echo "Removing DB, ChromaDB, and Python caches..."
