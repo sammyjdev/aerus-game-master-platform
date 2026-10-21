@@ -16,7 +16,7 @@ Objetivo tecnico principal:
 
 - backend/: API, WebSocket, regras de jogo, persistencia e testes
 - frontend/: SPA React + TypeScript para experiencia do jogador
-- docs/: especificacoes, lore tecnico-funcional e contexto arquitetural
+- docs/: especificacoes, lore tecnico-funcional, guia de IA/ML ([docs/EXPERIENCIA_IA_ML_SYSTEMS.md](docs/EXPERIENCIA_IA_ML_SYSTEMS.md)) e contexto arquitetural
 - lore/: fonte canonica de mundo e bestiario
 - scripts/: utilitarios de sincronizacao e validacao
 
@@ -34,6 +34,15 @@ Persistencia e dados:
 
 - SQLite via aiosqlite 0.22.1
 - ChromaDB 1.5.5 para busca vetorial de lore
+
+Motor de Inferencia de Alta Velocidade (GPU Local):
+
+- ExLlamaV3 + TabbyAPI (OpenAI-compatible server em http://127.0.0.1:5000/v1)
+- Modelo Principal: UnslopNemo-12B-v4.1 quantizado em EXL3 (4.25 bpw)
+- Preservacao de Head: Vocabulario em FP16 (16-bit) para 100% de acuracia sem spike de VRAM
+- KV-Cache Quantizado: Q8 (8-bit) suportando 16.384 tokens de contexto
+- Footprint VRAM: ~9.8 GB / 12.0 GB em NVIDIA RTX 4070 Ti
+- Metricas Reais: 57.36 tokens/s, 17.61 ms/token, TTFT de 67.8 ms (prefix cache)
 
 Modelagem e seguranca:
 
@@ -145,8 +154,8 @@ Banco principal:
 
 Migracoes observadas:
 
-- 13 migrations SQL em backend/migrations (001 a 013)
-- cobertura de schema inicial, economia, idiomas/backstory, episodios, skills e magic level
+- 15 migrations SQL em backend/migrations (001 a 015)
+- cobertura de schema inicial, economia, idiomas/backstory, episodios, skills, magic level, isolamento de salas e persistencia de campanhas
 
 Estado do jogador (alto nivel):
 

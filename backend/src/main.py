@@ -1,4 +1,4 @@
-﻿"""
+"""
 main.py - HTTP and WebSocket transport. ZERO business logic.
 Routing, dependency injection, and lifecycle only.
 """
@@ -184,7 +184,7 @@ async def get_current_player(
 
     log_debug(logger, "auth_token_validated", player_id=player_id, username=row["username"])
 
-    return {"player_id": player_id, "username": row["username"], "token": credentials.credentials}
+    return {"player_id": player_id, "username": row["username"], "token": credentials.credentials, "campaign_id": row["campaign_id"] or "default"}
 
 
 PlayerDep = Annotated[dict, Depends(get_current_player)]
@@ -415,6 +415,7 @@ async def update_character_macros(body: UpdateMacrosBody, player: PlayerDep, con
 
 @app.put("/character/backstory", tags=["character"], responses={400: {"description": "Invalid backstory"}})
 async def update_character_backstory(body: UpdateBackstoryBody, player: PlayerDep, conn: DbDep) -> dict:
+    campaign_id = player["campaign_id"]
     backstory = body.backstory.strip()
     if len(backstory) < BACKSTORY_MIN_CHARS:
         raise HTTPException(status_code=400, detail=f"Backstory too short (min {BACKSTORY_MIN_CHARS} chars)")
@@ -431,7 +432,9 @@ async def update_character_backstory(body: UpdateBackstoryBody, player: PlayerDe
     await cm.manager.broadcast({
         "type": "gm_thinking",
         "message": "The GM detected a backstory update and is re-evaluating the context.",
-    })
+    },
+        campaign_id=campaign_id,
+    )
     return {"status": "updated"}
 
 
@@ -564,25 +567,28 @@ async def get_debug_state_snapshot(player: PlayerDep, conn: DbDep) -> dict:
     if row is None:
         raise HTTPException(status_code=404, detail=PLAYER_NOT_FOUND_DETAIL)
 
-    current_turn = await state_manager.get_current_turn_number(conn)
-    tension_level = await state_manager.get_world_state(conn, "tension_level")
-    current_location = await state_manager.get_world_state(conn, "current_location")
-    campaign_paused = await state_manager.get_world_state(conn, "campaign_paused")
+    campaign_id = row["campaign_id"] or "default"
+    current_turn = await state_manager.get_current_turn_number(conn, campaign_id=campaign_id)
+    tension_level = await state_manager.get_world_state(conn, "tension_level", campaign_id=campaign_id)
+    current_location = await state_manager.get_world_state(conn, "current_location", campaign_id=campaign_id)
+    campaign_paused = await state_manager.get_world_state(conn, "campaign_paused", campaign_id=campaign_id)
 
     quest_flags: dict[str, str] = {}
     async with conn.execute(
-        "SELECT flag_key, flag_value FROM quest_flags ORDER BY updated_at DESC LIMIT 20"
+        "SELECT flag_key, flag_value FROM quest_flags WHERE campaign_id = ? ORDER BY updated_at DESC LIMIT 20",
+        (campaign_id,)
     ) as cursor:
         for record in await cursor.fetchall():
             quest_flags[record["flag_key"]] = record["flag_value"]
 
-    async with conn.execute("SELECT COUNT(*) AS c FROM history") as cursor:
+    async with conn.execute("SELECT COUNT(*) AS c FROM history WHERE campaign_id = ?", (campaign_id,)) as cursor:
         history_count = int((await cursor.fetchone())["c"])
-    async with conn.execute("SELECT COUNT(*) AS c FROM players") as cursor:
+    async with conn.execute("SELECT COUNT(*) AS c FROM players WHERE campaign_id = ?", (campaign_id,)) as cursor:
         players_count = int((await cursor.fetchone())["c"])
 
     async with conn.execute(
-        "SELECT role, content, turn_number FROM history ORDER BY turn_number DESC, created_at DESC LIMIT 5"
+        "SELECT role, content, turn_number FROM history WHERE campaign_id = ? ORDER BY turn_number DESC, created_at DESC LIMIT 5",
+        (campaign_id,)
     ) as cursor:
         history_rows = await cursor.fetchall()
 
@@ -595,8 +601,8 @@ async def get_debug_state_snapshot(player: PlayerDep, conn: DbDep) -> dict:
         for h in reversed(history_rows)
     ]
 
-    runtime_metrics = game_master.get_runtime_metrics()
-    alive_players = await state_manager.get_all_alive_players(conn)
+    runtime_metrics = game_master.get_runtime_metrics(campaign_id=campaign_id)
+    alive_players = await state_manager.get_all_alive_players(conn, campaign_id=campaign_id)
     party_size = len([p for p in alive_players if p["name"]])
     scaling_preview = game_master.get_encounter_scaling_preview(party_size)
     snapshot = {
@@ -634,8 +640,8 @@ async def get_debug_state_snapshot(player: PlayerDep, conn: DbDep) -> dict:
         "quest_flags": quest_flags,
         "recent_history": recent_history,
         "runtime": {
-            "connected_players": cm.manager.connected_count(),
-            "connected_player_ids": cm.manager.connected_player_ids(),
+            "connected_players": len(cm.manager.connected_player_ids_in_campaign(campaign_id)),
+            "connected_player_ids": cm.manager.connected_player_ids_in_campaign(campaign_id),
             "history_rows": history_count,
             "players_rows": players_count,
             "alive_players": party_size,
@@ -744,7 +750,8 @@ async def get_admin_player_detail(player_id: str, admin: AdminDep, conn: DbDep) 
 
     inv_rows = await state_manager.get_player_inventory(conn, player_id)
     cond_rows = await state_manager.get_player_conditions(conn, player_id)
-    world_state = await _load_world_sync_snapshot(conn)
+    campaign_id = dict(row).get("campaign_id") or "default"
+    world_state = await _load_world_sync_snapshot(conn, campaign_id=campaign_id)
     player = _build_player_full_state(dict(row), inv_rows, cond_rows)
     log_flow(logger, "admin_player_detail", player_id=player_id)
     return {"player": player, "world_state": world_state}
@@ -772,7 +779,8 @@ async def update_admin_player(
 
     inv_rows = await state_manager.get_player_inventory(conn, player_id)
     cond_rows = await state_manager.get_player_conditions(conn, player_id)
-    world_state = await _load_world_sync_snapshot(conn)
+    campaign_id = updated["campaign_id"] or "default"
+    world_state = await _load_world_sync_snapshot(conn, campaign_id=campaign_id)
     player = _build_player_full_state(dict(updated), inv_rows, cond_rows)
     await _send_player_full_sync(player_id, player, world_state)
     log_flow(logger, "admin_player_updated", player_id=player_id, fields=list(body.model_dump(exclude_unset=True).keys()))
@@ -786,11 +794,21 @@ async def update_admin_player(
 )
 async def toggle_campaign_pause(admin: AdminDep, body: dict, conn: DbDep) -> dict:
     """Toggle campaign pause state. Requires X-Admin-Secret header."""
+    campaign_id = body.get("campaign_id") or "default"
     paused = body.get("paused", False)
     pause_value = "1" if paused else "0"
-    await state_manager.set_world_state(conn, "campaign_paused", pause_value)
-    log_flow(logger, "admin_campaign_paused", paused=paused)
+    await state_manager.set_world_state(conn, "campaign_paused", pause_value, campaign_id=campaign_id)
+    log_flow(logger, "admin_campaign_paused", paused=paused, campaign_id=campaign_id)
+    await cm.manager.broadcast(
+        {
+            "type": WSMessageType.GAME_EVENT,
+            "event": "CAMPAIGN_PAUSED" if paused else "CAMPAIGN_RESUMED",
+            "payload": {"campaign_paused": paused},
+        },
+        campaign_id=campaign_id,
+    )
     return {"campaign_paused": paused}
+
 
 
 @app.post(
@@ -833,7 +851,7 @@ async def list_admin_invites(admin: AdminDep, conn: DbDep) -> dict:
     tags=["gm"],
     responses={404: {"description": "Player not found"}},
 )
-async def request_manual_dice_roll(body: DiceRollRequestBody, conn: DbDep) -> dict:
+async def request_manual_dice_roll(body: DiceRollRequestBody, admin: AdminDep, conn: DbDep) -> dict:
     """The GM requests a manual dice roll from a player."""
     roll_id = str(uuid.uuid4())
     row = await state_manager.get_player_by_id(conn, body.player_id)
@@ -876,6 +894,7 @@ async def request_manual_dice_roll(body: DiceRollRequestBody, conn: DbDep) -> di
 )
 async def submit_manual_dice_roll(body: DiceRollSubmitBody, player: PlayerDep, conn: DbDep) -> dict:
     """Player submits the result plus a single circumstance argument."""
+    campaign_id = player["campaign_id"]
     ok = await state_manager.submit_dice_roll_result(
         conn,
         roll_id=body.roll_id,
@@ -897,7 +916,9 @@ async def submit_manual_dice_roll(body: DiceRollSubmitBody, player: PlayerDep, c
             "initial_result": body.initial_result,
             "argument": record["argument"],
             "description": record["description"],
-        })
+        },
+            campaign_id=campaign_id,
+        )
 
     log_flow(
         logger,
@@ -919,7 +940,7 @@ async def submit_manual_dice_roll(body: DiceRollSubmitBody, player: PlayerDep, c
         404: {"description": "Roll not found"},
     },
 )
-async def resolve_manual_dice_roll(body: DiceRollResolveBody, conn: DbDep) -> dict:
+async def resolve_manual_dice_roll(body: DiceRollResolveBody, admin: AdminDep, conn: DbDep) -> dict:
     """The GM resolves the roll with the final decision."""
     allowed = {"accept_with_bonus", "accept_no_bonus", "reject", "reroll_requested"}
     if body.verdict not in allowed:
@@ -967,9 +988,10 @@ async def get_game_history(
     limit: int = 10,
 ) -> dict:
     """Retrieve recent narrative history within optional limit (default=10, max=50)."""
+    campaign_id = player["campaign_id"]
     # Clamp limit to max 50 to prevent abuse
     limit = min(limit, 50)
-    rows = await state_manager.get_recent_history(conn, limit)
+    rows = await state_manager.get_recent_history(conn, limit, campaign_id=campaign_id)
     history = [
         {
             "role": row["role"],
@@ -985,6 +1007,11 @@ async def get_game_history(
 @app.post("/game/roll", tags=["game"])
 async def roll_dice(request: Request, player: PlayerDep) -> dict:
     """Roll a die and broadcast dice_result over WebSocket."""
+    async with state_manager.db_context() as conn:
+        row = await state_manager.get_player_by_id(conn, player["player_id"])
+    if row is None:
+        raise HTTPException(status_code=401, detail=PLAYER_NOT_FOUND_DETAIL)
+    campaign_id = row["campaign_id"] or "default"
     body = await request.json()
     die = body.get("die", 20)
     if not isinstance(die, int) or die < 2:
@@ -996,12 +1023,14 @@ async def roll_dice(request: Request, player: PlayerDep) -> dict:
         "player_id": player_id,
         "die": die,
         "result": result,
-    })
+    },
+        campaign_id=campaign_id,
+    )
     return {"die": die, "result": result}
 
 
 @app.post("/game/craft", tags=["game"])
-async def initiate_craft(request: Request, player: PlayerDep) -> dict:
+async def initiate_craft(request: Request, player: PlayerDep, conn: DbDep) -> dict:
     """
     Initiate a crafting attempt. The GM resolves it narratively.
     Records the attempt and returns the recipe details so the GM can narrate the result.
@@ -1017,10 +1046,24 @@ async def initiate_craft(request: Request, player: PlayerDep) -> dict:
     if recipe is None:
         raise HTTPException(status_code=404, detail=f"Recipe '{recipe_name}' not found")
 
+    row = await state_manager.get_player_by_id(conn, player["player_id"])
+    if row is None:
+        raise HTTPException(status_code=401, detail=PLAYER_NOT_FOUND_DETAIL)
+    campaign_id = row["campaign_id"] or "default"
+    paused = await state_manager.get_world_state(conn, "campaign_paused", campaign_id=campaign_id)
+    if paused == "1":
+        raise HTTPException(status_code=400, detail="Campaign is paused")
+
+    player_name = row["name"] or player.get("username") or player["player_id"]
+    ingredients_str = ", ".join(recipe.get("ingredients", []))
+    action_text = f"I attempt to craft {recipe['name']}" + (f" using {ingredients_str}." if ingredients_str else ".")
+    await game_master.submit_action(player["player_id"], player_name, action_text)
+
     return {
         "recipe": recipe,
         "message": "Crafting attempt submitted. The GM will resolve this narratively.",
     }
+
 
 
 # ---------------------------------------------------------------------------
@@ -1038,7 +1081,11 @@ async def websocket_endpoint(websocket: WebSocket, token: str) -> None:
 
     log_flow(logger, "ws_connect_attempt", player_id=player_id, username=username)
     async with state_manager.db_context() as conn:
-        campaign_id = await state_manager.get_player_campaign(conn, player_id)
+        row = await state_manager.get_player_by_id(conn, player_id)
+    if row is None:
+        await websocket.close(code=4001, reason="Invalid player")
+        return
+    campaign_id = row["campaign_id"] or "default"
     await cm.manager.connect(websocket, player_id, username, campaign_id=campaign_id)
     await _post_connect_setup(player_id, username, token, campaign_id)
 
@@ -1075,13 +1122,13 @@ async def _maybe_refresh_ws_token(player_id: str, username: str, token: str) -> 
     log_debug(logger, "ws_token_refreshed", player_id=player_id, username=username)
 
 
-async def _load_world_sync_snapshot(conn: aiosqlite.Connection) -> dict:
-    tension_level = await state_manager.get_world_state(conn, "tension_level") or "5"
-    current_location = await state_manager.get_world_state(conn, "current_location") or state_manager.DEFAULT_START_LOCATION
-    campaign_paused = await state_manager.get_world_state(conn, "campaign_paused") or "0"
-    current_turn = await state_manager.get_current_turn_number(conn)
-    cooperative = await state_manager.get_cooperative_mission_state(conn)
-    travel = await travel_manager.get_travel_state(conn)
+async def _load_world_sync_snapshot(conn: aiosqlite.Connection, campaign_id: str = "default") -> dict:
+    tension_level = await state_manager.get_world_state(conn, "tension_level", campaign_id=campaign_id) or "5"
+    current_location = await state_manager.get_world_state(conn, "current_location", campaign_id=campaign_id) or state_manager.DEFAULT_START_LOCATION
+    campaign_paused = await state_manager.get_world_state(conn, "campaign_paused", campaign_id=campaign_id) or "0"
+    current_turn = await state_manager.get_current_turn_number(conn, campaign_id=campaign_id)
+    cooperative = await state_manager.get_cooperative_mission_state(conn, campaign_id=campaign_id)
+    travel = await travel_manager.get_travel_state(conn, campaign_id=campaign_id)
     return {
         "current_turn": current_turn,
         "current_location": current_location,
@@ -1094,15 +1141,18 @@ async def _load_world_sync_snapshot(conn: aiosqlite.Connection) -> dict:
 
 async def _load_player_sync_snapshot(player_id: str) -> tuple[dict | None, list, list, list, dict]:
     async with state_manager.db_context() as conn:
-        await state_manager.ensure_default_world_state(conn)
-        await state_manager.initialize_or_refresh_cooperative_mission(conn)
         row = await state_manager.get_player_by_id(conn, player_id)
         if not row or not row["name"]:
             return None, [], [], [], {}
+        campaign_id = row["campaign_id"] or "default"
+        await state_manager.ensure_default_world_state(conn, campaign_id=campaign_id)
+        from .time_manager import initialize_calendar
+        await initialize_calendar(conn, campaign_id=campaign_id)
+        await state_manager.initialize_or_refresh_cooperative_mission(conn, campaign_id=campaign_id)
         inv_rows = await state_manager.get_player_inventory(conn, player_id)
         cond_rows = await state_manager.get_player_conditions(conn, player_id)
-        history_rows = await state_manager.get_recent_history(conn, limit=20)
-        world_state = await _load_world_sync_snapshot(conn)
+        history_rows = await state_manager.get_recent_history(conn, limit=20, campaign_id=campaign_id)
+        world_state = await _load_world_sync_snapshot(conn, campaign_id=campaign_id)
     return dict(row), inv_rows, cond_rows, history_rows, world_state
 
 
@@ -1260,6 +1310,9 @@ async def _post_connect_setup(
     if not row:
         return
 
+    campaign_id = row["campaign_id"] or "default"
+    if cm.manager.get_campaign(player_id) != campaign_id:
+        return
     full_state = _build_player_full_state(row, inv_rows, cond_rows)
     roster = await _build_campaign_roster(campaign_id, exclude_player_id=player_id)
     await _send_player_full_sync(player_id, full_state, world_state, roster=roster)
@@ -1326,7 +1379,10 @@ async def _handle_ws_message(data: dict, player_id: str, username: str) -> None:
             return
         async with state_manager.db_context() as conn:
             row = await state_manager.get_player_by_id(conn, player_id)
-        player_name = row["name"] if row and row["name"] else username
+        if row is None:
+            await cm.manager.send_to(player_id, {"type": WSMessageType.ERROR, "message": "Player not found"})
+            return
+        player_name = row["name"] or username
         log_flow(
             logger,
             "ws_action_received",
@@ -1335,8 +1391,12 @@ async def _handle_ws_message(data: dict, player_id: str, username: str) -> None:
             action_preview=clip_text(action_text, 140),
             length=len(action_text),
         )
-        await game_master.submit_action(player_id, player_name, action_text)
+        try:
+            await game_master.submit_action(player_id, player_name, action_text)
+        except ValueError as exc:
+            await cm.manager.send_to(player_id, {"type": WSMessageType.ERROR, "message": str(exc)})
         return
+
 
     if msg_type == "dice_result":
         # Future: handle dice result submission via WS instead of HTTP
@@ -1542,5 +1602,4 @@ if _FRONTEND_DIST.exists():
             str(_FRONTEND_DIST / "index.html"),
             headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
         )
-
 

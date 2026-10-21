@@ -16,6 +16,7 @@ Thumbs.db
 .run-frontend.sh
 .claude/*
 !.claude/loop.yaml
+.axon/
 
 # FORGE local specifications and review artifacts
 .specs/

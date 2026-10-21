@@ -62,6 +62,40 @@ describe('wsContracts', () => {
       expect(result?.type).toBe('boss_music')
     })
 
+    it('parses a valid dice_result message', () => {
+      const raw = {
+        type: 'dice_result',
+        player_id: 'p123',
+        die: 20,
+        result: 18,
+      }
+      const result = parseWSMessage(raw)
+      expect(result.type).toBe('dice_result')
+      if (result.type === 'dice_result') {
+        expect(result.player_id).toBe('p123')
+        expect(result.die).toBe(20)
+        expect(result.result).toBe(18)
+      }
+    })
+
+    it('parses a valid faction_objective_update message', () => {
+      const raw = {
+        type: 'faction_objective_update',
+        faction: 'guild_of_threads',
+        objective: 'Secure the loom',
+        status: 'in_progress',
+        cred_change: 5,
+      }
+      const result = parseWSMessage(raw)
+      expect(result.type).toBe('faction_objective_update')
+      if (result.type === 'faction_objective_update') {
+        expect(result.faction).toBe('guild_of_threads')
+        expect(result.objective).toBe('Secure the loom')
+        expect(result.status).toBe('in_progress')
+        expect(result.cred_change).toBe(5)
+      }
+    })
+
     it('discriminated union rejects wrong type literal on a known schema', () => {
       // dice_roll with wrong type literal should fail
       const raw = {

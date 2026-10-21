@@ -45,8 +45,14 @@ async def update_memory_after_turn(
     batch: ActionBatch,
     gm_response: GMResponse,
 ) -> None:
+    targets = {action.player_id for action in batch.actions}
+    targets.update(event["player_id"] for event in gm_response.game_events if event.get("player_id"))
+    for player_id in targets:
+        row = await state_manager.get_player_by_id(conn, player_id)
+        if row is None or (row["campaign_id"] or "default") != batch.campaign_id:
+            raise ValueError("Memory player does not belong to this campaign")
     extracted = await _extract_structured_memory(conn, batch, gm_response)
-    summary = (await summarize_recent_history(conn, limit=12)).strip()
+    summary = (await summarize_recent_history(conn, limit=12, campaign_id=batch.campaign_id)).strip()
 
     unique_player_ids = list(dict.fromkeys(action.player_id for action in batch.actions))
     player_name_by_id = {
@@ -59,7 +65,7 @@ async def update_memory_after_turn(
             continue
 
         player_name = player["name"] or player_name_by_id.get(player_id, "Player")
-        existing = (await state_manager.get_memory_layers(conn, [player_id])).character
+        existing = (await state_manager.get_memory_layers(conn, [player_id], campaign_id=batch.campaign_id)).character
         facts = extracted["character_facts"].get(player_name, [])
         fact_lines = [f"- {line}" for line in facts if line]
 
@@ -73,8 +79,8 @@ async def update_memory_after_turn(
         char_memory = _merge_memory(existing, candidate)
         await state_manager.upsert_character_memory(conn, player_id, char_memory)
 
-    existing_world = (await state_manager.get_memory_layers(conn, [])).world
-    existing_arc = (await state_manager.get_memory_layers(conn, [])).arc
+    existing_world = (await state_manager.get_memory_layers(conn, [], campaign_id=batch.campaign_id)).world
+    existing_arc = (await state_manager.get_memory_layers(conn, [], campaign_id=batch.campaign_id)).arc
 
     world_lines = [f"Turn {batch.turn_number}:"]
     world_lines.extend(f"- {line}" for line in extracted["world_changes"] if line)
@@ -90,8 +96,8 @@ async def update_memory_after_turn(
         arc_lines.append(f"Summary: {summary}")
     arc_memory = _merge_memory(existing_arc, "\n".join(arc_lines))
 
-    await state_manager.upsert_world_memory(conn, world_memory)
-    await state_manager.upsert_arc_memory(conn, arc_memory)
+    await state_manager.upsert_world_memory(conn, world_memory, campaign_id=batch.campaign_id)
+    await state_manager.upsert_arc_memory(conn, arc_memory, campaign_id=batch.campaign_id)
 
     await _record_episodic_events(conn, batch, gm_response)
 
@@ -138,7 +144,7 @@ async def _build_memory_transcript(
     batch: ActionBatch,
     gm_response: GMResponse,
 ) -> str:
-    history = await state_manager.get_recent_history(conn, limit=8)
+    history = await state_manager.get_recent_history(conn, limit=8, campaign_id=batch.campaign_id)
     history_lines = [
         f"{('Players' if row['role'] == 'user' else 'GM')}: {row['content']}"
         for row in history
@@ -275,6 +281,9 @@ async def _record_episodic_events(
         if not player_id:
             continue
 
+        row = await state_manager.get_player_by_id(conn, player_id)
+        if row is None or (row["campaign_id"] or "default") != batch.campaign_id:
+            raise ValueError("Episode player does not belong to this campaign")
         importance = _EVENT_TYPE_IMPORTANCE.get(event_type, 1)
         action_category = _GAME_EVENT_TO_ACTION_TYPE.get(event_type, event_type.lower())
         description = _describe_game_event(event, event_type)

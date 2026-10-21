@@ -64,12 +64,17 @@ async def get_active_rumors_for_player(
     faction: str | None,
     tension_level: int,
     limit: int = 2,
+    campaign_id: str = "default",
 ) -> list[str]:
     """Return faction-biased rumor texts that the player hasn't heard yet.
 
     Eligibility: rumor.tension_min <= tension_level AND not yet seen by player.
     Marks seen rumors via quest_flags to avoid repetition.
     """
+    player = await state_manager.get_player_by_id(conn, player_id)
+    if player is None or player["campaign_id"] != campaign_id:
+        raise ValueError("Player does not belong to campaign")
+
     rumors = _load_rumors()
     eligible = [
         r for r in rumors
@@ -86,7 +91,7 @@ async def get_active_rumors_for_player(
 
         rumor_id = rumor["rumor_id"]
         flag_key = f"rumor_heard:{rumor_id}:{player_id}"
-        already_heard = await state_manager.get_quest_flag(conn, flag_key)
+        already_heard = await state_manager.get_quest_flag(conn, flag_key, campaign_id=campaign_id)
         if already_heard == "1":
             continue
 
@@ -94,7 +99,7 @@ async def get_active_rumors_for_player(
         if not variant_text:
             continue
 
-        await state_manager.set_quest_flag(conn, flag_key, "1")
+        await state_manager.set_quest_flag(conn, flag_key, "1", campaign_id=campaign_id)
         result.append(variant_text.strip())
         logger.debug("Rumor %s delivered to player %s (faction=%s)", rumor_id, player_id, faction)
 

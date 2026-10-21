@@ -83,7 +83,7 @@ async def test_apply_deltas_updates_hp_in_db(db):
     broadcast_calls: list[dict] = []
 
     with patch("src.game_master.cm.manager") as mock_manager:
-        mock_manager.broadcast = AsyncMock(side_effect=lambda m: broadcast_calls.append(m) or None)
+        mock_manager.broadcast = AsyncMock(side_effect=lambda m, **kwargs: broadcast_calls.append(m) or None)
         mock_manager.broadcast_dice_roll = AsyncMock()
         mock_manager.broadcast_game_event = AsyncMock()
 
@@ -133,7 +133,7 @@ async def test_apply_deltas_broadcasts_audio_cue(db):
     broadcast_calls: list[dict] = []
 
     with patch("src.game_master.cm.manager") as mock_manager:
-        mock_manager.broadcast = AsyncMock(side_effect=lambda m: broadcast_calls.append(m) or None)
+        mock_manager.broadcast = AsyncMock(side_effect=lambda m, **kwargs: broadcast_calls.append(m) or None)
         mock_manager.broadcast_dice_roll = AsyncMock()
         mock_manager.broadcast_game_event = AsyncMock()
 
@@ -163,6 +163,7 @@ async def test_apply_deltas_broadcasts_game_event(db):
     mock_manager.broadcast_game_event.assert_called_once_with(
         "LEVELUP",
         {"type": "LEVELUP", "player_id": player_id, "player_name": "Kael", "new_level": 2},
+        campaign_id="default",
     )
 
 
@@ -226,7 +227,7 @@ async def test_process_batch_full_pipeline(db, monkeypatch):
     streamed_tokens: list[str] = []
     monkeypatch.setenv("AERUS_LOCAL_ONLY", "false")
 
-    async def fake_broadcast_stream(stream: AsyncIterator[str]) -> str:
+    async def fake_broadcast_stream(stream: AsyncIterator[str], **kwargs) -> str:
         narrative = ""
         async for token in stream:
             streamed_tokens.append(token)
@@ -273,7 +274,7 @@ async def test_process_batch_full_pipeline(db, monkeypatch):
     ):
         # Setup manager
         mock_manager.broadcast_stream = AsyncMock(side_effect=fake_broadcast_stream)
-        mock_manager.broadcast = AsyncMock(side_effect=lambda m: broadcast_calls.append(m) or None)
+        mock_manager.broadcast = AsyncMock(side_effect=lambda m, **kwargs: broadcast_calls.append(m) or None)
         mock_manager.broadcast_dice_roll = AsyncMock()
         mock_manager.broadcast_game_event = AsyncMock()
         mock_manager.broadcast_gm_thinking = AsyncMock()
@@ -330,7 +331,7 @@ async def test_process_batch_full_pipeline_local_only(db, monkeypatch):
 
     monkeypatch.setenv("AERUS_LOCAL_ONLY", "true")
 
-    async def fake_broadcast_stream(stream):
+    async def fake_broadcast_stream(stream, **kwargs):
         narrative = ""
         async for token in stream:
             narrative += token
@@ -344,7 +345,7 @@ async def test_process_batch_full_pipeline_local_only(db, monkeypatch):
         patch("src.game_master.local_llm.generate_chat", new=AsyncMock(return_value=full_response)),
     ):
         mock_manager.broadcast_stream = AsyncMock(side_effect=fake_broadcast_stream)
-        mock_manager.broadcast = AsyncMock(side_effect=lambda m: broadcast_calls.append(m) or None)
+        mock_manager.broadcast = AsyncMock(side_effect=lambda m, **kwargs: broadcast_calls.append(m) or None)
         mock_manager.broadcast_dice_roll = AsyncMock()
         mock_manager.broadcast_game_event = AsyncMock()
         mock_manager.broadcast_gm_thinking = AsyncMock()
@@ -397,6 +398,7 @@ async def test_apply_deltas_triggers_ability_unlock_on_level_multiple_of_five(db
             "level": 5,
             "inferred_class": "Guerreiro",
         },
+        campaign_id="default",
     )
 
 
@@ -436,6 +438,7 @@ async def test_apply_deltas_triggers_class_mutation_on_level_25(db):
             "new_class": "Steel Warden",
             "level": 25,
         },
+        campaign_id="default",
     )
 
 

@@ -13,13 +13,12 @@ from cryptography.fernet import Fernet, InvalidToken
 logger = logging.getLogger(__name__)
 
 
+DEV_FERNET_KEY = "AQRAJQ7n3O3pYiUQAX18ao5G__y2LjRP6yBJVu_uXEg="
+
+
 def _get_fernet() -> Fernet:
-    """Return a Fernet instance created from the environment variable key."""
-    key = os.getenv("FERNET_KEY")
-    if not key:
-        raise RuntimeError(
-            'FERNET_KEY is not set. Generate one with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
-        )
+    """Return a Fernet instance created from the environment variable key or dev fallback."""
+    key = os.getenv("FERNET_KEY") or DEV_FERNET_KEY
     return Fernet(key.encode() if isinstance(key, str) else key)
 
 

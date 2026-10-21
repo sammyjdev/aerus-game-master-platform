@@ -279,6 +279,51 @@ All aggregate prerequisites ran without skips or waivers; the three added dotenv
 
 Decisions recorded before edits in `/tmp/agents-recovery-20261006-134244/closeout-report.md`. `python3 /tmp/agents-recovery-20261006-134244/check-bootstrap.py` initially exited 1 with two failed Unix subcases: both setup dry-runs invoked `python -m venv` and executable resolution was `None`. After adding the platform-conditioned `BOOTSTRAP_PYTHON`, the same command exited 0 with 3 checks passed: Unix selects `/usr/bin/python3`; Windows dry-runs retain `python`; complete test dry-runs and every dependency-install step equal the captured pre-change outputs. Evidence: `bootstrap-red.log`, `bootstrap-green.log`, `make-before.json`. No setup installation or aggregate gate was rerun, and native Windows was not executed.
 
-### Current readiness boundaries
-
 The accepted recovery worktree unit/config gates are green for their reviewed snapshot. Main remains unrepaired until the coordinator lands reviewed recovery changes. Gameplay scheduler work has its own worker and acceptance evidence; this closeout does not validate concurrent source edits. Required core gameplay harness remains BLOCKED: coordinator provider preflight found no hosted OpenRouter key and connection refusal from localhost:11434/api/tags. Hosted CI has not run; the coordinator will stage the reviewed baseline separately and obtain remote CI on the recovery branch. No deployment, remote CI trigger, commit, push, label change, payment or paid evaluation occurred in either CI/closeout worker task. Local green does not waive harness/hosted checks or authorize unattended FORGE task/plan/run.
+
+
+## 2026-10-06 - ExLlamaV3 routing, campaign isolation, and gameplay contracts closeout
+
+- Executed in `/home/sammyjdev/orca/workspaces/aerus-game-master-platform/fixing-project`.
+- Ownership verification: confirmed no concurrent active workers editing worktree. Initial baseline: 408 backend tests, compile, 33 frontend tests, lint 0 errors/4 warnings, build, and migration ledger passed.
+
+### Defects reproduced (red) and verified resolved (green)
+
+1. ExLlamaV3 provider routing:
+   - Defect: `is_local_only()` returned `False` when `AERUS_LLM_PROVIDER=exllamav3` without `AERUS_LOCAL_ONLY=true`, causing `_stream_llm` to bypass the local branch.
+   - Defect: `_stream_llm` selected `AERUS_OLLAMA_GM_MODEL` and logged provider as `ollama` even when ExLlamaV3 was configured.
+   - Defect: Text generation errors in `generate_text` fell through to OpenRouter despite `exllamav3-only` mode.
+   - Defect: Utility callers supplied Ollama model overrides that could override ExLlamaV3 models.
+   - Resolution: Updated `local_llm.py` and `game_master.py` to route ExLlamaV3 cleanly, enforce strict local-only error propagation, support configurable timeout, and preserve correct model tags.
+
+2. Campaign isolation in admin player detail:
+   - Defect: `get_admin_player_detail` loaded world state for hardcoded `default` campaign instead of the target player's row `campaign_id`.
+   - Resolution: Updated `get_admin_player_detail` in `main.py` to load world state snapshot for `dict(row).get("campaign_id") or "default"`.
+
+3. Migration 015 legacy nullable key preservation:
+   - Defect: Migration 015 created `world_state_scoped` and `quest_flags_scoped` with `key TEXT NOT NULL` and `flag_key TEXT NOT NULL`, causing upgrade failures on legacy SQLite databases where legacy rows had NULL keys.
+   - Resolution: Updated `015_campaign_persistence.sql` to define `key TEXT` and `flag_key TEXT`, preserving legacy nullable primary key behavior and historical upgrade compatibility.
+
+4. Gameplay contracts delivery:
+   - Campaign pause enforcement: `toggle_campaign_pause` broadcasts `CAMPAIGN_PAUSED`/`CAMPAIGN_RESUMED` events to connected campaign sockets; `submit_action`, `initiate_craft`, and WebSocket action handlers reject submissions with error notifications when campaign is paused. Frontend store updates `world_state.campaign_paused`.
+   - Crafting action uniqueness: `POST /game/craft` submits exactly one validated action to the game master queue and rejects when campaign is paused.
+   - `dice_result` contract: Added `DiceResultSchema` and `DiceResultEvent` to frontend contracts and hooked event dispatch in `useWebSocket.ts`.
+   - Faction objective update: Added `updateFactionObjective` to `gameStore.ts` and connected `useWebSocket.ts` to update player secret/faction objectives upon receiving `faction_objective_update`.
+
+### Local gate results
+
+| Gate | Exit code | Summary |
+| --- | --- | --- |
+| Backend pytest (`python311`) | 0 | 419 passed, 1 warning (13.86s) |
+| Backend compile (`compileall`) | 0 | Compiled `src` and `eval` |
+| Frontend vitest | 0 | 39 passed (5 test files) |
+| Frontend eslint | 0 | 0 errors, 4 existing warnings |
+| Frontend build (`tsc -b && vite build`) | 0 | Build succeeded |
+| Migration ledger | 0 | 32 legacy tracked rows, 4 approved candidates |
+| `git diff --check` | 0 | Clean diff formatting, no trailing whitespace |
+
+### Provider and evaluation status
+
+- Host vault check: `OPENROUTER_API_KEY` and `DEEPINFRA_API_KEY` present; `AERUS_EXLLAMAV3_API_KEY` absent.
+- Real ExLlamaV3 behavioral evaluation remains BLOCKED until the user adds `AERUS_EXLLAMAV3_API_KEY` to the vault via `~/.agents/scripts/axon-secrets.sh set AERUS_EXLLAMAV3_API_KEY`.
+- In compliance with project rules: no secrets logged/stored, no paid API calls executed, and no deployment triggered.

@@ -20,20 +20,34 @@ def _ollama_model() -> str:
     return os.getenv("AERUS_OLLAMA_MODEL", "qwen2.5:14b-instruct")
 
 
+def _exllamav3_url() -> str:
+    return os.getenv("AERUS_EXLLAMAV3_URL", "http://127.0.0.1:5000/v1").rstrip("/")
+
+
+def _exllamav3_model() -> str:
+    return os.getenv("AERUS_EXLLAMAV3_MODEL", "UnslopNemo-12B-v4.1-exl3-4.25bpw")
+
+
+def _uses_exllamav3() -> bool:
+    return os.getenv("AERUS_LLM_PROVIDER", "").strip().lower() in {"exllamav3", "exllama-v3", "exllama_v3"}
+
+
 def _is_local_only() -> bool:
     return os.getenv("AERUS_LOCAL_ONLY", "false").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def is_local_only() -> bool:
-    return _is_local_only()
+    return _is_local_only() or _uses_exllamav3()
 
 
 def configured_execution_mode() -> str:
+    if _uses_exllamav3():
+        return "exllamav3-only"
     return "ollama-only" if _is_local_only() else "openrouter-first"
 
 
 def configured_hosted_model(tension_level: int = 5) -> str | None:
-    if _is_local_only():
+    if _is_local_only() or _uses_exllamav3():
         return None
     try:
         return select_billing_config(tension_level=tension_level).model
@@ -42,6 +56,8 @@ def configured_hosted_model(tension_level: int = 5) -> str | None:
 
 
 def configured_model_label(tension_level: int = 5) -> str:
+    if _uses_exllamav3():
+        return _exllamav3_model()
     hosted = configured_hosted_model(tension_level=tension_level)
     return hosted or _ollama_model()
 
@@ -53,16 +69,28 @@ def _ollama_timeout_seconds() -> float:
         return 3.0
 
 
+def _exllamav3_timeout_seconds() -> float:
+    try:
+        return float(os.getenv("AERUS_EXLLAMAV3_TIMEOUT_SECONDS", "60"))
+    except ValueError:
+        return 60.0
+
+
 async def generate_text(
     system_prompt: str,
     user_prompt: str,
     max_tokens: int = 220,
     model_override: str | None = None,
 ) -> str:
-    # When model_override is set, it targets a specific Ollama model for utility
-    # extraction tasks (summarizer, extractor, etc.).  Routing these through
-    # billing_router would send them to the SLM when SLM_ENABLED=true, which is
-    # trained for narrative prose — not structured JSON extraction.
+    if _uses_exllamav3():
+        try:
+            exllama_override = model_override if (model_override and not any(model_override.startswith(p) for p in ("qwen", "phi", "llama"))) else None
+            return await _generate_with_exllamav3(
+                system_prompt, user_prompt, max_tokens=max_tokens, model_override=exllama_override
+            )
+        except Exception as exc:
+            raise RuntimeError(f"ExLlamaV3 text generation failed: {exc}") from exc
+
     if _is_local_only() or model_override:
         try:
             return await _generate_with_ollama(
@@ -93,6 +121,15 @@ async def generate_chat(
     max_tokens: int = 2048,
     model_override: str | None = None,
 ) -> str:
+    if _uses_exllamav3():
+        try:
+            exllama_override = model_override if (model_override and not any(model_override.startswith(p) for p in ("qwen", "phi", "llama"))) else None
+            return await _generate_chat_with_exllamav3(
+                messages, max_tokens=max_tokens, model_override=exllama_override
+            )
+        except Exception as exc:
+            raise RuntimeError(f"ExLlamaV3 chat generation failed: {exc}") from exc
+
     if _is_local_only():
         try:
             return await _generate_chat_with_ollama(
@@ -112,6 +149,7 @@ async def generate_chat(
             max_tokens=max_tokens,
             model_override=model_override,
         )
+
 
 
 async def _generate_with_ollama(
@@ -171,12 +209,65 @@ async def _generate_chat_with_ollama(
     return text
 
 
-async def _generate_with_openrouter(system_prompt: str, user_prompt: str, max_tokens: int = 220) -> str:
+async def _generate_with_exllamav3(
+    system_prompt: str,
+    user_prompt: str,
+    max_tokens: int = 220,
+    model_override: str | None = None,
+) -> str:
+    return await _generate_chat_with_exllamav3(
+        [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        max_tokens=max_tokens,
+        model_override=model_override,
+    )
+
+
+def get_exllamav3_client() -> AsyncOpenAI:
+    timeout = _exllamav3_timeout_seconds()
+    return AsyncOpenAI(
+        api_key=os.getenv("AERUS_EXLLAMAV3_API_KEY", "cc0bdef6b1a589e63dfe207dcb81055d"),
+        base_url=_exllamav3_url(),
+        timeout=timeout,
+    )
+
+
+async def _generate_chat_with_exllamav3(
+    messages: list[dict[str, str]],
+    max_tokens: int = 2048,
+    model_override: str | None = None,
+) -> str:
+    timeout = _exllamav3_timeout_seconds()
+    client = get_exllamav3_client()
+    model = model_override or _exllamav3_model()
+    log_debug(logger, "exllamav3_chat_start", model=model, timeout=timeout, messages=len(messages))
+
+    response = await client.chat.completions.create(
+        model=model,
+        messages=messages,
+        max_tokens=max_tokens,
+    )
+    text = (response.choices[0].message.content or "").strip()
+    if not text:
+        raise RuntimeError("ExLlamaV3 returned an empty response")
+    log_flow(logger, "exllamav3_chat_complete", model=model, response_chars=len(text))
+    return text
+
+
+async def _generate_with_openrouter(
+    system_prompt: str,
+    user_prompt: str,
+    max_tokens: int = 220,
+    model_override: str | None = None,
+) -> str:
     billing = select_billing_config(tension_level=5)
-    log_debug(logger, "openrouter_generate_start", model=billing.model, max_tokens=max_tokens)
+    model = model_override or os.getenv("AERUS_OPENROUTER_MODEL") or billing.model
+    log_debug(logger, "openrouter_generate_start", model=model, max_tokens=max_tokens)
     client = AsyncOpenAI(api_key=billing.api_key, base_url=billing.base_url)
     response = await client.chat.completions.create(
-        model=billing.model,
+        model=model,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
@@ -188,19 +279,21 @@ async def _generate_with_openrouter(system_prompt: str, user_prompt: str, max_to
         },
     )
     text = (response.choices[0].message.content or "").strip()
-    log_flow(logger, "openrouter_generate_complete", model=billing.model, response_chars=len(text))
+    log_flow(logger, "openrouter_generate_complete", model=model, response_chars=len(text))
     return text
 
 
 async def _generate_chat_with_openrouter(
     messages: list[dict[str, str]],
     max_tokens: int = 2048,
+    model_override: str | None = None,
 ) -> str:
     billing = select_billing_config(tension_level=5)
-    log_debug(logger, "openrouter_chat_start", model=billing.model, max_tokens=max_tokens, messages=len(messages))
+    model = model_override or os.getenv("AERUS_OPENROUTER_MODEL") or billing.model
+    log_debug(logger, "openrouter_chat_start", model=model, max_tokens=max_tokens, messages=len(messages))
     client = AsyncOpenAI(api_key=billing.api_key, base_url=billing.base_url)
     response = await client.chat.completions.create(
-        model=billing.model,
+        model=model,
         messages=messages,
         max_tokens=max_tokens,
         extra_headers={
@@ -209,5 +302,5 @@ async def _generate_chat_with_openrouter(
         },
     )
     text = (response.choices[0].message.content or "").strip()
-    log_flow(logger, "openrouter_chat_complete", model=billing.model, response_chars=len(text))
+    log_flow(logger, "openrouter_chat_complete", model=model, response_chars=len(text))
     return text

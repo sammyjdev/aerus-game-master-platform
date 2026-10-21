@@ -112,7 +112,12 @@ async def test_upgrade_preserves_data_and_is_idempotent(
             assert player["magic_level"] == original_player.get("magic_level", 0)
             assert player["campaign_id"] == original_player.get("campaign_id", "default")
             assert await (await conn.execute("SELECT * FROM inventory")).fetchall() == original_inventory
-            assert await (await conn.execute("SELECT * FROM history")).fetchall() == original_history
+            assert await (await conn.execute(
+                "SELECT history_id, turn_number, role, content, created_at FROM history"
+            )).fetchall() == original_history
+            assert await (await conn.execute(
+                "SELECT campaign_id FROM history"
+            )).fetchall() == [("default",) for _ in original_history]
         if recorded_filename:
             assert await (await conn.execute(
                 "SELECT filename, applied_at FROM schema_migrations WHERE version = 13"

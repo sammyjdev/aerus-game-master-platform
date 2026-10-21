@@ -1,4 +1,4 @@
-﻿"""
+"""
 game_master.py - Central orchestrator. The only module that calls OpenRouter.
 Responsibilities: action batching, context assembly, LLM calls,
 response parsing, delta application, and event broadcasting.
@@ -35,104 +35,105 @@ logger = logging.getLogger(__name__)
 # Action batching
 # ---------------------------------------------------------------------------
 
-_pending_actions: list[PlayerAction] = []
+_pending_actions: dict[str, list[PlayerAction]] = {}
 _batch_lock = asyncio.Lock()
-_batch_task: asyncio.Task | None = None
+_batch_tasks: dict[str, asyncio.Task] = {}
 _BATCH_WINDOW_SECONDS = 3.0
 
 
-def get_runtime_metrics() -> dict[str, Any]:
+def get_runtime_metrics(campaign_id: str = "default") -> dict[str, Any]:
+    task = _batch_tasks.get(campaign_id)
     return {
-        "pending_actions": len(_pending_actions),
-        "batch_task_active": bool(_batch_task and not _batch_task.done()),
+        "pending_actions": len(_pending_actions.get(campaign_id, [])),
+        "batch_task_active": bool(task and not task.done()),
         "batch_window_seconds": _BATCH_WINDOW_SECONDS,
     }
 
 
-async def submit_action(
-    player_id: str,
-    player_name: str,
-    action_text: str,
-) -> None:
-    """
-    Receives a player action and adds it to the batching window.
-    It does not receive conn - the batch task opens its own connection.
-    """
-    global _batch_task
+async def submit_action(player_id: str, player_name: str, action_text: str) -> None:
+    """Resolve stored membership before enqueueing a player action."""
+    async with state_manager.db_context() as conn:
+        player = await state_manager.get_player_by_id(conn, player_id)
+        if player is None:
+            raise ValueError("Player does not exist in a campaign")
+        campaign_id = player["campaign_id"] or "default"
+        paused = await state_manager.get_world_state(conn, "campaign_paused", campaign_id=campaign_id)
+        if paused == "1":
+            raise ValueError("Campaign is paused")
 
     action = PlayerAction(
         player_id=player_id,
-        player_name=player_name,
+        player_name=player["name"] or player_name,
         action_text=action_text,
         timestamp=time.time(),
     )
-
     async with _batch_lock:
-        _pending_actions.append(action)
-        logger.debug("Action added to batch: %s -> %s", player_name, action_text[:50])
+        pending = _pending_actions.setdefault(campaign_id, [])
+        pending.append(action)
         log_debug(
-            logger,
-            "batch_action_enqueued",
-            player_id=player_id,
-            player_name=player_name,
-            pending_actions=len(_pending_actions),
-            action_preview=clip_text(action_text, 140),
+            logger, "batch_action_enqueued", player_id=player_id,
+            player_name=action.player_name, campaign_id=campaign_id,
+            pending_actions=len(pending), action_preview=clip_text(action_text, 140),
         )
+        task = _batch_tasks.get(campaign_id)
+        if task is None or task.done():
+            _batch_tasks[campaign_id] = asyncio.create_task(_process_batch_after_window(campaign_id))
 
-        if _batch_task is None or _batch_task.done():
-            _batch_task = asyncio.create_task(_process_batch_after_window())
 
-
-async def _process_batch_after_window() -> None:
-    """
-    Drain successive batching windows until no actions remain.
-    Opens its own connection - the WebSocket connection may already be closed.
-    """
-    global _batch_task
+async def _process_batch_after_window(campaign_id: str = "default") -> None:
+    """Drain serial batching windows for one campaign with its own connection."""
     consumer = asyncio.current_task()
-
     try:
         while True:
             await asyncio.sleep(_BATCH_WINDOW_SECONDS)
-
             async with _batch_lock:
-                if not _pending_actions:
-                    _batch_task = None
+                pending = _pending_actions.get(campaign_id, [])
+                if not pending:
+                    _batch_tasks.pop(campaign_id, None)
+                    _pending_actions.pop(campaign_id, None)
                     return
-                actions = list(_pending_actions)
-                _pending_actions.clear()
-
+                actions = list(pending)
+                pending.clear()
             log_flow(
-                logger,
-                "batch_window_closed",
-                actions_count=len(actions),
-                players=[action.player_name for action in actions],
+                logger, "batch_window_closed", campaign_id=campaign_id,
+                actions_count=len(actions), players=[action.player_name for action in actions],
             )
-
             try:
                 async with state_manager.db_context() as conn:
-                    turn_number = await state_manager.get_current_turn_number(conn) + 1
-                    batch = ActionBatch(actions=actions, turn_number=turn_number)
+                    turn_number = await state_manager.get_current_turn_number(conn, campaign_id=campaign_id) + 1
+                    batch = ActionBatch(actions=actions, turn_number=turn_number, campaign_id=campaign_id)
                     await process_batch(conn, batch)
             except asyncio.CancelledError:
                 raise
             except Exception:
                 # Do not replay a batch that may already have persisted changes.
                 logger.exception("Error while draining action batch")
-
             async with _batch_lock:
-                if not _pending_actions:
-                    _batch_task = None
+                if not _pending_actions.get(campaign_id):
+                    _batch_tasks.pop(campaign_id, None)
+                    _pending_actions.pop(campaign_id, None)
                     return
     finally:
         async with _batch_lock:
-            if _batch_task is consumer:
-                _batch_task = None
+            if _batch_tasks.get(campaign_id) is consumer:
+                _batch_tasks.pop(campaign_id, None)
 
 
 # ---------------------------------------------------------------------------
 # Batch processing
 # ---------------------------------------------------------------------------
+
+async def _validate_campaign_targets(
+    conn: aiosqlite.Connection, player_ids: list[str], campaign_id: str,
+    allow_unresolved: bool = False,
+) -> None:
+    for player_id in set(player_ids):
+        row = await state_manager.get_player_by_id(conn, player_id)
+        if row is None and allow_unresolved:
+            continue
+        if row is None or (row["campaign_id"] or "default") != campaign_id:
+            raise ValueError("Player target does not belong to this campaign")
+
 
 async def _resolve_billing(
     conn: aiosqlite.Connection, batch: ActionBatch
@@ -141,7 +142,7 @@ async def _resolve_billing(
     byok_encrypted = None
     if first_player_id:
         byok_encrypted = await state_manager.get_byok_key(conn, first_player_id)
-    tension_level = await _get_tension_level(conn)
+    tension_level = await _get_tension_level(conn, campaign_id=batch.campaign_id)
     log_debug(
         logger,
         "billing_resolution_requested",
@@ -163,7 +164,7 @@ async def _build_messages(
     batch: ActionBatch,
     party_size: int,
 ) -> list[dict[str, str]]:
-    tension_level = await _get_tension_level(conn)
+    tension_level = await _get_tension_level(conn, campaign_id=batch.campaign_id)
     encounter_scale, boss_scale_steps = _calculate_encounter_scaling(party_size)
     system_prompt = build_gm_system_prompt(
         num_players=party_size,
@@ -180,7 +181,7 @@ async def _build_messages(
     messages: list[dict[str, str]] = [
         {"role": "system", "content": context.to_system_prompt() + "\n\n" + system_prompt},
     ]
-    history = await state_manager.get_recent_history(conn, limit=10)
+    history = await state_manager.get_recent_history(conn, limit=10, campaign_id=batch.campaign_id)
     for h in history:
         messages.append({"role": h["role"], "content": h["content"]})
     messages.append({"role": "user", "content": user_message})
@@ -224,6 +225,7 @@ def _build_slm_messages(
 async def _stream_slm_narrative(
     billing: Any,
     messages: list[dict[str, str]],
+    campaign_id: str = "default",
 ) -> tuple[str, str]:
     """B1: stream narrative from SLM. Returns (full_text, streamed_text)."""
     started_at = time.perf_counter()
@@ -247,7 +249,7 @@ async def _stream_slm_narrative(
             collector.append(delta)
             yield _sanitize_narrative_text(delta)
 
-    narrative = await cm.manager.broadcast_stream(_clean_tokens())
+    narrative = await cm.manager.broadcast_stream(_clean_tokens(), campaign_id=campaign_id)
     full_text = _sanitize_narrative_text("".join(collector))
     log_flow(
         logger,
@@ -355,7 +357,7 @@ def get_encounter_scaling_preview(party_size: int) -> dict[str, float | int]:
 
 
 async def _get_party_size(conn: aiosqlite.Connection, batch: ActionBatch) -> int:
-    alive_players = await state_manager.get_all_alive_players(conn)
+    alive_players = await state_manager.get_all_alive_players(conn, campaign_id=batch.campaign_id)
     alive_count = len([p for p in alive_players if p["name"]])
     return max(1, alive_count, len(batch.actions))
 
@@ -421,29 +423,57 @@ async def _tokens_from_stream(
 
 
 async def _stream_llm(
-    billing: Any, messages: list[dict[str, str]]
+    billing: Any, messages: list[dict[str, str]], campaign_id: str = "default"
 ) -> tuple[str, str]:
     """Chama o LLM e faz streaming para os jogadores. Retorna (full_response, narrative)."""
     started_at = time.perf_counter()
     if local_llm.is_local_only():
-        model = os.getenv("AERUS_OLLAMA_GM_MODEL", os.getenv("AERUS_OLLAMA_MODEL", "qwen2.5:14b-instruct"))
-        log_flow(logger, "gm_llm_start", provider="ollama", model=model, message_count=len(messages))
-        full_response = await local_llm.generate_chat(
-            messages,
-            max_tokens=2048,
-            model_override=model,
-        )
-        narrative = await cm.manager.broadcast_stream(_tokens_from_text(full_response))
-        log_flow(
-            logger,
-            "gm_llm_complete",
-            provider="ollama",
-            model=model,
-            duration_ms=round((time.perf_counter() - started_at) * 1000, 2),
-            response_chars=len(full_response),
-            narrative_chars=len(narrative),
-        )
-        return full_response, narrative
+        if local_llm._uses_exllamav3():
+            provider = "exllamav3"
+            model = local_llm._exllamav3_model()
+            log_flow(logger, "gm_llm_start", provider=provider, model=model, message_count=len(messages))
+            client = local_llm.get_exllamav3_client()
+            collector: list[str] = []
+            stream = await client.chat.completions.create(
+                model=model,
+                messages=messages,
+                stream=True,
+                max_tokens=2048,
+            )
+            narrative = await cm.manager.broadcast_stream(_tokens_from_stream(stream, collector), campaign_id=campaign_id)
+            full_response = "".join(collector)
+            log_flow(
+                logger,
+                "gm_llm_complete",
+                provider=provider,
+                model=model,
+                duration_ms=round((time.perf_counter() - started_at) * 1000, 2),
+                response_chars=len(full_response),
+                narrative_chars=len(narrative),
+            )
+            return full_response, narrative
+        else:
+            provider = "ollama"
+            model = os.getenv("AERUS_OLLAMA_GM_MODEL", os.getenv("AERUS_OLLAMA_MODEL", "qwen2.5:14b-instruct"))
+            override = model
+            log_flow(logger, "gm_llm_start", provider=provider, model=model, message_count=len(messages))
+            full_response = await local_llm.generate_chat(
+                messages,
+                max_tokens=2048,
+                model_override=override,
+            )
+            narrative = await cm.manager.broadcast_stream(_tokens_from_text(full_response), campaign_id=campaign_id)
+            log_flow(
+                logger,
+                "gm_llm_complete",
+                provider=provider,
+                model=model,
+                duration_ms=round((time.perf_counter() - started_at) * 1000, 2),
+                response_chars=len(full_response),
+                narrative_chars=len(narrative),
+            )
+            return full_response, narrative
+
 
     client = AsyncOpenAI(api_key=billing.api_key, base_url=billing.base_url)
     collector: list[str] = []
@@ -460,7 +490,7 @@ async def _stream_llm(
             "X-Title": "Aerus Game Master Platform",
         },
     )
-    narrative = await cm.manager.broadcast_stream(_tokens_from_stream(stream, collector))
+    narrative = await cm.manager.broadcast_stream(_tokens_from_stream(stream, collector), campaign_id=campaign_id)
     full_response = "".join(collector)
     log_flow(
         logger,
@@ -502,6 +532,10 @@ async def process_batch(
     6. Broadcast events
     7. Save to history
     """
+    await _validate_campaign_targets(conn, [action.player_id for action in batch.actions], batch.campaign_id)
+    await state_manager.ensure_default_world_state(conn, campaign_id=batch.campaign_id)
+    from .time_manager import initialize_calendar
+    await initialize_calendar(conn, campaign_id=batch.campaign_id)
     logger.info("Processing batch #%d with %d actions", batch.turn_number, len(batch.actions))
     batch_started_at = time.perf_counter()
     log_flow(
@@ -512,10 +546,10 @@ async def process_batch(
         players=[action.player_name for action in batch.actions],
     )
 
-    thinking_task = asyncio.create_task(_thinking_timeout(cm.manager))
+    thinking_task = asyncio.create_task(_thinking_timeout(cm.manager, campaign_id=batch.campaign_id))
 
     try:
-        current_tension = await _get_tension_level(conn)
+        current_tension = await _get_tension_level(conn, campaign_id=batch.campaign_id)
         context = await build_context(conn, batch, tension_level=current_tension)
         billing = None if local_llm.is_local_only() else await _resolve_billing(conn, batch)
         user_message = _format_batch_as_user_message(batch)
@@ -525,15 +559,15 @@ async def process_batch(
 
         if billing and billing.is_slm:
             # ── B1: SLM generates narrative, extractor builds game_state ──────
-            history = await state_manager.get_recent_history(conn, limit=4)
+            history = await state_manager.get_recent_history(conn, limit=4, campaign_id=batch.campaign_id)
             slm_messages = _build_slm_messages(
                 context, user_message, current_tension, language, list(history)
             )
             thinking_task.cancel()
-            full_response, _ = await _stream_slm_narrative(billing, slm_messages)
-            await cm.manager.broadcast({"type": WSMessageType.STREAM_END})
+            full_response, _ = await _stream_slm_narrative(billing, slm_messages, campaign_id=batch.campaign_id)
+            await cm.manager.broadcast({"type": WSMessageType.STREAM_END}, campaign_id=batch.campaign_id)
             gm_response = await _extract_game_state_b1(
-                conn, full_response, batch, context, current_tension, valid_player_ids
+                conn, full_response, batch, context, current_tension, None
             )
         elif billing and billing.is_hosted_narrator:
             # ── Hosted frontier narrator + RAG + guardrail (see docs/GAP_ANALYSIS_NARRATOR.md) ──
@@ -562,22 +596,33 @@ async def process_batch(
             async def _stream_once() -> AsyncIterator[str]:
                 yield full_response
 
-            await cm.manager.broadcast_stream(_stream_once())
-            await cm.manager.broadcast({"type": WSMessageType.STREAM_END})
+            await cm.manager.broadcast_stream(_stream_once(), campaign_id=batch.campaign_id)
+            await cm.manager.broadcast({"type": WSMessageType.STREAM_END}, campaign_id=batch.campaign_id)
             gm_response = await _extract_game_state_b1(
-                conn, full_response, batch, context, current_tension, valid_player_ids
+                conn, full_response, batch, context, current_tension, None
             )
         else:
             # ── Standard path: full-context prompt → GM response with game_state
             messages = await _build_messages(conn, context, user_message, batch, party_size)
             thinking_task.cancel()
-            full_response, _ = await _stream_llm(billing, messages)
-            await cm.manager.broadcast({"type": WSMessageType.STREAM_END})
+            full_response, _ = await _stream_llm(billing, messages, campaign_id=batch.campaign_id)
+            await cm.manager.broadcast({"type": WSMessageType.STREAM_END}, campaign_id=batch.campaign_id)
             gm_response = _parse_gm_response(
                 full_response,
                 current_tension=current_tension,
-                valid_player_ids=valid_player_ids,
+                valid_player_ids=None,
             )
+
+        raw_targets = list(gm_response.state_delta) + [
+            event["player_id"] for event in gm_response.game_events if event.get("player_id")
+        ]
+        await _validate_campaign_targets(conn, raw_targets, batch.campaign_id, allow_unresolved=True)
+        gm_response = _reconcile_response_player_ids(gm_response, valid_player_ids)
+        await _validate_campaign_targets(
+            conn, list(gm_response.state_delta) + [
+                event["player_id"] for event in gm_response.game_events if event.get("player_id")
+            ], batch.campaign_id,
+        )
 
         fallback_state, fallback_events = await _build_minimum_mechanics_fallback(
             conn,
@@ -606,8 +651,8 @@ async def process_batch(
         # 6. Aplica deltas e emite eventos
         await _apply_deltas_and_events(conn, gm_response, batch)
         await _update_cooperative_mission_progress(conn, batch)
-        await _advance_travel_if_active(conn)
-        condition_results = await state_manager.process_condition_turn(conn, batch.turn_number)
+        await _advance_travel_if_active(conn, campaign_id=batch.campaign_id)
+        condition_results = await state_manager.process_condition_turn(conn, batch.turn_number, campaign_id=batch.campaign_id)
         if condition_results:
             log_flow(
                 logger,
@@ -623,6 +668,7 @@ async def process_batch(
             turn_number=batch.turn_number,
             role="user",
             content=user_message,
+            campaign_id=batch.campaign_id,
         )
         await state_manager.append_history(
             conn,
@@ -630,6 +676,7 @@ async def process_batch(
             turn_number=batch.turn_number,
             role="assistant",
             content=_extract_narrative_only(full_response),
+            campaign_id=batch.campaign_id,
         )
         await memory_manager.update_memory_after_turn(conn, batch, gm_response)
         log_flow(
@@ -650,15 +697,18 @@ async def process_batch(
         await cm.manager.broadcast({
             "type": WSMessageType.ERROR,
             "message": "Internal GM error. Please try again.",
-        })
+        },
+            campaign_id=batch.campaign_id,
+        )
     finally:
         thinking_task.cancel()
+        await asyncio.gather(thinking_task, return_exceptions=True)
 
 
-async def _thinking_timeout(manager: cm.ConnectionManager) -> None:
+async def _thinking_timeout(manager: cm.ConnectionManager, campaign_id: str = "default") -> None:
     """Send a GM thinking message after 15 seconds without a response."""
     await asyncio.sleep(15)
-    await manager.broadcast_gm_thinking()
+    await manager.broadcast_gm_thinking(campaign_id=campaign_id)
 
 
 # ---------------------------------------------------------------------------
@@ -787,7 +837,14 @@ def _parse_gm_response(full_response: str, current_tension: int = 5, valid_playe
 
     if not match:
         logger.warning("GM response missing structured <game_state>")
-        return GMResponse(narrative=narrative)
+        # Fallback: search for any raw JSON object containing state_delta or dice_rolls
+        json_match = re.search(r"\{[\s\S]*\"(?:state_delta|dice_rolls|tension_level)\"[\s\S]*\}", full_response)
+        if json_match:
+            json_candidate = json_match.group(0)
+            match = True
+            logger.info("Recovered raw JSON state from GM response without explicit XML tags")
+        else:
+            return GMResponse(narrative=narrative)
 
     try:
         json_text = match.group(1) if hasattr(match, "group") else json_candidate
@@ -875,11 +932,14 @@ def _extract_narrative_only(full_response: str) -> str:
         flags=re.DOTALL | re.IGNORECASE,
     )
     stripped = re.sub(
-        r"\s*```game_state.*$",
+        r"\s*\*{0,2}game_state\*{0,2}[\s\S]*$",
         "",
         stripped,
-        flags=re.DOTALL | re.IGNORECASE,
+        flags=re.IGNORECASE,
     )
+    json_tail = re.search(r"\s*\{[\s\S]*\"(?:state_delta|dice_rolls|tension_level)\"[\s\S]*\}\s*$", stripped)
+    if json_tail:
+        stripped = stripped[:json_tail.start()].strip()
     close_idx = stripped.find("</game_state>")
     if close_idx != -1:
         brace_idx = stripped.rfind("{", 0, close_idx)
@@ -1624,9 +1684,9 @@ async def _build_minimum_mechanics_fallback(
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     state_delta: dict[str, Any] = {}
     fallback_events: list[dict[str, Any]] = []
-    current_tension = await _get_tension_level(conn)
+    current_tension = await _get_tension_level(conn, campaign_id=batch.campaign_id)
     current_location = (
-        await state_manager.get_world_state(conn, "current_location")
+        await state_manager.get_world_state(conn, "current_location", campaign_id=batch.campaign_id)
         or state_manager.DEFAULT_START_LOCATION
     )
 
@@ -1858,8 +1918,8 @@ def _extract_balanced_json_block(text: str, start: int) -> str:
     return "".join(chars + stack[::-1])
 
 
-async def _get_tension_level(conn: aiosqlite.Connection) -> int:
-    tension_str = await state_manager.get_world_state(conn, "tension_level") or "5"
+async def _get_tension_level(conn: aiosqlite.Connection, campaign_id: str = "default") -> int:
+    tension_str = await state_manager.get_world_state(conn, "tension_level", campaign_id=campaign_id) or "5"
     try:
         return int(tension_str)
     except ValueError:
@@ -1870,8 +1930,14 @@ async def _apply_deltas_and_events(
     conn: aiosqlite.Connection,
     gm_response: GMResponse,
     batch: ActionBatch | None = None,
+    campaign_id: str = "default",
 ) -> None:
-    """Apply state deltas and emit game events."""
+    """Apply state deltas and emit game events within verified ownership."""
+    campaign_id = batch.campaign_id if batch else campaign_id
+    targets = list(gm_response.state_delta) + [
+        event["player_id"] for event in gm_response.game_events if event.get("player_id")
+    ]
+    await _validate_campaign_targets(conn, targets, campaign_id)
     log_debug(
         logger,
         "batch_apply_start",
@@ -1881,8 +1947,14 @@ async def _apply_deltas_and_events(
     )
     # Dice roll data - enrich with is_critical and is_fumble
     for roll in gm_response.dice_rolls:
-        die = int(roll.get("die", 20))
-        result = int(roll.get("result", 0))
+        try:
+            die = int(roll.get("die", 20))
+        except (ValueError, TypeError):
+            die = 20
+        try:
+            result = int(roll.get("result", 0))
+        except (ValueError, TypeError):
+            result = 0
         purpose = str(roll.get("purpose", "action check")).strip() or "action check"
         player_name = str(roll.get("player", "Player")).strip() or "Player"
 
@@ -1890,7 +1962,8 @@ async def _apply_deltas_and_events(
         broadcast_gm_thinking = getattr(cm.manager, "broadcast_gm_thinking", None)
         if callable(broadcast_gm_thinking):
             maybe_result = broadcast_gm_thinking(
-                f"Dice check incoming: {player_name} will roll d{die} for {purpose}."
+                f"Dice check incoming: {player_name} will roll d{die} for {purpose}.",
+                campaign_id=campaign_id,
             )
             if inspect.isawaitable(maybe_result):
                 await maybe_result
@@ -1899,7 +1972,7 @@ async def _apply_deltas_and_events(
             "is_critical": result == die,
             "is_fumble": result == 1,
         }
-        await cm.manager.broadcast_dice_roll(enriched)
+        await cm.manager.broadcast_dice_roll(enriched, campaign_id=campaign_id)
         await asyncio.sleep(0.1)  # brief pause for frontend animation
         log_debug(logger, "dice_roll_emitted", roll=summarize_payload(enriched))
 
@@ -1913,13 +1986,15 @@ async def _apply_deltas_and_events(
                 player_id=player_id,
                 delta=summarize_payload(delta),
             )
-            await _maybe_emit_progression_events(conn, player_id)
+            await _maybe_emit_progression_events(conn, player_id, campaign_id=campaign_id)
             if delta_result.get("milestones_unlocked"):
                 await cm.manager.broadcast({
                     "type": "milestone",
                     "player_id": player_id,
                     "milestones": delta_result["milestones_unlocked"],
-                })
+                },
+                    campaign_id=campaign_id,
+                )
             # Apply faction reputation deltas when present
             from .reputation_gates import check_reputation_gates
             for rep_delta in delta.get("reputation_delta", []):
@@ -1940,14 +2015,17 @@ async def _apply_deltas_and_events(
                             "delta": change,
                             "new_score": new_score,
                         },
+                        campaign_id=campaign_id,
                     )
                     # Check and fire reputation gates
                     gate_events = await check_reputation_gates(
-                        conn, player_id, faction_id, new_score, old_score
+                        conn, player_id, faction_id, new_score, old_score,
+                        campaign_id=campaign_id,
                     )
                     for gate_event in gate_events:
                         await cm.manager.broadcast_game_event(
-                            "REPUTATION_GATE_UNLOCKED", gate_event
+                            "REPUTATION_GATE_UNLOCKED", gate_event,
+                            campaign_id=campaign_id,
                         )
             # Faction credibility changes
             for faction_name, change in delta.get("faction_cred_change", {}).items():
@@ -1957,29 +2035,36 @@ async def _apply_deltas_and_events(
                     "objective": "credibility_change",
                     "status": "in_progress",
                     "cred_change": float(change),
-                })
+                },
+                    campaign_id=campaign_id,
+                )
         await cm.manager.broadcast({
             "type": WSMessageType.STATE_UPDATE,
             "delta": gm_response.state_delta,
-        })
+        },
+            campaign_id=campaign_id,
+        )
 
     await state_manager.set_world_state(
         conn,
         "tension_level",
         str(gm_response.tension_level),
+        campaign_id=campaign_id,
     )
 
     # Game events
     for event in gm_response.game_events:
         event_type = event.get("type", "")
-        await cm.manager.broadcast_game_event(event_type, event)
+        await cm.manager.broadcast_game_event(event_type, event, campaign_id=campaign_id)
 
     # Audio cue
     if gm_response.audio_cue:
         await cm.manager.broadcast({
             "type": WSMessageType.AUDIO_CUE,
             "cue": gm_response.audio_cue,
-        })
+        },
+            campaign_id=campaign_id,
+        )
 
     # Boss music event (W-04)
     if gm_response.tension_level >= 5 and gm_response.audio_cue == "boss_music":
@@ -1987,7 +2072,9 @@ async def _apply_deltas_and_events(
             "type": WSMessageType.BOSS_MUSIC,
             "tension_level": gm_response.tension_level,
             "intensity": "high" if gm_response.tension_level >= 7 else "medium",
-        })
+        },
+            campaign_id=campaign_id,
+        )
 
     if batch:
         await _track_secret_objective_progress(conn, batch, gm_response)
@@ -1996,6 +2083,7 @@ async def _apply_deltas_and_events(
 async def _maybe_emit_progression_events(
     conn: aiosqlite.Connection,
     player_id: str,
+    campaign_id: str = "default",
 ) -> None:
     player = await state_manager.get_player_by_id(conn, player_id)
     if player is None:
@@ -2010,9 +2098,9 @@ async def _maybe_emit_progression_events(
 
     # Every 5 levels: emit ABILITY_UNLOCK as signal for GM to award organic power
     ability_lock_key = f"ability_unlock:{player_id}:{level}"
-    already_unlocked = await state_manager.get_quest_flag(conn, ability_lock_key)
+    already_unlocked = await state_manager.get_quest_flag(conn, ability_lock_key, campaign_id=campaign_id)
     if already_unlocked != "1":
-        await state_manager.set_quest_flag(conn, ability_lock_key, "1")
+        await state_manager.set_quest_flag(conn, ability_lock_key, "1", campaign_id=campaign_id)
         await cm.manager.broadcast_game_event(
             "ABILITY_UNLOCK",
             {
@@ -2022,6 +2110,7 @@ async def _maybe_emit_progression_events(
                 "level": level,
                 "inferred_class": inferred_class,
             },
+            campaign_id=campaign_id,
         )
 
     # Every 25 levels: formal class mutation
@@ -2029,7 +2118,7 @@ async def _maybe_emit_progression_events(
         return
 
     mutation_lock_key = f"class_mutation:{player_id}:{level}"
-    already_mutated = await state_manager.get_quest_flag(conn, mutation_lock_key)
+    already_mutated = await state_manager.get_quest_flag(conn, mutation_lock_key, campaign_id=campaign_id)
     if already_mutated == "1":
         return
 
@@ -2038,11 +2127,11 @@ async def _maybe_emit_progression_events(
     old_class = inferred_class
     new_class = await get_mutation_name(conn, player_id, old_class)
     if new_class == old_class:
-        await state_manager.set_quest_flag(conn, mutation_lock_key, "1")
+        await state_manager.set_quest_flag(conn, mutation_lock_key, "1", campaign_id=campaign_id)
         return
 
     await state_manager.set_player_inferred_class(conn, player_id, new_class)
-    await state_manager.set_quest_flag(conn, mutation_lock_key, "1")
+    await state_manager.set_quest_flag(conn, mutation_lock_key, "1", campaign_id=campaign_id)
     await cm.manager.broadcast_game_event(
         "CLASS_MUTATION",
         {
@@ -2053,16 +2142,17 @@ async def _maybe_emit_progression_events(
             "new_class": new_class,
             "level": level,
         },
+        campaign_id=campaign_id,
     )
 
 
-async def _advance_travel_if_active(conn: aiosqlite.Connection) -> None:
+async def _advance_travel_if_active(conn: aiosqlite.Connection, campaign_id: str = "default") -> None:
     """Advance one travel day per GM turn and emit an event on arrival."""
-    state = await travel_manager.get_travel_state(conn)
+    state = await travel_manager.get_travel_state(conn, campaign_id=campaign_id)
     if not state.get("active"):
         return
 
-    result = await travel_manager.advance_travel_day(conn)
+    result = await travel_manager.advance_travel_day(conn, campaign_id=campaign_id)
     if result.get("arrived"):
         await cm.manager.broadcast_game_event(
             "TRAVEL_ARRIVED",
@@ -2071,12 +2161,13 @@ async def _advance_travel_if_active(conn: aiosqlite.Connection) -> None:
                 "destination": result["destination"],
                 "destination_name": result["destination_name"],
             },
+            campaign_id=campaign_id,
         )
         log_flow(logger, "travel_arrived", destination=result["destination"])
     else:
         encounter = travel_manager.roll_encounter(
             result.get("terrain", "wilderness"),
-            tension=int((await state_manager.get_world_state(conn, "tension_level")) or "5"),
+            tension=int((await state_manager.get_world_state(conn, "tension_level", campaign_id=campaign_id)) or "5"),
         )
         if encounter["triggered"]:
             await cm.manager.broadcast_game_event(
@@ -2088,6 +2179,7 @@ async def _advance_travel_if_active(conn: aiosqlite.Connection) -> None:
                     "roll": encounter["roll"],
                     "encounter": encounter["encounter"],
                 },
+                campaign_id=campaign_id,
             )
             log_flow(logger, "travel_encounter_triggered",
                      day=result["day_current"], roll=encounter["roll"])
@@ -2111,11 +2203,11 @@ async def _track_secret_objective_progress(
         progress_key = f"secret_objective_progress:{player_id}"
         stage_key = f"secret_objective_hint_stage:{player_id}"
 
-        progress, stage = await _load_secret_progress_state(conn, progress_key, stage_key)
+        progress, stage = await _load_secret_progress_state(conn, progress_key, stage_key, campaign_id=batch.campaign_id)
         progress = _compute_secret_progress(progress, gm_response, player_id)
-        await state_manager.set_quest_flag(conn, progress_key, str(progress))
-        stage = await _emit_due_secret_hints(player, secret_objective, progress, stage)
-        await state_manager.set_quest_flag(conn, stage_key, str(stage))
+        await state_manager.set_quest_flag(conn, progress_key, str(progress), campaign_id=batch.campaign_id)
+        stage = await _emit_due_secret_hints(player, secret_objective, progress, stage, campaign_id=batch.campaign_id)
+        await state_manager.set_quest_flag(conn, stage_key, str(stage), campaign_id=batch.campaign_id)
 
 
 def _has_secret_objective(player: aiosqlite.Row | None) -> bool:
@@ -2128,9 +2220,10 @@ async def _load_secret_progress_state(
     conn: aiosqlite.Connection,
     progress_key: str,
     stage_key: str,
+    campaign_id: str = "default",
 ) -> tuple[int, int]:
-    progress_raw = await state_manager.get_quest_flag(conn, progress_key)
-    stage_raw = await state_manager.get_quest_flag(conn, stage_key)
+    progress_raw = await state_manager.get_quest_flag(conn, progress_key, campaign_id=campaign_id)
+    stage_raw = await state_manager.get_quest_flag(conn, stage_key, campaign_id=campaign_id)
     progress = int(progress_raw) if progress_raw and progress_raw.isdigit() else 0
     stage = int(stage_raw) if stage_raw and stage_raw.isdigit() else 0
     return progress, stage
@@ -2147,6 +2240,7 @@ async def _emit_due_secret_hints(
     secret_objective: str,
     progress: int,
     stage: int,
+    campaign_id: str = "default",
 ) -> int:
     for idx, threshold in enumerate([30, 60, 90], start=1):
         if progress < threshold or stage >= idx:
@@ -2159,6 +2253,7 @@ async def _emit_due_secret_hints(
                 "faction": player["faction"],
                 "hint": hint,
             },
+            campaign_id=campaign_id,
         )
         stage = idx
     return stage
@@ -2168,11 +2263,11 @@ async def _update_cooperative_mission_progress(
     conn: aiosqlite.Connection,
     batch: ActionBatch,
 ) -> None:
-    await state_manager.initialize_or_refresh_cooperative_mission(conn)
+    await state_manager.initialize_or_refresh_cooperative_mission(conn, campaign_id=batch.campaign_id)
     unique_players = list(dict.fromkeys(action.player_id for action in batch.actions))
-    mission_state: dict[str, str] = await state_manager.get_cooperative_mission_state(conn)
+    mission_state: dict[str, str] = await state_manager.get_cooperative_mission_state(conn, campaign_id=batch.campaign_id)
     for player_id in unique_players:
-        mission_state = await state_manager.mark_cooperative_mission_participation(conn, player_id)
+        mission_state = await state_manager.mark_cooperative_mission_participation(conn, player_id, campaign_id=batch.campaign_id)
 
     required = int(mission_state.get("cooperative_mission_required_players", "0") or 0)
     completed = int(mission_state.get("cooperative_mission_completed_players", "0") or 0)
@@ -2190,7 +2285,7 @@ async def _update_cooperative_mission_progress(
             state_manager.COOP_MISSION_OBJECTIVE_DEFAULT,
         ),
     }
-    await cm.manager.broadcast_game_event("COOP_MISSION", payload)
+    await cm.manager.broadcast_game_event("COOP_MISSION", payload, campaign_id=batch.campaign_id)
 
 
 async def _generate_secret_hint(player: aiosqlite.Row, secret_objective: str, stage: int) -> str:

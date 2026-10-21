@@ -262,4 +262,51 @@ describe('useWebSocket', () => {
 
     expect(useGameStore.getState().connectionStatus).toBe('disconnected')
   })
+
+  it('dice_result message is parsed and processed without error', () => {
+    renderHook(() => useWebSocket('test-token'))
+
+    expect(() => {
+      act(() => {
+        mockWsInstance.triggerOpen()
+        mockWsInstance.triggerMessage({
+          type: 'dice_result',
+          player_id: 'p1',
+          die: 20,
+          result: 19,
+        })
+      })
+    }).not.toThrow()
+  })
+
+  it('faction_objective_update updates store and secret objective', () => {
+    withPlayer('p1')
+    useGameStore.setState((s) => ({
+      ...s,
+      gameState: {
+        ...s.gameState,
+        current_player: {
+          ...s.gameState.current_player,
+          player_id: 'p1',
+          faction: 'guild_of_threads',
+          secret_objective: 'Old objective',
+        },
+      },
+    }))
+
+    renderHook(() => useWebSocket('test-token'))
+
+    act(() => {
+      mockWsInstance.triggerOpen()
+      mockWsInstance.triggerMessage({
+        type: 'faction_objective_update',
+        faction: 'guild_of_threads',
+        objective: 'Reclaim the thread spindle',
+        status: 'in_progress',
+        cred_change: 5,
+      })
+    })
+
+    expect(useGameStore.getState().gameState.secret_objective).toBe('Reclaim the thread spindle')
+  })
 })

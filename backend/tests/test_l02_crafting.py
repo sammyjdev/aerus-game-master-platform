@@ -90,6 +90,25 @@ class TestCraftEndpoint:
         data = resp.json()
         assert data["recipe"]["item_id"] == "salve_regeneration"
 
+    async def test_craft_submits_exactly_one_action(self, authenticated_client, player_id, monkeypatch):
+        from unittest.mock import AsyncMock
+        from src import game_master
+        mock_submit = AsyncMock()
+        monkeypatch.setattr(game_master, "submit_action", mock_submit)
+        resp = await authenticated_client.post("/game/craft", json={"recipe": "Keth Oil"})
+        assert resp.status_code == 200
+        mock_submit.assert_awaited_once()
+        assert "Keth Oil" in mock_submit.call_args.args[2]
+
+    async def test_craft_rejected_when_campaign_paused(self, authenticated_client, db):
+        from src import state_manager
+        await state_manager.set_world_state(db, "campaign_paused", "1", campaign_id="default")
+        await db.commit()
+        resp = await authenticated_client.post("/game/craft", json={"recipe": "Keth Oil"})
+        assert resp.status_code == 400
+        assert "paused" in resp.json()["detail"].lower()
+
+
 
 @pytest.mark.asyncio
 class TestCraftOutcomeDelta:

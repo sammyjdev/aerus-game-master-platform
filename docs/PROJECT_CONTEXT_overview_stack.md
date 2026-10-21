@@ -61,7 +61,8 @@
 | Persistence | SQLite + WAL via `aiosqlite` | Simple local-first persistence with no external DB required |
 | Vector Store | ChromaDB | Semantic lore and bestiary retrieval |
 | LLM Gateway | OpenRouter-compatible APIs | Broad model support and BYOK flexibility |
-| Local Model Runtime | Ollama | Free local summarization and structured helper tasks |
+| High-Speed Local GPU Runtime | ExLlamaV3 + TabbyAPI | Sub-20ms/token local GM inference with `UnslopNemo-12B-v4.1-exl3` |
+| Local Fallback Runtime | Ollama | Free local summarization and structured helper tasks |
 | Backend Deploy | Fly.io (GRU) | Low latency for Brazil-based hosting and always-on runtime |
 | Frontend Deploy | Vercel | Simple push-to-deploy frontend hosting |
 | Config | YAML + Markdown | Editable campaign data without changing code |
@@ -108,13 +109,15 @@ After the first action in a turn batch, the system waits briefly for additional 
 - Fallback `gm_thinking` event when narration is delayed
 - Automatic reconnect with full state sync on client recovery
 
-### Local Admin Hardware Notes
+### Local Admin Hardware & Inference Benchmarks
 
 Validated local setup assumptions:
 
 - **CPU:** Ryzen 7 5800X3D class
 - **RAM:** 32 GB
-- **GPU:** RTX 4070 Ti / 12 GB VRAM class
-- **OS:** Windows 11
+- **GPU:** NVIDIA GeForce RTX 4070 Ti (12 GB VRAM)
+- **OS:** Linux (Ubuntu 24.04 / Debian) / Windows 11 WSL2
 
-Validated local models include `qwen2.5:14b-instruct` for structured outputs and `phi4:14b` for supporting narrative or summarization tasks.
+Validated local models and runtimes:
+- **Primary Game Master (ExLlamaV3):** `UnslopNemo-12B-v4.1-exl3-4.25bpw` with unquantized FP16 `lm_head` and `Q8` KV-cache (16k context, ~9.8 GB VRAM footprint, **57.36 tokens/s**, **17.6 ms/token latency**, **67.8 ms TTFT**).
+- **Structured Task Helper (Ollama):** `qwen2.5:14b-instruct` for JSON extraction and `phi4:14b` / `phi4:mini` for memory compression and summarization.

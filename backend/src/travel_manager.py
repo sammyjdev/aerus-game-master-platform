@@ -136,6 +136,7 @@ async def start_travel(
     conn: aiosqlite.Connection,
     origin: str,
     destination: str,
+    campaign_id: str = "default",
 ) -> dict[str, Any]:
     """
     Start a trip and persist all travel-state keys.
@@ -149,25 +150,25 @@ async def start_travel(
 
     terrain = get_current_segment_terrain(origin, destination, 1)
 
-    await state_manager.set_world_state(conn, _KEY_ACTIVE, "1")
-    await state_manager.set_world_state(conn, _KEY_ORIGIN, origin)
-    await state_manager.set_world_state(conn, _KEY_DESTINATION, destination)
-    await state_manager.set_world_state(conn, _KEY_DAY_CURRENT, "1")
-    await state_manager.set_world_state(conn, _KEY_DAY_TOTAL, str(total))
-    await state_manager.set_world_state(conn, _KEY_SEGMENT, terrain)
+    await state_manager.set_world_state(conn, _KEY_ACTIVE, "1", campaign_id=campaign_id)
+    await state_manager.set_world_state(conn, _KEY_ORIGIN, origin, campaign_id=campaign_id)
+    await state_manager.set_world_state(conn, _KEY_DESTINATION, destination, campaign_id=campaign_id)
+    await state_manager.set_world_state(conn, _KEY_DAY_CURRENT, "1", campaign_id=campaign_id)
+    await state_manager.set_world_state(conn, _KEY_DAY_TOTAL, str(total), campaign_id=campaign_id)
+    await state_manager.set_world_state(conn, _KEY_SEGMENT, terrain, campaign_id=campaign_id)
 
     logger.info("Travel started: %s -> %s (%d days)", origin, destination, total)
-    return await get_travel_state(conn)
+    return await get_travel_state(conn, campaign_id=campaign_id)
 
 
-async def advance_travel_day(conn: aiosqlite.Connection) -> dict[str, Any]:
+async def advance_travel_day(conn: aiosqlite.Connection, campaign_id: str = "default") -> dict[str, Any]:
     """
     Advance travel by one day. If the destination was reached, call complete_travel().
     Returns the updated state.
     """
     from . import state_manager
 
-    state = await get_travel_state(conn)
+    state = await get_travel_state(conn, campaign_id=campaign_id)
     if not state["active"]:
         return state
 
@@ -177,22 +178,22 @@ async def advance_travel_day(conn: aiosqlite.Connection) -> dict[str, Any]:
     day_total = state["day_total"]
 
     if day_current > day_total:
-        return await complete_travel(conn, destination)
+        return await complete_travel(conn, destination, campaign_id=campaign_id)
 
     terrain = get_current_segment_terrain(origin, destination, day_current)
-    await state_manager.set_world_state(conn, _KEY_DAY_CURRENT, str(day_current))
-    await state_manager.set_world_state(conn, _KEY_SEGMENT, terrain)
+    await state_manager.set_world_state(conn, _KEY_DAY_CURRENT, str(day_current), campaign_id=campaign_id)
+    await state_manager.set_world_state(conn, _KEY_SEGMENT, terrain, campaign_id=campaign_id)
 
-    return await get_travel_state(conn)
+    return await get_travel_state(conn, campaign_id=campaign_id)
 
 
-async def complete_travel(conn: aiosqlite.Connection, destination: str) -> dict[str, Any]:
+async def complete_travel(conn: aiosqlite.Connection, destination: str, campaign_id: str = "default") -> dict[str, Any]:
     """
     Finish the trip: update current_location and clear the travel state.
     """
     from . import state_manager
 
-    await state_manager.set_world_state(conn, "current_location", destination)
+    await state_manager.set_world_state(conn, "current_location", destination, campaign_id=campaign_id)
 
     for key in (
         _KEY_ACTIVE,
@@ -202,7 +203,7 @@ async def complete_travel(conn: aiosqlite.Connection, destination: str) -> dict[
         _KEY_DAY_TOTAL,
         _KEY_SEGMENT,
     ):
-        await state_manager.set_world_state(conn, key, "")
+        await state_manager.set_world_state(conn, key, "", campaign_id=campaign_id)
 
     loc = get_location(destination)
     loc_name = loc["name"] if loc else destination
@@ -216,23 +217,23 @@ async def complete_travel(conn: aiosqlite.Connection, destination: str) -> dict[
     }
 
 
-async def get_travel_state(conn: aiosqlite.Connection) -> dict[str, Any]:
+async def get_travel_state(conn: aiosqlite.Connection, campaign_id: str = "default") -> dict[str, Any]:
     """
     Return the full travel state for L2 context injection.
     """
     from . import state_manager
 
-    active_raw = await state_manager.get_world_state(conn, _KEY_ACTIVE)
+    active_raw = await state_manager.get_world_state(conn, _KEY_ACTIVE, campaign_id=campaign_id)
     active = active_raw == "1"
 
     if not active:
         return {"active": False}
 
-    origin = await state_manager.get_world_state(conn, _KEY_ORIGIN) or ""
-    destination = await state_manager.get_world_state(conn, _KEY_DESTINATION) or ""
-    day_current = int((await state_manager.get_world_state(conn, _KEY_DAY_CURRENT)) or "1")
-    day_total = int((await state_manager.get_world_state(conn, _KEY_DAY_TOTAL)) or "1")
-    terrain = await state_manager.get_world_state(conn, _KEY_SEGMENT) or "wilderness"
+    origin = await state_manager.get_world_state(conn, _KEY_ORIGIN, campaign_id=campaign_id) or ""
+    destination = await state_manager.get_world_state(conn, _KEY_DESTINATION, campaign_id=campaign_id) or ""
+    day_current = int((await state_manager.get_world_state(conn, _KEY_DAY_CURRENT, campaign_id=campaign_id)) or "1")
+    day_total = int((await state_manager.get_world_state(conn, _KEY_DAY_TOTAL, campaign_id=campaign_id)) or "1")
+    terrain = await state_manager.get_world_state(conn, _KEY_SEGMENT, campaign_id=campaign_id) or "wilderness"
 
     origin_loc = get_location(origin)
     destination_loc = get_location(destination)

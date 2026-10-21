@@ -2,6 +2,7 @@ import { create } from 'zustand'
 
 import type {
   DebugEntry,
+  DiceResultEvent,
   DiceRollEvent,
   FullStateSyncEvent,
   GameEvent,
@@ -14,6 +15,7 @@ import type {
   PlayerState,
   ReputationChangePayload,
 } from '../types'
+
 
 const DEBUG_STORAGE_KEY = 'aerus_debug_mode'
 
@@ -122,6 +124,7 @@ interface GameStore {
   faction_reputations: Record<string, Record<string, number>> // player_id → faction_id → score
   lastTravelEncounter: { terrain: string; description: string; tier: number } | null
   serverError: string | null
+  lastDiceResult: DiceResultEvent | null
   initiative_order: Array<{ player_id: string; name: string; initiative: number }>
   current_actor_id: string | null
   setToken: (token: string | null) => void
@@ -135,11 +138,14 @@ interface GameStore {
   setPendingDiceRoll: (roll: DiceRollEvent | null) => void
   setPendingManualRoll: (roll: ManualDiceRequestEvent | null) => void
   setManualRollResolution: (resolution: ManualDiceResolvedEvent | null) => void
+  setLastDiceResult: (result: DiceResultEvent | null) => void
+  updateFactionObjective: (payload: { faction: string; objective: string; status: 'in_progress' | 'completed' | 'failed'; cred_change: number }) => void
   patchCurrentPlayer: (patch: Partial<PlayerState>) => void
   setIsStreaming: (value: boolean) => void
   applyDelta: (playerId: string, delta: PlayerDelta) => void
   applyFullSync: (payload: { state: FullStateSyncEvent['state']; world_state?: FullStateSyncEvent['world_state']; roster?: RosterEntryInput[] }) => void
   handleGameEvent: (event: GameEvent) => void
+
   setIsekaiEvent: (event: IsekaiConvocationEvent | null) => void
   setGmThinking: (message: string | null) => void
   setServerError: (message: string | null) => void
@@ -264,7 +270,9 @@ export const useGameStore = create<GameStore>((set) => ({
   faction_reputations: {},
   lastTravelEncounter: null,
   serverError: null,
+  lastDiceResult: null,
   initiative_order: [],
+
   current_actor_id: null,
   setToken: (token) => {
     if (token) {
@@ -383,7 +391,19 @@ export const useGameStore = create<GameStore>((set) => ({
         manual_roll_resolution: resolution,
       },
     })),
+  setLastDiceResult: (result) => set({ lastDiceResult: result }),
+  updateFactionObjective: (payload) =>
+    set((state) => {
+      const isPlayerFaction = state.gameState.current_player.faction === payload.faction
+      return {
+        gameState: {
+          ...state.gameState,
+          secret_objective: isPlayerFaction ? payload.objective : state.gameState.secret_objective,
+        },
+      }
+    }),
   patchCurrentPlayer: (patch) =>
+
     set((state) => ({
       gameState: {
         ...state.gameState,
@@ -642,6 +662,36 @@ export const useGameStore = create<GameStore>((set) => ({
           },
         }
       }
+
+      if (event.event === 'CAMPAIGN_PAUSED') {
+        return {
+          eventLog: updatedLog,
+          gameState: {
+            ...state.gameState,
+            current_player: player,
+            world_state: {
+              ...state.gameState.world_state,
+              campaign_paused: true,
+            },
+          },
+        }
+      }
+
+      if (event.event === 'CAMPAIGN_RESUMED') {
+        return {
+          eventLog: updatedLog,
+          gameState: {
+            ...state.gameState,
+            current_player: player,
+            world_state: {
+              ...state.gameState.world_state,
+              campaign_paused: false,
+            },
+          },
+        }
+      }
+
+
 
       return {
         eventLog: updatedLog,

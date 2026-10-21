@@ -43,38 +43,38 @@ def _day_to_season(day: int) -> str:
     return "Crossing"
 
 
-async def _get_world_value(conn: aiosqlite.Connection, key: str) -> str | None:
-    async with conn.execute("SELECT value FROM world_state WHERE key = ?", (key,)) as cursor:
+async def _get_world_value(conn: aiosqlite.Connection, key: str, campaign_id: str = "default") -> str | None:
+    async with conn.execute("SELECT value FROM world_state WHERE key = ? AND campaign_id = ?", (key, campaign_id)) as cursor:
         row = await cursor.fetchone()
         return row[0] if row else None
 
 
-async def _set_world_value(conn: aiosqlite.Connection, key: str, value: str) -> None:
+async def _set_world_value(conn: aiosqlite.Connection, key: str, value: str, campaign_id: str = "default") -> None:
     now = time.time()
     await conn.execute(
-        "INSERT INTO world_state (key, value, updated_at) VALUES (?, ?, ?) "
-        "ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
-        (key, value, now),
+        "INSERT INTO world_state (key, value, updated_at, campaign_id) VALUES (?, ?, ?, ?) "
+        "ON CONFLICT(campaign_id, key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+        (key, value, now, campaign_id),
     )
     await conn.commit()
 
 
-async def initialize_calendar(conn: aiosqlite.Connection) -> None:
+async def initialize_calendar(conn: aiosqlite.Connection, campaign_id: str = "default") -> None:
     """
     Initialize the calendar with the campaign starting values if they do not
     already exist in the database. Called during init_db().
     """
-    existing = await _get_world_value(conn, _KEY_DAY)
+    existing = await _get_world_value(conn, _KEY_DAY, campaign_id=campaign_id)
     if existing is not None:
         return
 
-    await _set_world_value(conn, _KEY_DAY, str(_START_DAY))
-    await _set_world_value(conn, _KEY_SEASON, _START_SEASON)
-    await _set_world_value(conn, _KEY_YEAR, str(_START_YEAR))
+    await _set_world_value(conn, _KEY_DAY, str(_START_DAY), campaign_id=campaign_id)
+    await _set_world_value(conn, _KEY_SEASON, _START_SEASON, campaign_id=campaign_id)
+    await _set_world_value(conn, _KEY_YEAR, str(_START_YEAR), campaign_id=campaign_id)
     logger.info("Calendar initialized: Year %d, %s, day %d", _START_YEAR, _START_SEASON, _START_DAY)
 
 
-async def get_current_date(conn: aiosqlite.Connection) -> dict:
+async def get_current_date(conn: aiosqlite.Connection, campaign_id: str = "default") -> dict:
     """
     Return the current calendar state.
 
@@ -86,25 +86,25 @@ async def get_current_date(conn: aiosqlite.Connection) -> dict:
             "description": str
         }
     """
-    day = int(await _get_world_value(conn, _KEY_DAY) or _START_DAY)
-    season = await _get_world_value(conn, _KEY_SEASON) or _START_SEASON
-    year = int(await _get_world_value(conn, _KEY_YEAR) or _START_YEAR)
+    day = int(await _get_world_value(conn, _KEY_DAY, campaign_id=campaign_id) or _START_DAY)
+    season = await _get_world_value(conn, _KEY_SEASON, campaign_id=campaign_id) or _START_SEASON
+    year = int(await _get_world_value(conn, _KEY_YEAR, campaign_id=campaign_id) or _START_YEAR)
 
     description = f"Year {year} PC, {season}, day {day} of the year"
     return {"day": day, "season": season, "year": year, "description": description}
 
 
-async def advance_days(conn: aiosqlite.Connection, days: int) -> dict:
+async def advance_days(conn: aiosqlite.Connection, days: int, campaign_id: str = "default") -> dict:
     """
     Advance the calendar by N days, updating season and year as needed.
 
     Returns the new calendar state in the same format as get_current_date().
     """
     if days <= 0:
-        return await get_current_date(conn)
+        return await get_current_date(conn, campaign_id=campaign_id)
 
-    day = int(await _get_world_value(conn, _KEY_DAY) or _START_DAY)
-    year = int(await _get_world_value(conn, _KEY_YEAR) or _START_YEAR)
+    day = int(await _get_world_value(conn, _KEY_DAY, campaign_id=campaign_id) or _START_DAY)
+    year = int(await _get_world_value(conn, _KEY_YEAR, campaign_id=campaign_id) or _START_YEAR)
 
     day += days
     while day > _DAYS_PER_YEAR:
@@ -113,9 +113,9 @@ async def advance_days(conn: aiosqlite.Connection, days: int) -> dict:
 
     season = _day_to_season(day)
 
-    await _set_world_value(conn, _KEY_DAY, str(day))
-    await _set_world_value(conn, _KEY_SEASON, season)
-    await _set_world_value(conn, _KEY_YEAR, str(year))
+    await _set_world_value(conn, _KEY_DAY, str(day), campaign_id=campaign_id)
+    await _set_world_value(conn, _KEY_SEASON, season, campaign_id=campaign_id)
+    await _set_world_value(conn, _KEY_YEAR, str(year), campaign_id=campaign_id)
 
     logger.debug("Calendar advanced %d day(s): Year %d, %s, day %d", days, year, season, day)
 
