@@ -24,6 +24,12 @@ def _exllamav3_url() -> str:
     return os.getenv("AERUS_EXLLAMAV3_URL", "http://127.0.0.1:5000/v1").rstrip("/")
 
 
+def _exllamav3_api_key() -> str:
+    # TabbyAPI accepts any token when auth is disabled; the OpenAI client only needs a non-empty value.
+    # When auth is enabled, set AERUS_EXLLAMAV3_API_KEY from TabbyAPI's api_tokens.yml or your vault.
+    return os.getenv("AERUS_EXLLAMAV3_API_KEY") or "not-set"
+
+
 def _exllamav3_model() -> str:
     return os.getenv("AERUS_EXLLAMAV3_MODEL", "UnslopNemo-12B-v4.1-exl3-4.25bpw")
 
@@ -228,7 +234,7 @@ async def _generate_with_exllamav3(
 def get_exllamav3_client() -> AsyncOpenAI:
     timeout = _exllamav3_timeout_seconds()
     return AsyncOpenAI(
-        api_key=os.getenv("AERUS_EXLLAMAV3_API_KEY", "cc0bdef6b1a589e63dfe207dcb81055d"),
+        api_key=_exllamav3_api_key(),
         base_url=_exllamav3_url(),
         timeout=timeout,
     )

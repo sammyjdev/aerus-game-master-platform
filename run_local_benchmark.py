@@ -102,7 +102,6 @@ async def run_scenario_turn(scenario):
         
         os.environ["AERUS_LLM_PROVIDER"] = "exllamav3"
         os.environ["AERUS_EXLLAMAV3_URL"] = os.getenv("AERUS_EXLLAMAV3_URL", "http://127.0.0.1:5000/v1")
-        os.environ["AERUS_EXLLAMAV3_API_KEY"] = os.getenv("AERUS_EXLLAMAV3_API_KEY", "cc0bdef6b1a589e63dfe207dcb81055d")
         os.environ["AERUS_EXLLAMAV3_MODEL"] = os.getenv("AERUS_EXLLAMAV3_MODEL", "Llama-3.1-8B-Instruct-exl3-5.0bpw")
         
         t0 = time.perf_counter()
