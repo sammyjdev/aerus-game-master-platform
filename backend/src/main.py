@@ -41,7 +41,7 @@ from .auth import (
     verify_password,
 )
 from .infrastructure.config.config_loader import get_campaign_value as _get_campaign_value
-from .crypto import encrypt_api_key
+from .crypto import FernetKeyMissingError, encrypt_api_key
 from .debug_tools import clip_text, configure_logging, log_debug, log_flow, mask_secret
 from .local_llm import generate_text
 from .models import (
@@ -671,7 +671,14 @@ async def register_byok(
     conn: DbDep,
 ) -> dict:
     """Register or update the player's OpenRouter key (BYOK)."""
-    encrypted = encrypt_api_key(body.openrouter_api_key)
+    try:
+        encrypted = encrypt_api_key(body.openrouter_api_key)
+    except FernetKeyMissingError as exc:
+        logger.warning("byok_rejected: FERNET_KEY not configured")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="BYOK is disabled on this server: FERNET_KEY is not configured",
+        ) from exc
     await state_manager.set_byok_key(conn, player["player_id"], encrypted)
     log_flow(
         logger,

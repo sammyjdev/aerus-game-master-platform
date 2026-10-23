@@ -11,7 +11,7 @@ import os
 from dataclasses import dataclass
 
 from .config_loader import get_campaign_value
-from .crypto import decrypt_api_key
+from .crypto import FernetKeyMissingError, decrypt_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +85,8 @@ def select_billing_config(
                 is_byok=True,
                 player_id=player_id,
             )
+        except FernetKeyMissingError:
+            logger.warning("FERNET_KEY not set - BYOK disabled for player %s, using admin key", player_id)
         except ValueError:
             logger.warning("Invalid BYOK for player %s - falling back to admin key", player_id)
 
