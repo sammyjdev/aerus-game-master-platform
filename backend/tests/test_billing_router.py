@@ -232,3 +232,25 @@ class TestPhase1ModelFunctionStillDeterministic:
             high = _select_model_by_tension_phase1(10)
 
         assert low == high == PHASE1_DEFAULT_MODEL
+
+
+class TestSelectBillingConfigMissingFernetKey:
+    """Without FERNET_KEY, BYOK must be disabled and the admin key used."""
+
+    def test_missing_fernet_key_falls_back_to_admin(self, monkeypatch):
+        monkeypatch.delenv("FERNET_KEY", raising=False)
+        monkeypatch.setenv("OPENROUTER_API_KEY", ADMIN_KEY)
+        with patch("src.billing_router.get_campaign_value") as mock_cv:
+            mock_cv.return_value = {
+                "low": {"max": 4, "model": LOW_MODEL},
+                "medium": {"max": 7, "model": MEDIUM_MODEL},
+                "high": {"model": HIGH_MODEL},
+            }
+            config = select_billing_config(
+                tension_level=5,
+                player_byok_encrypted="gAAAAA-any-token",
+                player_id="pid-1",
+            )
+
+        assert config.api_key == ADMIN_KEY
+        assert config.is_byok is False

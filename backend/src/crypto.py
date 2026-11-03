@@ -13,13 +13,23 @@ from cryptography.fernet import Fernet, InvalidToken
 logger = logging.getLogger(__name__)
 
 
-DEV_FERNET_KEY = "AQRAJQ7n3O3pYiUQAX18ao5G__y2LjRP6yBJVu_uXEg="
+class FernetKeyMissingError(RuntimeError):
+    """Raised when FERNET_KEY is not configured.
+
+    BYOK is optional. Callers catch this error to disable BYOK gracefully
+    instead of encrypting player keys with a predictable fallback.
+    """
 
 
 def _get_fernet() -> Fernet:
-    """Return a Fernet instance created from the environment variable key or dev fallback."""
-    key = os.getenv("FERNET_KEY") or DEV_FERNET_KEY
-    return Fernet(key.encode() if isinstance(key, str) else key)
+    """Return a Fernet instance built from FERNET_KEY. Never falls back to a static key."""
+    key = os.getenv("FERNET_KEY")
+    if not key:
+        raise FernetKeyMissingError(
+            "FERNET_KEY is not set. Generate one with `make keys` or: "
+            'python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
+        )
+    return Fernet(key.encode())
 
 
 def encrypt_api_key(plaintext_key: str) -> str:
