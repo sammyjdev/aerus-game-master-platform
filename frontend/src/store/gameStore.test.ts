@@ -135,4 +135,45 @@ describe('gameStore', () => {
     // null (default) does not override existing value
     expect(useGameStore.getState().current_actor_id).toBe('p2')
   })
+
+  it('handleGameEvent CAMPAIGN_PAUSED and CAMPAIGN_RESUMED updates world_state.campaign_paused', () => {
+    useGameStore.getState().handleGameEvent({
+      type: 'game_event',
+      event: 'CAMPAIGN_PAUSED',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      payload: { campaign_paused: true } as any,
+    })
+    expect(useGameStore.getState().gameState.world_state.campaign_paused).toBe(true)
+
+    useGameStore.getState().handleGameEvent({
+      type: 'game_event',
+      event: 'CAMPAIGN_RESUMED',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      payload: { campaign_paused: false } as any,
+    })
+    expect(useGameStore.getState().gameState.world_state.campaign_paused).toBe(false)
+  })
+
+  it('updateFactionObjective updates secret_objective when player faction matches', () => {
+    useGameStore.setState((s) => ({
+      ...s,
+      gameState: {
+        ...s.gameState,
+        current_player: {
+          ...s.gameState.current_player,
+          faction: 'guild_of_threads',
+          secret_objective: 'Initial secret',
+        },
+      },
+    }))
+
+    useGameStore.getState().updateFactionObjective({
+      faction: 'guild_of_threads',
+      objective: 'Protect the sacred threads',
+      status: 'in_progress',
+      cred_change: 10,
+    })
+
+    expect(useGameStore.getState().gameState.secret_objective).toBe('Protect the sacred threads')
+  })
 })

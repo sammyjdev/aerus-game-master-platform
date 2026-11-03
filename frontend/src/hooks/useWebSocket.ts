@@ -36,6 +36,8 @@ export function useWebSocket(token: string | null) {
   const completeNarrativeStream = useGameStore((state) => state.completeNarrativeStream)
   const setGmThinking = useGameStore((state) => state.setGmThinking)
   const setServerError = useGameStore((state) => state.setServerError)
+  const setLastDiceResult = useGameStore((state) => state.setLastDiceResult)
+  const updateFactionObjective = useGameStore((state) => state.updateFactionObjective)
   const {
     appendNarrativeToken,
     addHistoryEntry,
@@ -65,6 +67,10 @@ export function useWebSocket(token: string | null) {
         break
       case 'dice_roll':
         setPendingDiceRoll(data)
+        break
+      case 'dice_result':
+        setLastDiceResult(data as unknown as Parameters<typeof setLastDiceResult>[0])
+        logClient('debug', 'ws', 'dice_result received', { player_id: data.player_id, die: data.die, result: data.result })
         break
       case 'request_dice_roll':
         setPendingManualRoll(data)
@@ -114,8 +120,8 @@ export function useWebSocket(token: string | null) {
         logClient('debug', 'ws', 'image_ready received (deferred)', {})
         break
       case 'faction_objective_update':
-        // No-op for now: W-03 pending
-        logClient('debug', 'ws', 'faction_objective_update received', { faction: data.faction })
+        updateFactionObjective(data as unknown as Parameters<typeof updateFactionObjective>[0])
+        logClient('debug', 'ws', 'faction_objective_update received', { faction: data.faction, objective: data.objective })
         break
       case 'stream_end':
         completeNarrativeStream()
@@ -145,7 +151,8 @@ export function useWebSocket(token: string | null) {
       default:
         break
     }
-  }, [addOtherPlayer, appendNarrativeToken, applyDelta, applyFullSync, completeNarrativeStream, handleGameEvent, loadHistory, playMusic, playSound, removeOtherPlayer, setGmThinking, setIsekaiEvent, setManualRollResolution, setPendingDiceRoll, setPendingManualRoll, setServerError, setToken])
+  }, [addOtherPlayer, appendNarrativeToken, applyDelta, applyFullSync, completeNarrativeStream, handleGameEvent, loadHistory, playMusic, playSound, removeOtherPlayer, setGmThinking, setIsekaiEvent, setLastDiceResult, setManualRollResolution, setPendingDiceRoll, setPendingManualRoll, setServerError, setToken, updateFactionObjective])
+
 
   const clearTimers = useCallback(() => {
     if (heartbeatRef.current) {

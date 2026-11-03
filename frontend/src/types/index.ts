@@ -24,6 +24,9 @@ export type GameEventType =
   | 'ABILITY_UNLOCK'
   | 'TRAVEL_ENCOUNTER'
   | 'TRAVEL_ARRIVED'
+  | 'CAMPAIGN_PAUSED'
+  | 'CAMPAIGN_RESUMED'
+
 
 export interface Attributes {
   strength: number
@@ -246,6 +249,12 @@ export type GameEventPayload =
   | CoopMissionPayload
   | ReputationChangePayload
   | AbilityUnlockPayload
+  | CampaignPausedPayload
+
+export interface CampaignPausedPayload {
+  campaign_paused: boolean
+}
+
 
 export interface DeathPayload {
   player_id: string
@@ -373,10 +382,19 @@ export interface ImageReadyEvent {
   subject: 'boss' | 'character' | 'location'
 }
 
+export interface DiceResultEvent {
+  type: 'dice_result'
+  player_id: string
+  die: number
+  result: number
+}
+
 export interface FactionObjectiveUpdateEvent {
   type: 'faction_objective_update'
-  faction: Faction
-  hint: string
+  faction: string
+  objective: string
+  status: 'in_progress' | 'completed' | 'failed'
+  cred_change: number
 }
 
 export interface ErrorEvent {
@@ -393,6 +411,7 @@ export type ServerEvent =
   | NarrativeTokenEvent
   | StreamEndEvent
   | DiceRollEvent
+  | DiceResultEvent
   | ManualDiceRequestEvent
   | ManualDiceResolvedEvent
   | ManualDiceArgumentSubmittedEvent
@@ -408,6 +427,7 @@ export type ServerEvent =
   | FactionObjectiveUpdateEvent
   | HistorySyncEvent
   | ErrorEvent
+
 
 export interface TokenResponse {
   access_token: string

@@ -10,13 +10,18 @@ interface IsekaiIntroProps {
 const NarrativeWords = memo(function NarrativeWords({
   text,
 }: Readonly<{ text: string }>) {
-  const words = useMemo(() => text.split(/(\s+)/).filter(Boolean), [text]);
-  let offset = 0;
+  const words = useMemo(() => {
+    let offset = 0;
+    const words: { word: string; key: number }[] = [];
+    for (const word of text.split(/(\s+)/).filter(Boolean)) {
+      words.push({ word, key: offset });
+      offset += word.length;
+    }
+    return words;
+  }, [text]);
   return (
     <>
-      {words.map((word) => {
-        const key = offset;
-        offset += word.length;
+      {words.map(({ word, key }) => {
         return (
           <span
             key={key}

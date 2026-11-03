@@ -8,8 +8,8 @@ from . import state_manager
 from .local_llm import generate_text
 
 
-async def summarize_recent_history(conn: aiosqlite.Connection, limit: int = 12) -> str:
-    history = await state_manager.get_recent_history(conn, limit=limit)
+async def summarize_recent_history(conn: aiosqlite.Connection, limit: int = 12, campaign_id: str = "default") -> str:
+    history = await state_manager.get_recent_history(conn, limit=limit, campaign_id=campaign_id)
     if not history:
         return ""
 

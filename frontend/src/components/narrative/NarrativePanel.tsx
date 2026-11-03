@@ -42,15 +42,20 @@ const StreamingWords = memo(function StreamingWords({
   content,
 }: Readonly<{ content: string }>) {
   const words = useMemo(
-    () => content.split(/(\s+)/).filter(Boolean),
+    () => {
+      let offset = 0;
+      const words: { word: string; key: number }[] = [];
+      for (const word of content.split(/(\s+)/).filter(Boolean)) {
+        words.push({ word, key: offset });
+        offset += word.length;
+      }
+      return words;
+    },
     [content],
   );
-  let offset = 0;
   return (
     <>
-      {words.map((word) => {
-        const key = offset;
-        offset += word.length;
+      {words.map(({ word, key }) => {
         return (
           <span key={key} className='streaming-word'>
             {word}

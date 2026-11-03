@@ -15,6 +15,13 @@ from src.auth import create_token, hash_password
 from src.main import app
 
 
+@pytest.fixture(autouse=True)
+def _isolate_test_llm_env(monkeypatch):
+    """Ensure tests run in isolated default environment without unmocked local overrides."""
+    if "AERUS_LLM_PROVIDER" in os.environ and os.environ["AERUS_LLM_PROVIDER"] == "exllamav3":
+        monkeypatch.setenv("AERUS_LLM_PROVIDER", "openrouter")
+
+
 @pytest.fixture()
 def tmp_db(tmp_path):
     """Returns a temporary database file path for test isolation."""

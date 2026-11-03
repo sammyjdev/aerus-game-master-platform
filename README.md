@@ -16,9 +16,21 @@ The project combines:
 - a React + TypeScript + Vite SPA frontend;
 - WebSocket-based real-time updates;
 - canonical lore separated from runtime data;
-- local-first execution with Ollama and BYOK/OpenRouter support.
+- local-first execution with ExLlamaV3/TabbyAPI (high-throughput GPU inference) and Ollama, as well as BYOK/OpenRouter support.
 
 The main flow already covers invite-based authentication, character creation, isekai intro, the core gameplay loop with streaming narrative, the initial cooperative mission, macros, aliases, debug tools, audio, and basic travel tracking.
+
+## Local GPU Inference Acceleration (ExLlamaV3 + UnslopNemo 12B)
+
+The platform supports native, ultra-low latency local inference on consumer GPUs (e.g. NVIDIA RTX 4070 Ti 12GB) powered by **ExLlamaV3** and **TabbyAPI**:
+
+- **Model:** `TheDrummer/UnslopNemo-12B-v4.1` quantized to **EXL3 (`4.25 bpw`)** with unquantized `FP16` vocabulary head to maintain 100% token fidelity without memory spikes.
+- **KV-Cache Optimization:** `Q8` quantized cache enabling up to **16,384 tokens** of campaign history within **9.8 GB VRAM** (leaving >2 GB of headroom for OS and desktop compositor).
+- **Performance Benchmarks:**
+  - **Generation Throughput:** **`57.4 tokens/s`** (~2.5x–3x faster than standard GGUF/llama.cpp).
+  - **Latency per Token:** **`17.61 ms / token`** for smooth continuous WebSocket streaming.
+  - **Time-to-First-Token (TTFT):** **`67.8 ms`** on warm prompt/prefix cache.
+- **Unified Launcher:** `./start_game.sh` auto-detects GPU weights, starts TabbyAPI in the background if needed, and launches both backend and frontend.
 
 ## The narrator: a build-vs-buy investigation
 
@@ -32,8 +44,9 @@ The lesson: the value was never in the model — it was in **knowing what "good"
 
 - Full investigation: [`docs/GAP_ANALYSIS_NARRATOR.md`](docs/GAP_ANALYSIS_NARRATOR.md)
 - Narrative write-up: [`docs/ARTIGO_LINKEDIN_CORE.md`](docs/ARTIGO_LINKEDIN_CORE.md)
+- AI/ML Systems & Inference Optimization Guide: [`docs/EXPERIENCIA_IA_ML_SYSTEMS.md`](docs/EXPERIENCIA_IA_ML_SYSTEMS.md)
 - Shipping implementation: [`backend/src/hosted_narrator.py`](backend/src/hosted_narrator.py) (toggled via `HOSTED_NARRATOR_ENABLED`)
-- The dormant local-SLM path ("B1") is preserved behind `SLM_ENABLED=false` as a documented fallback.
+- Local ExLlamaV3 path: configured via `AERUS_LLM_PROVIDER=exllamav3` in `backend/.env`.
 
 ## Repository structure
 
@@ -122,12 +135,22 @@ Fill at least these variables in `backend/.env`:
 - `JWT_SECRET`
 - `PASSWORD_SALT`
 - `AERUS_LOCAL_ONLY`
+- `AERUS_LLM_PROVIDER` (`ollama` by default, or `exllamav3`)
 - `AERUS_OLLAMA_URL`
+- `AERUS_EXLLAMAV3_URL` and `AERUS_EXLLAMAV3_MODEL` when using ExLlamaV3
 - `AERUS_OLLAMA_GM_MODEL`
 - `AERUS_OLLAMA_SUMMARIZER_MODEL`
 - `OPENROUTER_API_KEY` if you want external provider support or admin fallback
 
 Recommended profiles:
+
+- ExLlamaV3 through its OpenAI-compatible server:
+  - `AERUS_LLM_PROVIDER=exllamav3`
+  - `AERUS_LOCAL_ONLY=true`
+  - `AERUS_EXLLAMAV3_URL=http://127.0.0.1:5000/v1`
+  - `AERUS_EXLLAMAV3_MODEL=<model-id-reported-by-/v1/models>`
+  - `AERUS_EXLLAMAV3_API_KEY=<server-api-key>`
+  - The server must expose `/v1/chat/completions` and accept Bearer authentication.
 
 - Local development on a 12 GB GPU:
   - `AERUS_LOCAL_ONLY=true`

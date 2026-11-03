@@ -148,6 +148,7 @@ class ActionBatch:
     batch_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     actions: list[PlayerAction] = field(default_factory=list)
     turn_number: int = 0
+    campaign_id: str = "default"
 
 
 @dataclass

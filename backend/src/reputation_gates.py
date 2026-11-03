@@ -51,12 +51,17 @@ async def check_reputation_gates(
     faction_id: str,
     new_score: int,
     old_score: int,
+    campaign_id: str = "default",
 ) -> list[dict]:
     """Check and fire any gates triggered by a reputation change.
 
     Returns a list of fired gate payloads (to be broadcast as game events).
     Each gate fires at most once per player (idempotent via quest_flags).
     """
+    player = await state_manager.get_player_by_id(conn, player_id)
+    if player is None or player["campaign_id"] != campaign_id:
+        raise ValueError("Player does not belong to campaign")
+
     gates = _load_gates()
     fired: list[dict] = []
 
@@ -75,11 +80,11 @@ async def check_reputation_gates(
             continue
 
         flag_key = f"rep_gate:{gate['gate_id']}:{player_id}"
-        already_fired = await state_manager.get_quest_flag(conn, flag_key)
+        already_fired = await state_manager.get_quest_flag(conn, flag_key, campaign_id=campaign_id)
         if already_fired == "1":
             continue
 
-        await state_manager.set_quest_flag(conn, flag_key, "1")
+        await state_manager.set_quest_flag(conn, flag_key, "1", campaign_id=campaign_id)
 
         payload = {
             "type": "REPUTATION_GATE_UNLOCKED",

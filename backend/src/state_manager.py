@@ -1,4 +1,4 @@
-﻿"""
+"""
 state_manager.py - Only module with SQLite access.
 Every database read and write goes through this layer.
 All writes are atomic inside a transaction context.
@@ -340,9 +340,10 @@ async def get_player_by_id(
         return await cursor.fetchone()
 
 
-async def get_all_alive_players(conn: aiosqlite.Connection) -> list[aiosqlite.Row]:
+async def get_all_alive_players(conn: aiosqlite.Connection, campaign_id: str = "default") -> list[aiosqlite.Row]:
     async with conn.execute(
-        "SELECT * FROM players WHERE status = 'alive' AND name IS NOT NULL"
+        "SELECT * FROM players WHERE status = 'alive' AND name IS NOT NULL AND campaign_id = ?",
+        (campaign_id,),
     ) as cursor:
         return await cursor.fetchall()
 
@@ -1220,9 +1221,13 @@ def _condition_effect_delta(condition: Any) -> dict[str, int]:
 async def process_condition_turn(
     conn: aiosqlite.Connection,
     turn_number: int,
+    campaign_id: str = "default",
 ) -> dict[str, dict[str, int | list[str]]]:
     """Advance active conditions one turn, applying deterministic effects and expiring them."""
-    async with conn.execute("SELECT * FROM conditions ORDER BY rowid") as cursor:
+    async with conn.execute(
+        "SELECT conditions.* FROM conditions JOIN players USING (player_id) "
+        "WHERE players.campaign_id = ? ORDER BY conditions.rowid", (campaign_id,)
+    ) as cursor:
         conditions = await cursor.fetchall()
 
     results: dict[str, dict[str, int | list[str]]] = {}
@@ -1295,10 +1300,13 @@ async def _apply_inventory_changes(
                 1 if item.get("equipped") else 0,
             ),
         )
-    for item_id in delta.get("inventory_remove", []):
+    for item_raw in delta.get("inventory_remove", []):
+        item_id = item_raw.get("item_id") if isinstance(item_raw, dict) else item_raw
+        if not item_id:
+            continue
         await conn.execute(
             "DELETE FROM inventory WHERE item_id = ? AND player_id = ?",
-            (item_id, player_id),
+            (str(item_id), player_id),
         )
     if delta.get("inventory_add") or delta.get("inventory_remove"):
         await recalculate_inventory_weight(conn, player_id)
@@ -1309,6 +1317,8 @@ async def _apply_condition_changes(
 ) -> None:
     """Apply condition additions and removals atomically."""
     for cond in delta.get("conditions_add", []):
+        if not isinstance(cond, dict):
+            continue
         await conn.execute(
             """INSERT INTO conditions
                (condition_id, player_id, name, description,
@@ -1327,10 +1337,13 @@ async def _apply_condition_changes(
                 1 if cond.get("is_buff") else 0,
             ),
         )
-    for cond_id in delta.get("conditions_remove", []):
+    for cond_raw in delta.get("conditions_remove", []):
+        cond_id = cond_raw.get("condition_id") if isinstance(cond_raw, dict) else cond_raw
+        if not cond_id:
+            continue
         await conn.execute(
             "DELETE FROM conditions WHERE condition_id = ? AND player_id = ?",
-            (cond_id, player_id),
+            (str(cond_id), player_id),
         )
 
 
@@ -1462,28 +1475,31 @@ async def append_history(
     turn_number: int,
     role: str,
     content: str,
+    campaign_id: str = "default",
 ) -> None:
     await conn.execute(
-        "INSERT INTO history (history_id, turn_number, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
-        (history_id, turn_number, role, content, time.time()),
+        "INSERT INTO history (history_id, turn_number, role, content, created_at, campaign_id) VALUES (?, ?, ?, ?, ?, ?)",
+        (history_id, turn_number, role, content, time.time(), campaign_id),
     )
     await conn.commit()
 
 
 async def get_recent_history(
-    conn: aiosqlite.Connection, limit: int = 10
+    conn: aiosqlite.Connection, limit: int = 10,
+    campaign_id: str = "default",
 ) -> list[aiosqlite.Row]:
     async with conn.execute(
-        "SELECT role, content, turn_number FROM history ORDER BY turn_number DESC, created_at DESC LIMIT ?",
-        (limit,),
+        "SELECT role, content, turn_number FROM history WHERE campaign_id = ? ORDER BY turn_number DESC, created_at DESC LIMIT ?",
+        (campaign_id, limit),
     ) as cursor:
         rows = await cursor.fetchall()
     return list(reversed(rows))
 
 
-async def get_current_turn_number(conn: aiosqlite.Connection) -> int:
+async def get_current_turn_number(conn: aiosqlite.Connection, campaign_id: str = "default") -> int:
     async with conn.execute(
-        "SELECT COALESCE(MAX(turn_number), 0) as max_turn FROM history"
+        "SELECT COALESCE(MAX(turn_number), 0) as max_turn FROM history WHERE campaign_id = ?",
+        (campaign_id,),
     ) as cursor:
         row = await cursor.fetchone()
     return int(row["max_turn"]) if row else 0
@@ -1494,27 +1510,29 @@ async def get_current_turn_number(conn: aiosqlite.Connection) -> int:
 # ---------------------------------------------------------------------------
 
 async def set_world_state(
-    conn: aiosqlite.Connection, key: str, value: str
+    conn: aiosqlite.Connection, key: str, value: str,
+    campaign_id: str = "default",
 ) -> None:
     await conn.execute(
-        "INSERT INTO world_state (key, value, updated_at) VALUES (?, ?, ?) "
-        "ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
-        (key, value, time.time()),
+        "INSERT INTO world_state (key, value, updated_at, campaign_id) VALUES (?, ?, ?, ?) "
+        "ON CONFLICT(campaign_id, key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+        (key, value, time.time(), campaign_id),
     )
     await conn.commit()
 
 
 async def get_world_state(
-    conn: aiosqlite.Connection, key: str
+    conn: aiosqlite.Connection, key: str,
+    campaign_id: str = "default",
 ) -> str | None:
     async with conn.execute(
-        "SELECT value FROM world_state WHERE key = ?", (key,)
+        "SELECT value FROM world_state WHERE key = ? AND campaign_id = ?", (key, campaign_id)
     ) as cursor:
         row = await cursor.fetchone()
     return row["value"] if row else None
 
 
-async def ensure_default_world_state(conn: aiosqlite.Connection) -> None:
+async def ensure_default_world_state(conn: aiosqlite.Connection, campaign_id: str = "default") -> None:
     defaults = {
         "current_location": DEFAULT_START_LOCATION,
         "tension_level": "5",
@@ -1528,102 +1546,109 @@ async def ensure_default_world_state(conn: aiosqlite.Connection) -> None:
         "travel_current_segment": "",
     }
     for key, value in defaults.items():
-        existing = await get_world_state(conn, key)
+        existing = await get_world_state(conn, key, campaign_id=campaign_id)
         if existing is None:
-            await set_world_state(conn, key, value)
+            await set_world_state(conn, key, value, campaign_id=campaign_id)
 
 
 async def set_quest_flag(
-    conn: aiosqlite.Connection, key: str, value: str
+    conn: aiosqlite.Connection, key: str, value: str,
+    campaign_id: str = "default",
 ) -> None:
     await conn.execute(
-        "INSERT INTO quest_flags (flag_key, flag_value, updated_at) VALUES (?, ?, ?) "
-        "ON CONFLICT(flag_key) DO UPDATE SET flag_value = excluded.flag_value, updated_at = excluded.updated_at",
-        (key, value, time.time()),
+        "INSERT INTO quest_flags (flag_key, flag_value, updated_at, campaign_id) VALUES (?, ?, ?, ?) "
+        "ON CONFLICT(campaign_id, flag_key) DO UPDATE SET flag_value = excluded.flag_value, updated_at = excluded.updated_at",
+        (key, value, time.time(), campaign_id),
     )
     await conn.commit()
 
 
 async def get_quest_flag(
-    conn: aiosqlite.Connection, key: str
+    conn: aiosqlite.Connection, key: str,
+    campaign_id: str = "default",
 ) -> str | None:
     async with conn.execute(
-        "SELECT flag_value FROM quest_flags WHERE flag_key = ?", (key,)
+        "SELECT flag_value FROM quest_flags WHERE flag_key = ? AND campaign_id = ?", (key, campaign_id)
     ) as cursor:
         row = await cursor.fetchone()
     return row["flag_value"] if row else None
 
 
-async def initialize_or_refresh_cooperative_mission(conn: aiosqlite.Connection) -> dict[str, str]:
-    await ensure_default_world_state(conn)
-    players = await get_all_alive_players(conn)
+async def initialize_or_refresh_cooperative_mission(conn: aiosqlite.Connection, campaign_id: str = "default") -> dict[str, str]:
+    await ensure_default_world_state(conn, campaign_id=campaign_id)
+    players = await get_all_alive_players(conn, campaign_id=campaign_id)
     alive_ids = [p["player_id"] for p in players if p["name"]]
     alive_count = len(alive_ids)
 
-    await set_quest_flag(conn, COOP_MISSION_ID_KEY, "mission_coop_intro_v1")
-    await set_quest_flag(conn, COOP_MISSION_OBJECTIVE_KEY, COOP_MISSION_OBJECTIVE_DEFAULT)
-    await set_quest_flag(conn, COOP_MISSION_REQUIRED_PLAYERS_KEY, str(alive_count))
+    await set_quest_flag(conn, COOP_MISSION_ID_KEY, "mission_coop_intro_v1", campaign_id=campaign_id)
+    await set_quest_flag(conn, COOP_MISSION_OBJECTIVE_KEY, COOP_MISSION_OBJECTIVE_DEFAULT, campaign_id=campaign_id)
+    await set_quest_flag(conn, COOP_MISSION_REQUIRED_PLAYERS_KEY, str(alive_count), campaign_id=campaign_id)
 
     if alive_count <= 1:
-        await set_quest_flag(conn, COOP_MISSION_ACTIVE_KEY, "0")
-        await set_quest_flag(conn, COOP_MISSION_BLOCKING_KEY, "0")
-        await set_quest_flag(conn, COOP_MISSION_COMPLETED_KEY, "1")
-        return await get_cooperative_mission_state(conn)
+        await set_quest_flag(conn, COOP_MISSION_ACTIVE_KEY, "0", campaign_id=campaign_id)
+        await set_quest_flag(conn, COOP_MISSION_BLOCKING_KEY, "0", campaign_id=campaign_id)
+        await set_quest_flag(conn, COOP_MISSION_COMPLETED_KEY, "1", campaign_id=campaign_id)
+        return await get_cooperative_mission_state(conn, campaign_id=campaign_id)
 
-    completed_flag = await get_quest_flag(conn, COOP_MISSION_COMPLETED_KEY)
+    completed_flag = await get_quest_flag(conn, COOP_MISSION_COMPLETED_KEY, campaign_id=campaign_id)
     if completed_flag == "1":
-        await set_quest_flag(conn, COOP_MISSION_ACTIVE_KEY, "0")
-        await set_quest_flag(conn, COOP_MISSION_BLOCKING_KEY, "0")
-        return await get_cooperative_mission_state(conn)
+        await set_quest_flag(conn, COOP_MISSION_ACTIVE_KEY, "0", campaign_id=campaign_id)
+        await set_quest_flag(conn, COOP_MISSION_BLOCKING_KEY, "0", campaign_id=campaign_id)
+        return await get_cooperative_mission_state(conn, campaign_id=campaign_id)
 
-    await set_quest_flag(conn, COOP_MISSION_ACTIVE_KEY, "1")
-    await set_quest_flag(conn, COOP_MISSION_BLOCKING_KEY, "1")
-    await set_quest_flag(conn, COOP_MISSION_COMPLETED_KEY, "0")
+    await set_quest_flag(conn, COOP_MISSION_ACTIVE_KEY, "1", campaign_id=campaign_id)
+    await set_quest_flag(conn, COOP_MISSION_BLOCKING_KEY, "1", campaign_id=campaign_id)
+    await set_quest_flag(conn, COOP_MISSION_COMPLETED_KEY, "0", campaign_id=campaign_id)
 
     for player_id in alive_ids:
         key = f"cooperative_mission_player_done:{player_id}"
-        if await get_quest_flag(conn, key) is None:
-            await set_quest_flag(conn, key, "0")
+        if await get_quest_flag(conn, key, campaign_id=campaign_id) is None:
+            await set_quest_flag(conn, key, "0", campaign_id=campaign_id)
 
-    return await refresh_cooperative_mission_completion(conn)
+    return await refresh_cooperative_mission_completion(conn, campaign_id=campaign_id)
 
 
 async def mark_cooperative_mission_participation(
     conn: aiosqlite.Connection,
     player_id: str,
+    campaign_id: str = "default",
 ) -> dict[str, str]:
-    active = await get_quest_flag(conn, COOP_MISSION_ACTIVE_KEY)
+    player = await get_player_by_id(conn, player_id)
+    if player is None or player["campaign_id"] != campaign_id:
+        raise ValueError("Player does not belong to campaign")
+
+    active = await get_quest_flag(conn, COOP_MISSION_ACTIVE_KEY, campaign_id=campaign_id)
     if active != "1":
-        return await get_cooperative_mission_state(conn)
+        return await get_cooperative_mission_state(conn, campaign_id=campaign_id)
 
-    await set_quest_flag(conn, f"cooperative_mission_player_done:{player_id}", "1")
-    return await refresh_cooperative_mission_completion(conn)
+    await set_quest_flag(conn, f"cooperative_mission_player_done:{player_id}", "1", campaign_id=campaign_id)
+    return await refresh_cooperative_mission_completion(conn, campaign_id=campaign_id)
 
 
-async def refresh_cooperative_mission_completion(conn: aiosqlite.Connection) -> dict[str, str]:
-    players = await get_all_alive_players(conn)
+async def refresh_cooperative_mission_completion(conn: aiosqlite.Connection, campaign_id: str = "default") -> dict[str, str]:
+    players = await get_all_alive_players(conn, campaign_id=campaign_id)
     alive_ids = [p["player_id"] for p in players if p["name"]]
     alive_count = len(alive_ids)
 
     done_count = 0
     for player_id in alive_ids:
         key = f"cooperative_mission_player_done:{player_id}"
-        if await get_quest_flag(conn, key) == "1":
+        if await get_quest_flag(conn, key, campaign_id=campaign_id) == "1":
             done_count += 1
 
-    await set_quest_flag(conn, COOP_MISSION_REQUIRED_PLAYERS_KEY, str(alive_count))
-    await set_quest_flag(conn, "cooperative_mission_completed_players", str(done_count))
+    await set_quest_flag(conn, COOP_MISSION_REQUIRED_PLAYERS_KEY, str(alive_count), campaign_id=campaign_id)
+    await set_quest_flag(conn, "cooperative_mission_completed_players", str(done_count), campaign_id=campaign_id)
 
     if alive_count > 1 and done_count >= alive_count:
-        await set_quest_flag(conn, COOP_MISSION_COMPLETED_KEY, "1")
-        await set_quest_flag(conn, COOP_MISSION_ACTIVE_KEY, "0")
-        await set_quest_flag(conn, COOP_MISSION_BLOCKING_KEY, "0")
-        await set_quest_flag(conn, "cooperative_mission_completed_turn", str(await get_current_turn_number(conn)))
+        await set_quest_flag(conn, COOP_MISSION_COMPLETED_KEY, "1", campaign_id=campaign_id)
+        await set_quest_flag(conn, COOP_MISSION_ACTIVE_KEY, "0", campaign_id=campaign_id)
+        await set_quest_flag(conn, COOP_MISSION_BLOCKING_KEY, "0", campaign_id=campaign_id)
+        await set_quest_flag(conn, "cooperative_mission_completed_turn", str(await get_current_turn_number(conn, campaign_id=campaign_id)), campaign_id=campaign_id)
 
-    return await get_cooperative_mission_state(conn)
+    return await get_cooperative_mission_state(conn, campaign_id=campaign_id)
 
 
-async def get_cooperative_mission_state(conn: aiosqlite.Connection) -> dict[str, str]:
+async def get_cooperative_mission_state(conn: aiosqlite.Connection, campaign_id: str = "default") -> dict[str, str]:
     keys = [
         COOP_MISSION_ID_KEY,
         COOP_MISSION_OBJECTIVE_KEY,
@@ -1636,7 +1661,7 @@ async def get_cooperative_mission_state(conn: aiosqlite.Connection) -> dict[str,
     ]
     result: dict[str, str] = {}
     for key in keys:
-        value = await get_quest_flag(conn, key)
+        value = await get_quest_flag(conn, key, campaign_id=campaign_id)
         if value is not None:
             result[key] = value
     return result
@@ -1659,24 +1684,28 @@ async def set_player_inferred_class(
 # ---------------------------------------------------------------------------
 
 async def get_memory_layers(
-    conn: aiosqlite.Connection, player_ids: list[str]
+    conn: aiosqlite.Connection, player_ids: list[str],
+    campaign_id: str = "default",
 ) -> MemoryLayers:
     char_parts: list[str] = []
     for pid in player_ids:
         async with conn.execute(
-            "SELECT content FROM character_memory WHERE player_id = ?", (pid,)
+            "SELECT character_memory.content FROM character_memory JOIN players USING (player_id) "
+            "WHERE player_id = ? AND players.campaign_id = ?", (pid, campaign_id)
         ) as cursor:
             row = await cursor.fetchone()
         if row and row["content"]:
             char_parts.append(row["content"])
 
     async with conn.execute(
-        "SELECT content FROM world_memory ORDER BY updated_at DESC LIMIT 1"
+        "SELECT content FROM world_memory WHERE campaign_id = ? ORDER BY updated_at DESC LIMIT 1",
+        (campaign_id,),
     ) as cursor:
         world_row = await cursor.fetchone()
 
     async with conn.execute(
-        "SELECT content FROM arc_memory ORDER BY updated_at DESC LIMIT 1"
+        "SELECT content FROM arc_memory WHERE campaign_id = ? ORDER BY updated_at DESC LIMIT 1",
+        (campaign_id,),
     ) as cursor:
         arc_row = await cursor.fetchone()
 
@@ -1699,21 +1728,23 @@ async def upsert_character_memory(
 
 
 async def upsert_world_memory(
-    conn: aiosqlite.Connection, content: str
+    conn: aiosqlite.Connection, content: str,
+    campaign_id: str = "default",
 ) -> None:
     await conn.execute(
-        "INSERT INTO world_memory (content, updated_at) VALUES (?, ?)",
-        (content, time.time()),
+        "INSERT INTO world_memory (content, updated_at, campaign_id) VALUES (?, ?, ?)",
+        (content, time.time(), campaign_id),
     )
     await conn.commit()
 
 
 async def upsert_arc_memory(
-    conn: aiosqlite.Connection, content: str
+    conn: aiosqlite.Connection, content: str,
+    campaign_id: str = "default",
 ) -> None:
     await conn.execute(
-        "INSERT INTO arc_memory (content, updated_at) VALUES (?, ?)",
-        (content, time.time()),
+        "INSERT INTO arc_memory (content, updated_at, campaign_id) VALUES (?, ?, ?)",
+        (content, time.time(), campaign_id),
     )
     await conn.commit()
 

@@ -81,19 +81,24 @@ async def run_migrations(conn: aiosqlite.Connection) -> None:
             line for line in sql.splitlines() if not line.strip().startswith("--")
         )
         statements = [s.strip() for s in sql_no_comments.split(";") if s.strip()]
-        for statement in statements:
-            try:
-                await conn.execute(statement)
-            except Exception as exc:
-                # Column-already-exists is expected when upgrading a pre-migration DB
-                if "duplicate column" in str(exc).lower() or "already exists" in str(exc).lower():
-                    logger.debug("Migration %03d: skipping already-present statement (%s)", version, exc)
-                else:
-                    logger.error("Migration %03d failed: %s\nSQL: %s", version, exc, statement)
-                    raise
-        await conn.execute(
-            "INSERT INTO schema_migrations (version, filename, applied_at) VALUES (?, ?, ?)",
-            (version, path.name, time.time()),
-        )
-        await conn.commit()
+        await conn.execute("BEGIN")
+        try:
+            for statement in statements:
+                try:
+                    await conn.execute(statement)
+                except Exception as exc:
+                    # Column-already-exists is expected when upgrading a pre-migration DB
+                    if "duplicate column" in str(exc).lower() or "already exists" in str(exc).lower():
+                        logger.debug("Migration %03d: skipping already-present statement (%s)", version, exc)
+                    else:
+                        logger.error("Migration %03d failed: %s\nSQL: %s", version, exc, statement)
+                        raise
+            await conn.execute(
+                "INSERT INTO schema_migrations (version, filename, applied_at) VALUES (?, ?, ?)",
+                (version, path.name, time.time()),
+            )
+            await conn.commit()
+        except BaseException:
+            await conn.rollback()
+            raise
         logger.info("Migration %03d applied: %s", version, path.name)

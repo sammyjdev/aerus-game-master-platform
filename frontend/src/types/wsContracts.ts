@@ -145,6 +145,13 @@ export const IsekaiConvocationSchema = z.object({
   secret_objective: z.string(),
 })
 
+export const DiceResultSchema = z.object({
+  type: z.literal('dice_result'),
+  player_id: z.string(),
+  die: z.number().int().min(2),
+  result: z.number().int().min(1),
+})
+
 export const FactionObjectiveUpdateSchema = z.object({
   type: z.literal('faction_objective_update'),
   faction: z.string(),
@@ -175,6 +182,7 @@ export const WSMessageSchema = z.discriminatedUnion('type', [
   DiceRollSchema,
   RequestDiceRollSchema,
   DiceRollResolvedSchema,
+  DiceResultSchema,
   AudioCueSchema,
   BossMusicSchema,
   ImageReadySchema,
@@ -183,6 +191,7 @@ export const WSMessageSchema = z.discriminatedUnion('type', [
   FactionObjectiveUpdateSchema,
   ErrorMessageSchema,
 ])
+
 
 export type WSMessage = z.infer<typeof WSMessageSchema>
 

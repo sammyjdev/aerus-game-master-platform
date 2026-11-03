@@ -14,7 +14,12 @@ Thumbs.db
 # --- Temporary run scripts ---
 .run-backend.sh
 .run-frontend.sh
-.claude/
+.claude/*
+!.claude/loop.yaml
+.axon/
+
+# FORGE local specifications and review artifacts
+.specs/
 
 # --- Python (global + backend) ---
 __pycache__/

@@ -1,6 +1,13 @@
-PYTHON        = .venv/Scripts/python
-PIP           = .venv/Scripts/pip
-UVICORN       = .venv/Scripts/uvicorn
+ifeq ($(OS),Windows_NT)
+VENV_BIN = Scripts
+BOOTSTRAP_PYTHON = python
+else
+VENV_BIN = bin
+BOOTSTRAP_PYTHON = python3
+endif
+PYTHON        = .venv/$(VENV_BIN)/python
+PIP           = .venv/$(VENV_BIN)/pip
+UVICORN       = .venv/$(VENV_BIN)/uvicorn
 ENV_FILE      = .env
 FRONTEND_DIR  = ../frontend
 NPM           = npm
@@ -33,7 +40,7 @@ help:
 
 # ── Setup ──────────────────────────────────────────────────────────────────
 setup:
-	python -m venv .venv
+	$(BOOTSTRAP_PYTHON) -m venv .venv
 	$(PIP) install --upgrade pip --quiet
 	$(PIP) install chromadb --prefer-binary --quiet
 	$(PIP) install -r requirements.txt --quiet
